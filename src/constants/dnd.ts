@@ -50,12 +50,16 @@ export function formatModifier(mod: number): string {
 }
 
 /** Which ability governs spell preparation for each class (null = class doesn't prepare) */
-const PREP_ABILITY: Record<string, Ability | null> = {
+const SPELLCASTING_ABILITY: Record<string, Ability | null> = {
   wizard: 'INT',
   cleric: 'WIS',
   druid: 'WIS',
   paladin: 'CHA',
   artificer: 'INT',
+  bard: 'CHA',
+  sorcerer: 'CHA',
+  warlock: 'CHA',
+  ranger: 'WIS',
 };
 
 /**
@@ -74,7 +78,7 @@ export function getPreparedSpellLimit(
   abilityScores: Record<Ability, number>,
 ): number | null {
   const key = className.toLowerCase().trim();
-  const ability = PREP_ABILITY[key];
+  const ability = SPELLCASTING_ABILITY[key];
   if (!ability) return null;
 
   const mod = getModifier(abilityScores[ability] ?? 10);
@@ -82,4 +86,33 @@ export function getPreparedSpellLimit(
   if (key === 'paladin') return Math.max(1, mod + Math.floor(level / 2));
   if (key === 'artificer') return Math.max(1, mod + Math.ceil(level / 2));
   return Math.max(1, mod + level);
+}
+
+/** Returns the spellcasting ability for a given class, or null */
+export function getSpellcastingAbility(className: string): Ability | null {
+  return SPELLCASTING_ABILITY[className.toLowerCase().trim()] ?? null;
+}
+
+/** Spell Save DC = 8 + proficiency bonus + spellcasting ability modifier */
+export function getSpellSaveDC(
+  className: string,
+  level: number,
+  abilityScores: Record<Ability, number>,
+): number | null {
+  const ability = getSpellcastingAbility(className);
+  if (!ability) return null;
+  const mod = getModifier(abilityScores[ability] ?? 10);
+  return 8 + getProficiencyBonus(level) + mod;
+}
+
+/** Spell Attack Bonus = proficiency bonus + spellcasting ability modifier */
+export function getSpellAttackBonus(
+  className: string,
+  level: number,
+  abilityScores: Record<Ability, number>,
+): number | null {
+  const ability = getSpellcastingAbility(className);
+  if (!ability) return null;
+  const mod = getModifier(abilityScores[ability] ?? 10);
+  return getProficiencyBonus(level) + mod;
 }

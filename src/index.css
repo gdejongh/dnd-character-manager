@@ -166,3 +166,36 @@ code {
 .stat-glow:focus-within { animation: glowPulse 1.5s ease-in-out infinite; }
 .slot-drain { animation: slotDrain 0.35s ease-out; }
 .hp-pulse { animation: hpPulse 0.3s ease-out; }
+
+/* ─── Combat Animations ─── */
+@keyframes arcaneExplosion {
+  0% { transform: scale(0); opacity: 1; }
+  40% { transform: scale(1.2); opacity: 0.9; }
+  100% { transform: scale(2.5); opacity: 0; }
+}
+@keyframes arcaneRing {
+  0% { transform: scale(0.3); opacity: 1; border-width: 6px; }
+  100% { transform: scale(2.2); opacity: 0; border-width: 1px; }
+}
+@keyframes arcaneParticle {
+  0% { transform: translate(0, 0) scale(1); opacity: 1; }
+  100% { opacity: 0; }
+}
+@keyframes combatSlideDown {
+  0% { opacity: 0; max-height: 0; }
+  100% { opacity: 1; max-height: 600px; }
+}
+@keyframes combatPulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(220,38,38,0); }
+  50% { box-shadow: 0 0 18px 4px rgba(220,38,38,0.35); }
+}
+@keyframes combatEntrance {
+  0% { opacity: 0; transform: scale(0.95) translateY(8px); }
+  100% { opacity: 1; transform: scale(1) translateY(0); }
+}
+.combat-slide-down {
+  animation: combatSlideDown 0.3s ease-out both;
+  overflow: hidden;
+}
+.combat-pulse { animation: combatPulse 2s ease-in-out infinite; }
+.combat-entrance { animation: combatEntrance 0.35s ease-out both; }

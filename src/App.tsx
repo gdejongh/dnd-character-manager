@@ -19,6 +19,7 @@ import { SpellSlots } from './components/SpellSlots';
 import { Inventory } from './components/Inventory';
 import { FeaturesTraits } from './components/FeaturesTraits';
 import { Notes } from './components/Notes';
+import { CombatView } from './components/CombatView';
 import { TabBar } from './components/TabBar';
 import { ToastContainer } from './components/Toast';
 import { DiceRoller } from './components/DiceRoller';
@@ -292,6 +293,17 @@ function App() {
           )}
           {activeTab === 'notes' && (
             <Notes notes={notes} loading={notesLoading} onUpdateContent={updateContent} />
+          )}
+          {activeTab === 'combat' && (
+            <CombatView
+              character={character}
+              scores={scores}
+              slots={slots}
+              spells={spells}
+              features={features}
+              onUpdateCharacter={updateCharacter}
+              onSetSlotUsed={setSlotUsed}
+            />
           )}
         </div>
       </main>

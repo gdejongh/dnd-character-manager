@@ -67,4 +67,4 @@ export interface Spell {
 
 export type Ability = 'STR' | 'DEX' | 'CON' | 'INT' | 'WIS' | 'CHA';
 
-export type Tab = 'sheet' | 'hp' | 'spells' | 'items' | 'features' | 'notes';
+export type Tab = 'sheet' | 'hp' | 'spells' | 'items' | 'features' | 'notes' | 'combat';
