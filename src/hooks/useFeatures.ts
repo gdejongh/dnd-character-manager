@@ -28,16 +28,40 @@ export function useFeatures(characterId: string | null) {
     return () => { active = false; };
   }, [characterId]);
 
-  async function addFeature(title: string, description: string, source: string, actionType: ActionType = 'other') {
+  async function addFeature(title: string, description: string, source: string, actionType: ActionType = 'other', maxUses: number | null = null) {
     if (!characterId) return;
     const { data, error } = await supabase
       .from('features')
-      .insert({ character_id: characterId, title, description, source, action_type: actionType })
+      .insert({ character_id: characterId, title, description, source, action_type: actionType, max_uses: maxUses })
       .select()
       .single();
 
     if (error) console.error('Error adding feature:', error);
     else if (data) setFeatures((prev) => [...prev, data]);
+  }
+
+  async function updateFeature(id: string, updates: Partial<Pick<Feature, 'title' | 'description' | 'source' | 'action_type' | 'max_uses' | 'used_uses'>>) {
+    const { data, error } = await supabase
+      .from('features')
+      .update(updates)
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) console.error('Error updating feature:', error);
+    else if (data) setFeatures((prev) => prev.map((f) => (f.id === id ? data : f)));
+  }
+
+  async function resetAllUses() {
+    if (!characterId) return;
+    const { error } = await supabase
+      .from('features')
+      .update({ used_uses: 0 })
+      .eq('character_id', characterId)
+      .gt('used_uses', 0);
+
+    if (error) console.error('Error resetting feature uses:', error);
+    else setFeatures((prev) => prev.map((f) => ({ ...f, used_uses: 0 })));
   }
 
   async function deleteFeature(id: string) {
@@ -46,5 +70,5 @@ export function useFeatures(characterId: string | null) {
     else setFeatures((prev) => prev.filter((f) => f.id !== id));
   }
 
-  return { features, loading, addFeature, deleteFeature };
+  return { features, loading, addFeature, updateFeature, resetAllUses, deleteFeature };
 }

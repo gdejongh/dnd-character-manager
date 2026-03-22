@@ -58,6 +58,8 @@ create table features (
   description   text not null default '',
   source        text not null default '',
   action_type   text not null default 'other' check (action_type in ('action','bonus_action','reaction','other')),
+  max_uses      integer default null,
+  used_uses     integer not null default 0,
   created_at    timestamptz not null default now()
 );
 

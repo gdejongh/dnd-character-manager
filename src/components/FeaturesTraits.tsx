@@ -3,20 +3,22 @@ import type { FormEvent, TouchEvent as ReactTouchEvent } from 'react';
 import type { Feature, ActionType } from '../types/database';
 import { ActionTypePicker, ActionTypeBadge, ActionTypeFilterBar } from './ActionType';
 import type { ActionTypeFilter } from '../constants/actionTypes';
-import { Swords, Trash2 } from 'lucide-react';
+import { Swords, Trash2, Pencil } from 'lucide-react';
 
 interface FeaturesTraitsProps {
   features: Feature[];
-  onAdd: (title: string, description: string, source: string, actionType: ActionType) => void;
+  onAdd: (title: string, description: string, source: string, actionType: ActionType, maxUses: number | null) => void;
+  onUpdate: (id: string, updates: Partial<Pick<Feature, 'title' | 'description' | 'source' | 'action_type' | 'max_uses' | 'used_uses'>>) => void;
   onDelete: (id: string) => void;
 }
 
-export function FeaturesTraits({ features, onAdd, onDelete }: FeaturesTraitsProps) {
+export function FeaturesTraits({ features, onAdd, onUpdate, onDelete }: FeaturesTraitsProps) {
   const [showForm, setShowForm] = useState(false);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [source, setSource] = useState('');
   const [actionType, setActionType] = useState<ActionType>('other');
+  const [maxUses, setMaxUses] = useState('');
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [actionFilter, setActionFilter] = useState<ActionTypeFilter>('all');
 
@@ -28,11 +30,13 @@ export function FeaturesTraits({ features, onAdd, onDelete }: FeaturesTraitsProp
   function handleAdd(e: FormEvent) {
     e.preventDefault();
     if (!title.trim()) return;
-    onAdd(title.trim(), description.trim(), source.trim(), actionType);
+    const parsedUses = maxUses.trim() ? parseInt(maxUses, 10) : null;
+    onAdd(title.trim(), description.trim(), source.trim(), actionType, parsedUses && parsedUses > 0 ? parsedUses : null);
     setTitle('');
     setDescription('');
     setSource('');
     setActionType('other');
+    setMaxUses('');
     setShowForm(false);
   }
 
@@ -73,6 +77,7 @@ export function FeaturesTraits({ features, onAdd, onDelete }: FeaturesTraitsProp
           feature={feature}
           isExpanded={expandedId === feature.id}
           onToggle={() => setExpandedId(expandedId === feature.id ? null : feature.id)}
+          onUpdate={(updates) => onUpdate(feature.id, updates)}
           onDelete={() => onDelete(feature.id)}
         />
       ))}
@@ -119,6 +124,21 @@ export function FeaturesTraits({ features, onAdd, onDelete }: FeaturesTraitsProp
             </span>
             <ActionTypePicker value={actionType} onChange={setActionType} />
           </div>
+          <div>
+            <span className="text-[10px] uppercase tracking-wider font-semibold mb-1 block" style={{ color: 'var(--text)', fontFamily: 'var(--heading)' }}>
+              Uses per Rest (leave blank for unlimited)
+            </span>
+            <input
+              type="number"
+              className="w-24 px-3 py-2 rounded-lg text-sm outline-none text-center"
+              style={inputStyle}
+              placeholder="—"
+              value={maxUses}
+              onChange={(e) => setMaxUses(e.target.value)}
+              min={1}
+              max={99}
+            />
+          </div>
           <div className="flex gap-3">
             <button
               type="button"
@@ -154,11 +174,13 @@ function FeatureCard({
   feature,
   isExpanded,
   onToggle,
+  onUpdate,
   onDelete,
 }: {
   feature: Feature;
   isExpanded: boolean;
   onToggle: () => void;
+  onUpdate: (updates: Partial<Pick<Feature, 'title' | 'description' | 'source' | 'action_type' | 'max_uses' | 'used_uses'>>) => void;
   onDelete: () => void;
 }) {
   const cardRef = useRef<HTMLDivElement>(null);
@@ -166,6 +188,34 @@ function FeatureCard({
   const currentXRef = useRef(0);
   const swipingRef = useRef(false);
   const [showDeleteBtn, setShowDeleteBtn] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editTitle, setEditTitle] = useState(feature.title);
+  const [editDescription, setEditDescription] = useState(feature.description);
+  const [editSource, setEditSource] = useState(feature.source);
+  const [editActionType, setEditActionType] = useState<ActionType>(feature.action_type ?? 'other');
+  const [editMaxUses, setEditMaxUses] = useState(feature.max_uses !== null ? String(feature.max_uses) : '');
+
+  function startEdit() {
+    setEditTitle(feature.title);
+    setEditDescription(feature.description);
+    setEditSource(feature.source);
+    setEditActionType(feature.action_type ?? 'other');
+    setEditMaxUses(feature.max_uses !== null ? String(feature.max_uses) : '');
+    setIsEditing(true);
+  }
+
+  function handleSave() {
+    if (!editTitle.trim()) return;
+    const parsedUses = editMaxUses.trim() ? parseInt(editMaxUses, 10) : null;
+    onUpdate({
+      title: editTitle.trim(),
+      description: editDescription.trim(),
+      source: editSource.trim(),
+      action_type: editActionType,
+      max_uses: parsedUses && parsedUses > 0 ? parsedUses : null,
+    });
+    setIsEditing(false);
+  }
 
   const handleTouchStart = useCallback((e: ReactTouchEvent) => {
     startXRef.current = e.touches[0].clientX;
@@ -264,13 +314,53 @@ function FeatureCard({
                 {feature.source}
               </span>
             )}
+            {feature.max_uses !== null && feature.max_uses > 0 && (
+              <div className="flex items-center gap-1.5 mt-1">
+                {Array.from({ length: feature.max_uses }).map((_, i) => {
+                  const remaining = feature.max_uses! - feature.used_uses;
+                  const available = i < remaining;
+                  return (
+                    <button
+                      key={i}
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (available) {
+                          onUpdate({ used_uses: feature.used_uses + 1 });
+                        } else {
+                          onUpdate({ used_uses: Math.max(0, feature.used_uses - 1) });
+                        }
+                      }}
+                      className="w-7 h-7 rounded-full flex items-center justify-center cursor-pointer transition-all"
+                      style={{
+                        background: available
+                          ? 'linear-gradient(135deg, var(--accent), var(--accent-bright))'
+                          : 'var(--bg-raised)',
+                        border: available
+                          ? '2px solid var(--accent)'
+                          : '2px solid var(--border)',
+                        boxShadow: available ? '0 0 6px rgba(201,168,76,0.4)' : 'none',
+                      }}
+                      aria-label={`Use ${i + 1}: ${available ? 'available' : 'spent'}`}
+                    >
+                      <span style={{ color: available ? '#0f0e13' : 'var(--border-light)', fontSize: '11px', fontWeight: 'bold' }}>
+                        {available ? '◆' : '○'}
+                      </span>
+                    </button>
+                  );
+                })}
+                <span className="text-[10px] ml-1" style={{ color: 'var(--text)', fontFamily: 'var(--mono)' }}>
+                  {feature.max_uses - feature.used_uses}/{feature.max_uses}
+                </span>
+              </div>
+            )}
           </div>
           <span className="text-sm shrink-0 ml-2" style={{ color: 'var(--accent)' }}>
             {isExpanded ? '▾' : '▸'}
           </span>
         </div>
 
-        {isExpanded && (
+        {isExpanded && !isEditing && (
           <div className="mt-3 pt-3 animate-fade-in" style={{ borderTop: '1px solid var(--border)' }}>
             <p
               className="text-sm whitespace-pre-wrap m-0"
@@ -278,13 +368,87 @@ function FeatureCard({
             >
               {feature.description || 'No description.'}
             </p>
-            <button
-              onClick={onDelete}
-              className="mt-3 px-3 py-1.5 rounded-lg text-xs cursor-pointer flex items-center gap-1"
-              style={{ background: 'var(--danger)', color: 'white', border: 'none' }}
-            >
-              <Trash2 size={11} /> Delete
-            </button>
+            <div className="flex gap-2 mt-3">
+              <button
+                onClick={startEdit}
+                className="px-3 py-1.5 rounded-lg text-xs cursor-pointer flex items-center gap-1"
+                style={{ background: 'var(--accent-bg)', color: 'var(--accent)', border: '1px solid var(--accent-border)' }}
+              >
+                <Pencil size={11} /> Edit
+              </button>
+              <button
+                onClick={onDelete}
+                className="px-3 py-1.5 rounded-lg text-xs cursor-pointer flex items-center gap-1"
+                style={{ background: 'var(--danger)', color: 'white', border: 'none' }}
+              >
+                <Trash2 size={11} /> Delete
+              </button>
+            </div>
+          </div>
+        )}
+
+        {isEditing && (
+          <div className="mt-3 pt-3 flex flex-col gap-3 animate-fade-in" style={{ borderTop: '1px solid var(--border)' }}>
+            <input
+              className="w-full px-3 py-2 rounded-lg text-sm outline-none"
+              style={{ background: 'var(--code-bg)', color: 'var(--text-h)', border: '1px solid var(--border)' }}
+              placeholder="Title *"
+              value={editTitle}
+              onChange={(e) => setEditTitle(e.target.value)}
+              autoFocus
+            />
+            <input
+              className="w-full px-3 py-2 rounded-lg text-sm outline-none"
+              style={{ background: 'var(--code-bg)', color: 'var(--text-h)', border: '1px solid var(--border)' }}
+              placeholder="Source (e.g., Racial, Class)"
+              value={editSource}
+              onChange={(e) => setEditSource(e.target.value)}
+            />
+            <textarea
+              className="w-full px-3 py-2 rounded-lg text-sm outline-none resize-none"
+              style={{ background: 'var(--code-bg)', color: 'var(--text-h)', border: '1px solid var(--border)', fontFamily: 'var(--sans)' }}
+              placeholder="Description"
+              rows={4}
+              value={editDescription}
+              onChange={(e) => setEditDescription(e.target.value)}
+            />
+            <div>
+              <span className="text-[10px] uppercase tracking-wider font-semibold mb-1 block" style={{ color: 'var(--text)', fontFamily: 'var(--heading)' }}>
+                Action Type
+              </span>
+              <ActionTypePicker value={editActionType} onChange={setEditActionType} />
+            </div>
+            <div>
+              <span className="text-[10px] uppercase tracking-wider font-semibold mb-1 block" style={{ color: 'var(--text)', fontFamily: 'var(--heading)' }}>
+                Uses per Rest (leave blank for unlimited)
+              </span>
+              <input
+                type="number"
+                className="w-24 px-3 py-2 rounded-lg text-sm outline-none text-center"
+                style={{ background: 'var(--code-bg)', color: 'var(--text-h)', border: '1px solid var(--border)' }}
+                placeholder="—"
+                value={editMaxUses}
+                onChange={(e) => setEditMaxUses(e.target.value)}
+                min={1}
+                max={99}
+              />
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setIsEditing(false)}
+                className="flex-1 py-2 rounded-lg text-sm cursor-pointer"
+                style={{ color: 'var(--text)', background: 'transparent', border: '1px solid var(--border)' }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSave}
+                className="flex-1 py-2 rounded-lg font-semibold text-sm cursor-pointer"
+                style={{ background: 'linear-gradient(135deg, var(--accent), var(--accent-bright))', color: '#0f0e13', border: 'none' }}
+              >
+                Save
+              </button>
+            </div>
           </div>
         )}
       </div>

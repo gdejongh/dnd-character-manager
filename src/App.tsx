@@ -23,11 +23,11 @@ import { CombatView } from './components/CombatView';
 import { TabBar } from './components/TabBar';
 import { CombatTransition } from './components/CombatTransition';
 import { ToastContainer } from './components/Toast';
-import { DiceRoller } from './components/DiceRoller';
+import { LongRestButton } from './components/LongRestButton';
 import { ExportPdfButton } from './components/ExportPdf';
 import { exportCharacterPdf } from './lib/exportPdf';
 import type { PdfStyle } from './lib/exportPdf';
-import { ChevronLeft } from 'lucide-react';
+import { Users } from 'lucide-react';
 import './App.css';
 
 function SetupScreen() {
@@ -118,7 +118,7 @@ function App() {
   const { spells, addSpell, updateSpell, deleteSpell } =
     useSpells(selectedCharacterId);
   const { items, addItem, updateItem, deleteItem } = useInventory(selectedCharacterId);
-  const { features, addFeature, deleteFeature } = useFeatures(selectedCharacterId);
+  const { features, addFeature, updateFeature, resetAllUses, deleteFeature } = useFeatures(selectedCharacterId);
   const { notes, loading: notesLoading, updateContent } = useNotes(selectedCharacterId);
 
   async function handleAuth(email: string, password: string, isSignUp: boolean) {
@@ -238,7 +238,7 @@ function App() {
             fontFamily: 'var(--heading)',
           }}
         >
-          <ChevronLeft size={14} /> Back
+          <Users size={14} /> All Characters
         </button>
         <div className="flex-1 min-w-0">
           <h1
@@ -289,7 +289,6 @@ function App() {
               preparedLimit={preparedLimit}
               onUpdateTotal={updateTotal}
               onSetSlotUsed={setSlotUsed}
-              onResetAll={resetAll}
               onAddSpell={addSpell}
               onUpdateSpell={updateSpell}
               onDeleteSpell={deleteSpell}
@@ -308,6 +307,7 @@ function App() {
             <FeaturesTraits
               features={features}
               onAdd={addFeature}
+              onUpdate={updateFeature}
               onDelete={deleteFeature}
             />
           )}
@@ -323,12 +323,13 @@ function App() {
               features={features}
               onUpdateCharacter={updateCharacter}
               onSetSlotUsed={setSlotUsed}
+              onUpdateFeature={updateFeature}
             />
           )}
         </div>
       </main>
 
-      <DiceRoller />
+      <LongRestButton onRestoreSlots={resetAll} onRestoreUses={resetAllUses} />
       <TabBar activeTab={activeTab} onTabChange={handleTabChange} />
     </div>
   );

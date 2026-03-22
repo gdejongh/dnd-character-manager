@@ -48,6 +48,8 @@ export interface Feature {
   description: string;
   source: string;
   action_type: ActionType;
+  max_uses: number | null;
+  used_uses: number;
   created_at: string;
 }
 

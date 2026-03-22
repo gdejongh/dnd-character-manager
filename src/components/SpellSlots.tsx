@@ -4,7 +4,7 @@ import type { SpellSlot, Spell, ActionType } from '../types/database';
 import { NumericInput } from './NumericInput';
 import { ActionTypePicker, ActionTypeBadge, ActionTypeFilterBar } from './ActionType';
 import type { ActionTypeFilter } from '../constants/actionTypes';
-import { Sparkles, Search, X } from 'lucide-react';
+import { Search, X } from 'lucide-react';
 
 interface SpellSlotsProps {
   slots: SpellSlot[];
@@ -12,7 +12,6 @@ interface SpellSlotsProps {
   preparedLimit: number | null;
   onUpdateTotal: (level: number, total: number) => void;
   onSetSlotUsed: (level: number, used: number) => void;
-  onResetAll: () => void;
   onAddSpell: (name: string, description: string, level: number, actionType: ActionType) => void;
   onUpdateSpell: (id: string, updates: Partial<Pick<Spell, 'name' | 'description' | 'level' | 'prepared' | 'action_type'>>) => void;
   onDeleteSpell: (id: string) => void;
@@ -43,7 +42,6 @@ export function SpellSlots({
   preparedLimit,
   onUpdateTotal,
   onSetSlotUsed,
-  onResetAll,
   onAddSpell,
   onUpdateSpell,
   onDeleteSpell,
@@ -59,8 +57,6 @@ export function SpellSlots({
   const [formActionType, setFormActionType] = useState<ActionType>('action');
   const [drainingSlot, setDrainingSlot] = useState<string | null>(null);
   const drainTimeoutRef = useRef<ReturnType<typeof setTimeout>>(undefined);
-
-  const hasAnySlots = slots.some((s) => s.total > 0);
 
   const q = search.toLowerCase();
   const filteredSpells = spells.filter((s) => {
@@ -209,25 +205,7 @@ export function SpellSlots({
         </div>
       )}
 
-      {/* Long Rest */}
-      {hasAnySlots && !search && (
-        <div className="flex justify-end">
-          <button
-            onClick={onResetAll}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm cursor-pointer"
-            style={{
-              background: 'var(--spell-bg)',
-              color: 'var(--spell-violet)',
-              border: '1px solid var(--spell-border)',
-              fontFamily: 'var(--heading)',
-              letterSpacing: '0.3px',
-            }}
-          >
-            <Sparkles size={14} />
-            Long Rest — Restore Slots
-          </button>
-        </div>
-      )}
+      {/* Spell Levels */}
 
       {/* Spell levels */}
       {levels.map((level) => {

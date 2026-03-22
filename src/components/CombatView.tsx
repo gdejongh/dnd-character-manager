@@ -23,6 +23,7 @@ interface CombatViewProps {
   features: Feature[];
   onUpdateCharacter: (updates: Partial<Pick<Character, 'current_hp' | 'max_hp' | 'temp_hp'>>) => void;
   onSetSlotUsed: (level: number, used: number) => void;
+  onUpdateFeature: (id: string, updates: Partial<Pick<Feature, 'used_uses'>>) => void;
 }
 
 const ORD: Record<number, string> = {
@@ -244,6 +245,7 @@ export function CombatView({
   features,
   onUpdateCharacter,
   onSetSlotUsed,
+  onUpdateFeature,
 }: CombatViewProps) {
   const [expandedSpell, setExpandedSpell] = useState<string | null>(null);
   const [expandedFeature, setExpandedFeature] = useState<string | null>(null);
@@ -325,8 +327,13 @@ export function CombatView({
   }, [slots, onSetSlotUsed]);
 
   const handleUseAbility = useCallback((feature: Feature) => {
+    // Decrement usage if feature has limited uses
+    if (feature.max_uses !== null && feature.max_uses > 0) {
+      if (feature.used_uses >= feature.max_uses) return;
+      onUpdateFeature(feature.id, { used_uses: feature.used_uses + 1 });
+    }
     setUsingAbility(feature.title);
-  }, []);
+  }, [onUpdateFeature]);
 
   const hpPercent = character.max_hp > 0 ? (character.current_hp / character.max_hp) * 100 : 0;
   const hpColor = hpPercent > 50 ? 'var(--hp-green)' : hpPercent > 25 ? 'var(--hp-yellow)' : 'var(--hp-crimson)';
@@ -680,6 +687,10 @@ export function CombatView({
 
           {filteredFeatures.map((feature) => {
             const isExpanded = expandedFeature === feature.id;
+            const hasUses = feature.max_uses !== null && feature.max_uses > 0;
+            const remaining = hasUses ? feature.max_uses! - feature.used_uses : Infinity;
+            const depleted = hasUses && remaining <= 0;
+
             return (
               <div
                 key={feature.id}
@@ -687,6 +698,7 @@ export function CombatView({
                 style={{
                   border: '1px solid var(--accent-border)',
                   background: 'var(--bg-surface)',
+                  opacity: depleted ? 0.5 : 1,
                 }}
               >
                 <div
@@ -711,6 +723,24 @@ export function CombatView({
                     {feature.title}
                   </span>
                   <ActionTypeBadge type={feature.action_type ?? 'other'} small />
+                  {hasUses && (
+                    <div className="flex items-center gap-1 shrink-0">
+                      {Array.from({ length: feature.max_uses! }).map((_, i) => (
+                        <div
+                          key={i}
+                          className="w-2.5 h-2.5 rounded-full transition-all"
+                          style={{
+                            background: i < remaining
+                              ? 'var(--accent)'
+                              : 'var(--border)',
+                            boxShadow: i < remaining
+                              ? '0 0 4px rgba(201,168,76,0.5)'
+                              : 'none',
+                          }}
+                        />
+                      ))}
+                    </div>
+                  )}
                   {feature.source && (
                     <span
                       className="text-[10px] px-1.5 py-0.5 rounded-full shrink-0"
@@ -722,15 +752,18 @@ export function CombatView({
                   <button
                     className="px-3 py-1 rounded-lg text-xs font-bold cursor-pointer active:scale-90 transition-transform shrink-0"
                     style={{
-                      background: 'linear-gradient(135deg, var(--accent), var(--accent-bright))',
-                      color: '#0f0e13',
+                      background: depleted
+                        ? 'var(--border)'
+                        : 'linear-gradient(135deg, var(--accent), var(--accent-bright))',
+                      color: depleted ? 'var(--text)' : '#0f0e13',
                       border: 'none',
                       fontFamily: 'var(--heading)',
                       letterSpacing: '0.5px',
                     }}
+                    disabled={depleted}
                     onClick={(e) => {
                       e.stopPropagation();
-                      handleUseAbility(feature);
+                      if (!depleted) handleUseAbility(feature);
                     }}
                   >
                     Use
@@ -748,6 +781,11 @@ export function CombatView({
                     >
                       {feature.description || 'No description.'}
                     </p>
+                    {hasUses && (
+                      <p className="text-xs mt-2 m-0" style={{ color: 'var(--accent)', fontFamily: 'var(--heading)' }}>
+                        {remaining}/{feature.max_uses} uses remaining
+                      </p>
+                    )}
                   </div>
                 )}
               </div>

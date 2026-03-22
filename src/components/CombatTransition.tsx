@@ -6,33 +6,43 @@ interface CombatTransitionProps {
 }
 
 export function CombatTransition({ onSwitchTab, onComplete }: CombatTransitionProps) {
-  const refs = useRef({ onSwitchTab, onComplete });
-  refs.current = { onSwitchTab, onComplete };
+  const switchRef = useRef(onSwitchTab);
+  const completeRef = useRef(onComplete);
+
+  useEffect(() => {
+    switchRef.current = onSwitchTab;
+    completeRef.current = onComplete;
+  }, [onSwitchTab, onComplete]);
 
   const sparks = useMemo(
     () =>
       Array.from({ length: 30 }, (_, i) => {
-        const angle = (i / 30) * 360 + (Math.random() - 0.5) * 20;
+        // Deterministic pseudo-random using index
+        const seed1 = ((i * 7 + 3) % 30) / 30;
+        const seed2 = ((i * 13 + 7) % 30) / 30;
+        const seed3 = ((i * 11 + 5) % 30) / 30;
+        const seed4 = ((i * 17 + 2) % 30) / 30;
+        const seed5 = ((i * 19 + 11) % 30) / 30;
+        const seed6 = ((i * 23 + 1) % 5);
+        const angle = (i / 30) * 360 + (seed1 - 0.5) * 20;
         const rad = (angle * Math.PI) / 180;
-        const dist = 60 + Math.random() * 220;
+        const dist = 60 + seed2 * 220;
         return {
           id: i,
           x: Math.cos(rad) * dist,
           y: Math.sin(rad) * dist,
-          size: 2 + Math.random() * 5,
-          delay: Math.random() * 200,
-          duration: 400 + Math.random() * 600,
-          color: ['#ff4444', '#ff6600', '#ffaa00', '#ffdd44', '#fff'][
-            Math.floor(Math.random() * 5)
-          ],
+          size: 2 + seed3 * 5,
+          delay: seed4 * 200,
+          duration: 400 + seed5 * 600,
+          color: ['#ff4444', '#ff6600', '#ffaa00', '#ffdd44', '#fff'][seed6],
         };
       }),
     [],
   );
 
   useEffect(() => {
-    const t1 = setTimeout(() => refs.current.onSwitchTab(), 1800);
-    const t2 = setTimeout(() => refs.current.onComplete(), 2500);
+    const t1 = setTimeout(() => switchRef.current(), 1800);
+    const t2 = setTimeout(() => completeRef.current(), 2500);
     return () => {
       clearTimeout(t1);
       clearTimeout(t2);
