@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { FormEvent } from 'react';
 import type { InventoryItem } from '../types/database';
+import { NumericInput } from './NumericInput';
 
 interface InventoryProps {
   items: InventoryItem[];
@@ -94,31 +95,21 @@ export function Inventory({
                 placeholder="Item name"
               />
               <div className="flex gap-2">
-                <input
+                <NumericInput
                   className="w-16 px-2 py-2 rounded-lg text-sm text-center outline-none"
                   style={inputStyle}
-                  type="number"
                   min={0}
                   value={item.quantity}
-                  onChange={(e) =>
-                    onUpdate(item.id, {
-                      quantity: Math.max(0, parseInt(e.target.value) || 0),
-                    })
-                  }
+                  onChange={(val) => onUpdate(item.id, { quantity: val })}
                   placeholder="Qty"
                 />
-                <input
+                <NumericInput
                   className="w-20 px-2 py-2 rounded-lg text-sm text-center outline-none"
                   style={inputStyle}
-                  type="number"
                   min={0}
                   step={0.1}
                   value={item.weight}
-                  onChange={(e) =>
-                    onUpdate(item.id, {
-                      weight: Math.max(0, parseFloat(e.target.value) || 0),
-                    })
-                  }
+                  onChange={(val) => onUpdate(item.id, { weight: val })}
                   placeholder="Wt"
                 />
                 <input

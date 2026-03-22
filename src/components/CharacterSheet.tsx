@@ -8,6 +8,7 @@ import {
   getProficiencyBonus,
   formatModifier,
 } from '../constants/dnd';
+import { NumericInput } from './NumericInput';
 
 interface CharacterSheetProps {
   character: Character;
@@ -27,8 +28,6 @@ export function CharacterSheet({
   onToggleSavingThrow,
 }: CharacterSheetProps) {
   const [editingField, setEditingField] = useState<string | null>(null);
-  // Local draft values for score inputs so the field can go empty while typing
-  const [scoreDrafts, setScoreDrafts] = useState<Partial<Record<Ability, string>>>({});
   const profBonus = getProficiencyBonus(character.level);
 
   function getScore(ability: Ability): number {
@@ -92,18 +91,13 @@ export function CharacterSheet({
               value={character.class}
               onChange={(e) => onUpdateCharacter({ class: e.target.value })}
             />
-            <input
+            <NumericInput
               className="w-16 px-2 py-1 rounded-lg text-sm outline-none text-center"
               style={inputStyle}
-              type="number"
               min={1}
               max={20}
               value={character.level}
-              onChange={(e) =>
-                onUpdateCharacter({
-                  level: Math.max(1, Math.min(20, Number(e.target.value) || 1)),
-                })
-              }
+              onChange={(val) => onUpdateCharacter({ level: val })}
             />
             <button
               className="px-3 py-1 rounded-lg text-sm cursor-pointer"
@@ -173,27 +167,11 @@ export function CharacterSheet({
                 <span className="text-2xl font-bold my-1" style={{ color: 'var(--text-h)' }}>
                   {formatModifier(mod)}
                 </span>
-                <input
-                  type="number"
+                <NumericInput
                   min={1}
                   max={30}
-                  value={scoreDrafts[ability] ?? score}
-                  onFocus={() =>
-                    setScoreDrafts((d) => ({ ...d, [ability]: String(score) }))
-                  }
-                  onChange={(e) =>
-                    setScoreDrafts((d) => ({ ...d, [ability]: e.target.value }))
-                  }
-                  onBlur={() => {
-                    const parsed = parseInt(scoreDrafts[ability] ?? '', 10);
-                    const clamped = isNaN(parsed) ? score : Math.max(1, Math.min(30, parsed));
-                    onUpdateScore(ability, clamped);
-                    setScoreDrafts((d) => {
-                      const next = { ...d };
-                      delete next[ability];
-                      return next;
-                    });
-                  }}
+                  value={score}
+                  onChange={(val) => onUpdateScore(ability, val)}
                   className="w-12 text-center text-sm px-1 py-0.5 rounded outline-none"
                   style={inputStyle}
                 />

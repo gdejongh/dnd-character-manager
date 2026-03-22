@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { FormEvent } from 'react';
 import type { SpellSlot, Spell } from '../types/database';
+import { NumericInput } from './NumericInput';
 
 interface SpellSlotsProps {
   slots: SpellSlot[];
@@ -265,17 +266,11 @@ export function SpellSlots({
                     <span className="text-xs" style={{ color: 'var(--text)' }}>
                       Total:
                     </span>
-                    <input
-                      type="number"
+                    <NumericInput
                       min={0}
                       max={9}
                       value={slot.total}
-                      onChange={(e) =>
-                        onUpdateTotal(
-                          slot.level,
-                          Math.max(0, Math.min(9, Number(e.target.value) || 0)),
-                        )
-                      }
+                      onChange={(val) => onUpdateTotal(slot.level, val)}
                       className="w-12 text-center px-1 py-0.5 rounded outline-none text-sm"
                       style={inputStyle}
                     />

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import type { Character } from '../types/database';
+import { NumericInput } from './NumericInput';
 
 interface HpTrackerProps {
   character: Character;
@@ -167,13 +168,10 @@ export function HpTracker({ character, onUpdate }: HpTrackerProps) {
           </span>
           {editingTemp ? (
             <div className="flex items-center gap-2">
-              <input
-                type="number"
+              <NumericInput
                 min={0}
                 value={character.temp_hp}
-                onChange={(e) =>
-                  onUpdate({ temp_hp: Math.max(0, Number(e.target.value) || 0) })
-                }
+                onChange={(val) => onUpdate({ temp_hp: val })}
                 className="w-20 px-2 py-1 rounded-lg text-center outline-none"
                 style={{
                   background: 'var(--code-bg)',
@@ -217,17 +215,15 @@ export function HpTracker({ character, onUpdate }: HpTrackerProps) {
           </span>
           {editingMax ? (
             <div className="flex items-center gap-2">
-              <input
-                type="number"
+              <NumericInput
                 min={1}
                 value={character.max_hp}
-                onChange={(e) => {
-                  const val = Math.max(1, Number(e.target.value) || 1);
+                onChange={(val) =>
                   onUpdate({
                     max_hp: val,
                     current_hp: Math.min(character.current_hp, val),
-                  });
-                }}
+                  })
+                }
                 className="w-20 px-2 py-1 rounded-lg text-center outline-none"
                 style={{
                   background: 'var(--code-bg)',
