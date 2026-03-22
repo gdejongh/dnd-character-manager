@@ -22,6 +22,9 @@ import { Notes } from './components/Notes';
 import { TabBar } from './components/TabBar';
 import { ToastContainer } from './components/Toast';
 import { DiceRoller } from './components/DiceRoller';
+import { ExportPdfButton } from './components/ExportPdf';
+import { exportCharacterPdf } from './lib/exportPdf';
+import type { PdfStyle } from './lib/exportPdf';
 import { ChevronLeft } from 'lucide-react';
 import './App.css';
 
@@ -228,6 +231,19 @@ function App() {
             {character.level > 0 && ` · Lvl ${character.level}`}
           </p>
         </div>
+        <ExportPdfButton
+          onExport={(pdfStyle: PdfStyle) => {
+            exportCharacterPdf({
+              character,
+              scores,
+              slots,
+              spells,
+              items,
+              features,
+              notes,
+            }, pdfStyle);
+          }}
+        />
       </header>
 
       {/* Tab content with fade transition */}
