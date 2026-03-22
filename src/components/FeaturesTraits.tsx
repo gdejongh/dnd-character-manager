@@ -1,11 +1,13 @@
 import { useState, useRef, useCallback } from 'react';
 import type { FormEvent, TouchEvent as ReactTouchEvent } from 'react';
-import type { Feature } from '../types/database';
+import type { Feature, ActionType } from '../types/database';
+import { ActionTypePicker, ActionTypeBadge, ActionTypeFilterBar } from './ActionType';
+import type { ActionTypeFilter } from '../constants/actionTypes';
 import { Swords, Trash2 } from 'lucide-react';
 
 interface FeaturesTraitsProps {
   features: Feature[];
-  onAdd: (title: string, description: string, source: string) => void;
+  onAdd: (title: string, description: string, source: string, actionType: ActionType) => void;
   onDelete: (id: string) => void;
 }
 
@@ -14,15 +16,23 @@ export function FeaturesTraits({ features, onAdd, onDelete }: FeaturesTraitsProp
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [source, setSource] = useState('');
+  const [actionType, setActionType] = useState<ActionType>('other');
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [actionFilter, setActionFilter] = useState<ActionTypeFilter>('all');
+
+  const filteredFeatures = features.filter((f) => {
+    if (actionFilter === 'all') return true;
+    return (f.action_type ?? 'other') === actionFilter;
+  });
 
   function handleAdd(e: FormEvent) {
     e.preventDefault();
     if (!title.trim()) return;
-    onAdd(title.trim(), description.trim(), source.trim());
+    onAdd(title.trim(), description.trim(), source.trim(), actionType);
     setTitle('');
     setDescription('');
     setSource('');
+    setActionType('other');
     setShowForm(false);
   }
 
@@ -44,7 +54,20 @@ export function FeaturesTraits({ features, onAdd, onDelete }: FeaturesTraitsProp
         </h3>
       </div>
 
-      {features.map((feature) => (
+      {/* Action type filter */}
+      <ActionTypeFilterBar
+        value={actionFilter}
+        onChange={setActionFilter}
+        counts={{
+          all: features.length,
+          action: features.filter((f) => f.action_type === 'action').length,
+          bonus_action: features.filter((f) => f.action_type === 'bonus_action').length,
+          reaction: features.filter((f) => f.action_type === 'reaction').length,
+          other: features.filter((f) => (!f.action_type || f.action_type === 'other')).length,
+        }}
+      />
+
+      {filteredFeatures.map((feature) => (
         <FeatureCard
           key={feature.id}
           feature={feature}
@@ -54,9 +77,9 @@ export function FeaturesTraits({ features, onAdd, onDelete }: FeaturesTraitsProp
         />
       ))}
 
-      {features.length === 0 && !showForm && (
+      {filteredFeatures.length === 0 && !showForm && (
         <p className="text-center py-8" style={{ color: 'var(--text)' }}>
-          No features or traits yet.
+          {actionFilter === 'all' ? 'No features or traits yet.' : 'No features with this action type.'}
         </p>
       )}
 
@@ -90,6 +113,12 @@ export function FeaturesTraits({ features, onAdd, onDelete }: FeaturesTraitsProp
             value={description}
             onChange={(e) => setDescription(e.target.value)}
           />
+          <div>
+            <span className="text-[10px] uppercase tracking-wider font-semibold mb-1 block" style={{ color: 'var(--text)', fontFamily: 'var(--heading)' }}>
+              Action Type
+            </span>
+            <ActionTypePicker value={actionType} onChange={setActionType} />
+          </div>
           <div className="flex gap-3">
             <button
               type="button"
@@ -214,12 +243,15 @@ function FeatureCard({
           onKeyDown={(e) => e.key === 'Enter' && onToggle()}
         >
           <div className="flex-1">
-            <h4
-              className="font-semibold text-sm m-0"
-              style={{ color: 'var(--text-h)', fontFamily: 'var(--heading)', letterSpacing: '0.3px' }}
-            >
-              {feature.title}
-            </h4>
+            <div className="flex items-center gap-2">
+              <h4
+                className="font-semibold text-sm m-0"
+                style={{ color: 'var(--text-h)', fontFamily: 'var(--heading)', letterSpacing: '0.3px' }}
+              >
+                {feature.title}
+              </h4>
+              <ActionTypeBadge type={feature.action_type ?? 'other'} small />
+            </div>
             {feature.source && (
               <span
                 className="text-xs mt-0.5 inline-block px-2 py-0.5 rounded-full"

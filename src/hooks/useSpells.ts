@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import type { Spell } from '../types/database';
+import type { Spell, ActionType } from '../types/database';
 import { supabase } from '../lib/supabase';
 
 export function useSpells(characterId: string | null) {
@@ -29,11 +29,11 @@ export function useSpells(characterId: string | null) {
     return () => { active = false; };
   }, [characterId]);
 
-  async function addSpell(name: string, description: string, level: number) {
+  async function addSpell(name: string, description: string, level: number, actionType: ActionType = 'action') {
     if (!characterId) return;
     const { data, error } = await supabase
       .from('spells')
-      .insert({ character_id: characterId, name, description, level })
+      .insert({ character_id: characterId, name, description, level, action_type: actionType })
       .select()
       .single();
 
@@ -43,7 +43,7 @@ export function useSpells(characterId: string | null) {
 
   async function updateSpell(
     id: string,
-    updates: Partial<Pick<Spell, 'name' | 'description' | 'level' | 'prepared'>>,
+    updates: Partial<Pick<Spell, 'name' | 'description' | 'level' | 'prepared' | 'action_type'>>,
   ) {
     const { data, error } = await supabase
       .from('spells')

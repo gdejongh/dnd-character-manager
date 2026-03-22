@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import type { Feature } from '../types/database';
+import type { Feature, ActionType } from '../types/database';
 import { supabase } from '../lib/supabase';
 
 export function useFeatures(characterId: string | null) {
@@ -28,11 +28,11 @@ export function useFeatures(characterId: string | null) {
     return () => { active = false; };
   }, [characterId]);
 
-  async function addFeature(title: string, description: string, source: string) {
+  async function addFeature(title: string, description: string, source: string, actionType: ActionType = 'other') {
     if (!characterId) return;
     const { data, error } = await supabase
       .from('features')
-      .insert({ character_id: characterId, title, description, source })
+      .insert({ character_id: characterId, title, description, source, action_type: actionType })
       .select()
       .single();
 

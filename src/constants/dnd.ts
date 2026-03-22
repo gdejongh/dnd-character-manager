@@ -49,7 +49,12 @@ export function formatModifier(mod: number): string {
   return mod >= 0 ? `+${mod}` : `${mod}`;
 }
 
-/** Which ability governs spell preparation for each class (null = class doesn't prepare) */
+/** Normalize a class string like "Wizard: Chronurgy Magic" or "Cleric (Light)" to "wizard" */
+function resolveClassKey(className: string): string {
+  return className.toLowerCase().trim().split(/[\s:(/–-]/)[0];
+}
+
+/** Which ability governs spellcasting for each class */
 const SPELLCASTING_ABILITY: Record<string, Ability | null> = {
   wizard: 'INT',
   cleric: 'WIS',
@@ -77,7 +82,7 @@ export function getPreparedSpellLimit(
   level: number,
   abilityScores: Record<Ability, number>,
 ): number | null {
-  const key = className.toLowerCase().trim();
+  const key = resolveClassKey(className);
   const ability = SPELLCASTING_ABILITY[key];
   if (!ability) return null;
 
@@ -90,7 +95,7 @@ export function getPreparedSpellLimit(
 
 /** Returns the spellcasting ability for a given class, or null */
 export function getSpellcastingAbility(className: string): Ability | null {
-  return SPELLCASTING_ABILITY[className.toLowerCase().trim()] ?? null;
+  return SPELLCASTING_ABILITY[resolveClassKey(className)] ?? null;
 }
 
 /** Spell Save DC = 8 + proficiency bonus + spellcasting ability modifier */

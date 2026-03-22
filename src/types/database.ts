@@ -39,12 +39,15 @@ export interface InventoryItem {
   created_at: string;
 }
 
+export type ActionType = 'action' | 'bonus_action' | 'reaction' | 'other';
+
 export interface Feature {
   id: string;
   character_id: string;
   title: string;
   description: string;
   source: string;
+  action_type: ActionType;
   created_at: string;
 }
 
@@ -62,6 +65,7 @@ export interface Spell {
   description: string;
   level: number;
   prepared: boolean;
+  action_type: ActionType;
   created_at: string;
 }
 

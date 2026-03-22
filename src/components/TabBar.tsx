@@ -1,5 +1,5 @@
 import type { Tab } from '../types/database';
-import { Shield, Heart, Sparkles, Backpack, Swords, ScrollText, FlameKindling } from 'lucide-react';
+import { Shield, Heart, Sparkles, Backpack, Swords, ScrollText, Crown } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 
 interface TabBarProps {
@@ -12,7 +12,7 @@ const TABS: { id: Tab; label: string; Icon: LucideIcon }[] = [
   { id: 'hp', label: 'HP', Icon: Heart },
   { id: 'spells', label: 'Spells', Icon: Sparkles },
   { id: 'items', label: 'Items', Icon: Backpack },
-  { id: 'features', label: 'Traits', Icon: Swords },
+  { id: 'features', label: 'Traits', Icon: Crown },
   { id: 'notes', label: 'Notes', Icon: ScrollText },
 ];
 
@@ -67,7 +67,7 @@ export function TabBar({ activeTab, onTabChange }: TabBarProps) {
             animation: isCombatActive ? 'combatPulse 2s ease-in-out infinite' : undefined,
           }}
         >
-          <FlameKindling
+          <Swords
             size={22}
             style={{
               color: isCombatActive ? '#fff' : '#ef4444',

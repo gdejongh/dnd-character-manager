@@ -57,6 +57,7 @@ create table features (
   title         text not null,
   description   text not null default '',
   source        text not null default '',
+  action_type   text not null default 'other' check (action_type in ('action','bonus_action','reaction','other')),
   created_at    timestamptz not null default now()
 );
 
@@ -167,6 +168,7 @@ create table spells (
   description   text not null default '',
   level         integer not null default 0 check (level between 0 and 9),
   prepared      boolean not null default true,
+  action_type   text not null default 'action' check (action_type in ('action','bonus_action','reaction','other')),
   created_at    timestamptz not null default now()
 );
 

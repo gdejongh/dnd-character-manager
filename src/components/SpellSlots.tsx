@@ -1,7 +1,9 @@
 import { useState, useRef } from 'react';
 import type { FormEvent } from 'react';
-import type { SpellSlot, Spell } from '../types/database';
+import type { SpellSlot, Spell, ActionType } from '../types/database';
 import { NumericInput } from './NumericInput';
+import { ActionTypePicker, ActionTypeBadge, ActionTypeFilterBar } from './ActionType';
+import type { ActionTypeFilter } from '../constants/actionTypes';
 import { Sparkles, Search, X } from 'lucide-react';
 
 interface SpellSlotsProps {
@@ -11,8 +13,8 @@ interface SpellSlotsProps {
   onUpdateTotal: (level: number, total: number) => void;
   onSetSlotUsed: (level: number, used: number) => void;
   onResetAll: () => void;
-  onAddSpell: (name: string, description: string, level: number) => void;
-  onUpdateSpell: (id: string, updates: Partial<Pick<Spell, 'name' | 'description' | 'level' | 'prepared'>>) => void;
+  onAddSpell: (name: string, description: string, level: number, actionType: ActionType) => void;
+  onUpdateSpell: (id: string, updates: Partial<Pick<Spell, 'name' | 'description' | 'level' | 'prepared' | 'action_type'>>) => void;
   onDeleteSpell: (id: string) => void;
 }
 
@@ -48,11 +50,13 @@ export function SpellSlots({
 }: SpellSlotsProps) {
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<'all' | 'prepared'>('all');
+  const [actionFilter, setActionFilter] = useState<ActionTypeFilter>('all');
   const [expandedSpellId, setExpandedSpellId] = useState<string | null>(null);
   const [addingAtLevel, setAddingAtLevel] = useState<number | null>(null);
   const [editingSpellId, setEditingSpellId] = useState<string | null>(null);
   const [formName, setFormName] = useState('');
   const [formDesc, setFormDesc] = useState('');
+  const [formActionType, setFormActionType] = useState<ActionType>('action');
   const [drainingSlot, setDrainingSlot] = useState<string | null>(null);
   const drainTimeoutRef = useRef<ReturnType<typeof setTimeout>>(undefined);
 
@@ -61,6 +65,7 @@ export function SpellSlots({
   const q = search.toLowerCase();
   const filteredSpells = spells.filter((s) => {
     if (filter === 'prepared' && !s.prepared) return false;
+    if (actionFilter !== 'all' && s.action_type !== actionFilter) return false;
     if (q && !s.name.toLowerCase().includes(q) && !s.description.toLowerCase().includes(q)) return false;
     return true;
   });
@@ -86,6 +91,7 @@ export function SpellSlots({
     setAddingAtLevel(level);
     setFormName('');
     setFormDesc('');
+    setFormActionType('action');
   }
 
   function startEdit(spell: Spell) {
@@ -93,6 +99,7 @@ export function SpellSlots({
     setEditingSpellId(spell.id);
     setFormName(spell.name);
     setFormDesc(spell.description);
+    setFormActionType(spell.action_type ?? 'action');
   }
 
   function cancelForm() {
@@ -100,19 +107,20 @@ export function SpellSlots({
     setEditingSpellId(null);
     setFormName('');
     setFormDesc('');
+    setFormActionType('action');
   }
 
   function handleAdd(e: FormEvent) {
     e.preventDefault();
     if (!formName.trim() || addingAtLevel === null) return;
-    onAddSpell(formName.trim(), formDesc.trim(), addingAtLevel);
+    onAddSpell(formName.trim(), formDesc.trim(), addingAtLevel, formActionType);
     cancelForm();
   }
 
   function handleSaveEdit(e: FormEvent) {
     e.preventDefault();
     if (!formName.trim() || !editingSpellId) return;
-    onUpdateSpell(editingSpellId, { name: formName.trim(), description: formDesc.trim() });
+    onUpdateSpell(editingSpellId, { name: formName.trim(), description: formDesc.trim(), action_type: formActionType });
     cancelForm();
   }
 
@@ -168,6 +176,19 @@ export function SpellSlots({
           </button>
         ))}
       </div>
+
+      {/* Action type filter */}
+      <ActionTypeFilterBar
+        value={actionFilter}
+        onChange={setActionFilter}
+        counts={{
+          all: spells.length,
+          action: spells.filter((s) => s.action_type === 'action').length,
+          bonus_action: spells.filter((s) => s.action_type === 'bonus_action').length,
+          reaction: spells.filter((s) => s.action_type === 'reaction').length,
+          other: spells.filter((s) => (!s.action_type || s.action_type === 'other')).length,
+        }}
+      />
 
       {/* Over-limit warning */}
       {isOverLimit && (
@@ -328,6 +349,12 @@ export function SpellSlots({
                         placeholder="Spell description — paste from any source"
                         rows={6}
                       />
+                      <div>
+                        <span className="text-[10px] uppercase tracking-wider font-semibold mb-1 block" style={{ color: 'var(--text)', fontFamily: 'var(--heading)' }}>
+                          Casting Time
+                        </span>
+                        <ActionTypePicker value={formActionType} onChange={setFormActionType} />
+                      </div>
                       <div className="flex gap-2">
                         <button
                           type="submit"
@@ -386,6 +413,7 @@ export function SpellSlots({
                         >
                           {spell.name}
                         </span>
+                        <ActionTypeBadge type={spell.action_type ?? 'action'} small />
                         <span className="text-xs shrink-0" style={{ color: 'var(--spell-indigo)' }}>
                           {expandedSpellId === spell.id ? '▾' : '▸'}
                         </span>
@@ -448,6 +476,12 @@ export function SpellSlots({
                     placeholder="Spell description — paste from any source"
                     rows={6}
                   />
+                  <div>
+                    <span className="text-[10px] uppercase tracking-wider font-semibold mb-1 block" style={{ color: 'var(--text)', fontFamily: 'var(--heading)' }}>
+                      Casting Time
+                    </span>
+                    <ActionTypePicker value={formActionType} onChange={setFormActionType} />
+                  </div>
                   <div className="flex gap-2">
                     <button
                       type="submit"

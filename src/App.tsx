@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import type { Tab } from './types/database';
 import { isSupabaseConfigured } from './lib/supabase';
 import { getPreparedSpellLimit } from './constants/dnd';
@@ -21,6 +21,7 @@ import { FeaturesTraits } from './components/FeaturesTraits';
 import { Notes } from './components/Notes';
 import { CombatView } from './components/CombatView';
 import { TabBar } from './components/TabBar';
+import { CombatTransition } from './components/CombatTransition';
 import { ToastContainer } from './components/Toast';
 import { DiceRoller } from './components/DiceRoller';
 import { ExportPdfButton } from './components/ExportPdf';
@@ -93,6 +94,18 @@ function App() {
   const { user, loading: authLoading, signIn, signUp, signOut } = useAuth();
   const [selectedCharacterId, setSelectedCharacterId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<Tab>('sheet');
+  const [showCombatTransition, setShowCombatTransition] = useState(false);
+
+  const handleTabChange = useCallback(
+    (tab: Tab) => {
+      if (tab === 'combat' && activeTab !== 'combat') {
+        setShowCombatTransition(true);
+      } else {
+        setActiveTab(tab);
+      }
+    },
+    [activeTab],
+  );
 
   const { characters, loading: charsLoading, createCharacter, deleteCharacter } =
     useCharacters(user?.id);
@@ -198,6 +211,13 @@ function App() {
   return (
     <div className="flex flex-col min-h-screen">
       <ToastContainer />
+
+      {showCombatTransition && (
+        <CombatTransition
+          onSwitchTab={() => setActiveTab('combat')}
+          onComplete={() => setShowCombatTransition(false)}
+        />
+      )}
 
       {/* Top bar */}
       <header
@@ -309,7 +329,7 @@ function App() {
       </main>
 
       <DiceRoller />
-      <TabBar activeTab={activeTab} onTabChange={setActiveTab} />
+      <TabBar activeTab={activeTab} onTabChange={handleTabChange} />
     </div>
   );
 }

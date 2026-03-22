@@ -9,6 +9,8 @@ import {
   getSpellcastingAbility,
   ABILITY_NAMES,
 } from '../constants/dnd';
+import { ActionTypeBadge, ActionTypeFilterBar } from './ActionType';
+import type { ActionTypeFilter } from '../constants/actionTypes';
 import { Heart, Shield, Zap, FlameKindling, ChevronDown, Sparkles } from 'lucide-react';
 
 /* ── Types ───────────────────────────────────────────────────────────────── */
@@ -248,6 +250,7 @@ export function CombatView({
   const [castingSpell, setCastingSpell] = useState<string | null>(null);
   const [usingAbility, setUsingAbility] = useState<string | null>(null);
   const [customAmount, setCustomAmount] = useState('');
+  const [actionFilter, setActionFilter] = useState<ActionTypeFilter>('all');
 
   const { display: animatedHp, pulsing } = useAnimatedNumber(character.current_hp);
 
@@ -263,8 +266,12 @@ export function CombatView({
   const castingAbility = getSpellcastingAbility(character.class);
   const profBonus = getProficiencyBonus(character.level);
 
-  // Prepared spells grouped by level
-  const preparedSpells = spells.filter((s) => s.prepared || s.level === 0);
+  // Prepared spells grouped by level, with action filter applied
+  const preparedSpells = spells.filter((s) => {
+    if (!s.prepared && s.level !== 0) return false;
+    if (actionFilter !== 'all' && (s.action_type ?? 'action') !== actionFilter) return false;
+    return true;
+  });
   const spellsByLevel = new Map<number, Spell[]>();
   for (const spell of preparedSpells) {
     const list = spellsByLevel.get(spell.level) ?? [];
@@ -272,6 +279,15 @@ export function CombatView({
     spellsByLevel.set(spell.level, list);
   }
   const sortedLevels = [...spellsByLevel.keys()].sort((a, b) => a - b);
+
+  // All prepared spells (unfiltered) for counts
+  const allPreparedSpells = spells.filter((s) => s.prepared || s.level === 0);
+
+  // Filtered features
+  const filteredFeatures = features.filter((f) => {
+    if (actionFilter === 'all') return true;
+    return (f.action_type ?? 'other') === actionFilter;
+  });
 
   // HP helpers
   function adjustHp(amount: number) {
@@ -501,6 +517,23 @@ export function CombatView({
         })}
       </div>
 
+      {/* ── Action Type Filter ──────────────────────────────────────────── */}
+      <ActionTypeFilterBar
+        value={actionFilter}
+        onChange={setActionFilter}
+        counts={{
+          all: allPreparedSpells.length + features.length,
+          action: allPreparedSpells.filter((s) => (s.action_type ?? 'action') === 'action').length
+            + features.filter((f) => f.action_type === 'action').length,
+          bonus_action: allPreparedSpells.filter((s) => s.action_type === 'bonus_action').length
+            + features.filter((f) => f.action_type === 'bonus_action').length,
+          reaction: allPreparedSpells.filter((s) => s.action_type === 'reaction').length
+            + features.filter((f) => f.action_type === 'reaction').length,
+          other: allPreparedSpells.filter((s) => (!s.action_type || s.action_type === 'other')).length
+            + features.filter((f) => (!f.action_type || f.action_type === 'other')).length,
+        }}
+      />
+
       {/* ── Prepared Spells ────────────────────────────────────────────── */}
       {preparedSpells.length > 0 && (
         <div>
@@ -586,6 +619,7 @@ export function CombatView({
                         >
                           {spell.name}
                         </span>
+                        <ActionTypeBadge type={spell.action_type ?? 'action'} small />
                         {/* Cast button */}
                         <button
                           className="px-3 py-1 rounded-lg text-xs font-bold cursor-pointer active:scale-90 transition-transform shrink-0"
@@ -632,7 +666,7 @@ export function CombatView({
       )}
 
       {/* ── Combat Abilities ───────────────────────────────────────────── */}
-      {features.length > 0 && (
+      {filteredFeatures.length > 0 && (
         <div>
           <div className="flex items-center gap-2 mb-2 mt-1">
             <Zap size={14} style={{ color: 'var(--accent)' }} />
@@ -644,7 +678,7 @@ export function CombatView({
             </h3>
           </div>
 
-          {features.map((feature) => {
+          {filteredFeatures.map((feature) => {
             const isExpanded = expandedFeature === feature.id;
             return (
               <div
@@ -676,6 +710,7 @@ export function CombatView({
                   >
                     {feature.title}
                   </span>
+                  <ActionTypeBadge type={feature.action_type ?? 'other'} small />
                   {feature.source && (
                     <span
                       className="text-[10px] px-1.5 py-0.5 rounded-full shrink-0"
@@ -722,11 +757,17 @@ export function CombatView({
       )}
 
       {/* Empty state */}
-      {preparedSpells.length === 0 && features.length === 0 && (
+      {preparedSpells.length === 0 && filteredFeatures.length === 0 && (
         <div className="text-center py-8" style={{ color: 'var(--text)' }}>
-          <p className="text-sm">No prepared spells or abilities.</p>
+          <p className="text-sm">
+            {actionFilter !== 'all'
+              ? 'No spells or abilities match this filter.'
+              : 'No prepared spells or abilities.'}
+          </p>
           <p className="text-xs mt-1" style={{ color: 'var(--text)' }}>
-            Prepare spells in the Spells tab and add features in the Traits tab.
+            {actionFilter !== 'all'
+              ? 'Try a different action type filter.'
+              : 'Prepare spells in the Spells tab and add features in the Traits tab.'}
           </p>
         </div>
       )}
