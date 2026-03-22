@@ -1,0 +1,25 @@
+/* App-level overrides — intentionally minimal.
+   Layout and spacing use Tailwind utilities;
+   colours reference the CSS custom properties in index.css. */
+
+/* Prevent iOS tap-highlight on touch targets */
+button,
+[role='button'] {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Number-input spinners — hide on touch devices for cleaner look */
+input[type='number']::-webkit-inner-spin-button,
+input[type='number']::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type='number'] {
+  -moz-appearance: textfield;
+}
+
+/* Focus ring — use accent colour */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
