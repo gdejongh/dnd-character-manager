@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { FormEvent } from 'react';
 import type { Character } from '../types/database';
+import { LogOut, Trash2, Heart, Plus, Shield } from 'lucide-react';
 
 interface HomeScreenProps {
   characters: Character[];
@@ -51,20 +52,27 @@ export function HomeScreen({
       {/* Header */}
       <header
         className="flex items-center justify-between p-4"
-        style={{ borderBottom: '1px solid var(--border)' }}
+        style={{
+          borderBottom: '1px solid var(--border)',
+          background: 'linear-gradient(180deg, var(--bg-raised) 0%, var(--bg) 100%)',
+        }}
       >
-        <h1
-          className="text-xl font-bold m-0"
-          style={{ color: 'var(--text-h)', fontSize: '1.25rem', letterSpacing: 'normal' }}
-        >
-          ⚔️ D&D Characters
-        </h1>
+        <div className="flex items-center gap-3">
+          <Shield size={22} style={{ color: 'var(--accent)' }} />
+          <h1
+            className="m-0 animate-shimmer"
+            style={{ fontSize: '1.15rem', letterSpacing: '1px' }}
+          >
+            D&D Characters
+          </h1>
+        </div>
         <button
           onClick={onSignOut}
-          className="px-3 py-1.5 rounded-lg text-sm bg-transparent cursor-pointer"
+          className="p-2.5 rounded-lg bg-transparent cursor-pointer"
           style={{ color: 'var(--text)', border: '1px solid var(--border)' }}
+          aria-label="Sign out"
         >
-          Sign Out
+          <LogOut size={16} />
         </button>
       </header>
 
@@ -76,18 +84,16 @@ export function HomeScreen({
           </p>
         ) : (
           <>
-            <div
-              className="grid gap-3"
-              style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))' }}
-            >
-              {characters.map((char) => (
+            <div className="flex flex-col gap-3">
+              {characters.map((char, i) => (
                 <div
                   key={char.id}
-                  className="p-4 rounded-xl cursor-pointer transition-all"
+                  className="p-4 rounded-xl cursor-pointer transition-all active:scale-[0.98] animate-fade-in"
                   style={{
+                    background: 'linear-gradient(135deg, var(--bg-raised) 0%, var(--bg-surface) 100%)',
                     border: '1px solid var(--border)',
-                    background: 'var(--bg)',
                     boxShadow: 'var(--shadow)',
+                    animationDelay: `${i * 60}ms`,
                   }}
                   onClick={() => onSelect(char.id)}
                   role="button"
@@ -97,13 +103,13 @@ export function HomeScreen({
                   <div className="flex items-start justify-between">
                     <div>
                       <h2
-                        className="text-lg font-semibold m-0"
-                        style={{ color: 'var(--text-h)', fontSize: '1.125rem' }}
+                        className="text-lg m-0"
+                        style={{ color: 'var(--accent)', fontSize: '1rem' }}
                       >
                         {char.name}
                       </h2>
                       <p className="text-sm mt-1" style={{ color: 'var(--text)' }}>
-                        {[char.race, char.class].filter(Boolean).join(' ') || 'No race/class'}
+                        {[char.race, char.class].filter(Boolean).join(' · ') || 'No race/class'}
                         {char.level > 0 && ` · Level ${char.level}`}
                       </p>
                     </div>
@@ -112,19 +118,23 @@ export function HomeScreen({
                         e.stopPropagation();
                         onDelete(char.id);
                       }}
-                      className="p-2 rounded-lg text-sm bg-transparent cursor-pointer shrink-0"
+                      className="p-2.5 rounded-lg bg-transparent cursor-pointer shrink-0"
                       style={{ color: 'var(--text)', border: '1px solid var(--border)' }}
                       aria-label={`Delete ${char.name}`}
                     >
-                      ✕
+                      <Trash2 size={14} />
                     </button>
                   </div>
                   <div className="flex gap-3 mt-3">
                     <span
-                      className="text-xs px-2 py-0.5 rounded-full"
-                      style={{ background: 'var(--accent-bg)', color: 'var(--accent)' }}
+                      className="text-xs px-2.5 py-1 rounded-full flex items-center gap-1"
+                      style={{
+                        background: 'rgba(185,28,28,0.15)',
+                        color: 'var(--hp-crimson)',
+                        border: '1px solid rgba(185,28,28,0.25)',
+                      }}
                     >
-                      HP {char.current_hp}/{char.max_hp}
+                      <Heart size={10} fill="currentColor" /> {char.current_hp}/{char.max_hp}
                     </span>
                   </div>
                 </div>
@@ -132,9 +142,12 @@ export function HomeScreen({
             </div>
 
             {characters.length === 0 && (
-              <p className="text-center py-12" style={{ color: 'var(--text)' }}>
-                No characters yet. Create your first adventurer!
-              </p>
+              <div className="flex flex-col items-center py-16 gap-4">
+                <Shield size={48} style={{ color: 'var(--border-light)' }} />
+                <p className="text-center" style={{ color: 'var(--text)' }}>
+                  No adventurers yet. Create your first character!
+                </p>
+              </div>
             )}
           </>
         )}
@@ -142,16 +155,33 @@ export function HomeScreen({
 
       {/* New Character Form / Button */}
       {showForm ? (
-        <div className="p-4" style={{ borderTop: '1px solid var(--border)' }}>
+        <div
+          className="p-5 animate-fade-in"
+          style={{
+            borderTop: '1px solid var(--border)',
+            background: 'linear-gradient(180deg, var(--bg-surface) 0%, var(--bg) 100%)',
+          }}
+        >
+          <h3
+            className="text-center mb-4"
+            style={{ fontFamily: 'var(--heading)', color: 'var(--accent)', fontSize: '0.9rem', letterSpacing: '1.5px' }}
+          >
+            ✦ CREATE NEW CHARACTER ✦
+          </h3>
           <form onSubmit={handleCreate} className="flex flex-col gap-3">
             <input
               type="text"
-              placeholder="Character Name *"
+              placeholder="Character Name"
               value={name}
               onChange={(e) => setName(e.target.value)}
               required
-              className="w-full px-4 py-3 rounded-lg text-base outline-none"
-              style={inputStyle}
+              className="w-full px-4 py-3.5 rounded-lg text-base outline-none text-center"
+              style={{
+                ...inputStyle,
+                fontFamily: 'var(--heading)',
+                fontSize: '1.05rem',
+                letterSpacing: '0.5px',
+              }}
               autoFocus
             />
             <div className="flex gap-3">
@@ -172,7 +202,7 @@ export function HomeScreen({
                 style={inputStyle}
               />
             </div>
-            <div className="flex gap-3">
+            <div className="flex gap-3 mt-1">
               <button
                 type="button"
                 onClick={() => setShowForm(false)}
@@ -188,10 +218,16 @@ export function HomeScreen({
               <button
                 type="submit"
                 disabled={creating}
-                className="flex-1 py-3 rounded-lg font-semibold text-white text-base cursor-pointer disabled:opacity-50"
-                style={{ background: 'var(--accent)', border: 'none' }}
+                className="flex-1 py-3 rounded-lg font-semibold text-base cursor-pointer disabled:opacity-50"
+                style={{
+                  background: 'linear-gradient(135deg, var(--accent), var(--accent-bright))',
+                  color: '#0f0e13',
+                  border: 'none',
+                  fontFamily: 'var(--heading)',
+                  letterSpacing: '0.5px',
+                }}
               >
-                {creating ? 'Creating…' : 'Create'}
+                {creating ? 'Forging…' : 'Begin Adventure'}
               </button>
             </div>
           </form>
@@ -200,10 +236,16 @@ export function HomeScreen({
         <div className="p-4" style={{ borderTop: '1px solid var(--border)' }}>
           <button
             onClick={() => setShowForm(true)}
-            className="w-full py-3 rounded-lg font-semibold text-white text-base cursor-pointer"
-            style={{ background: 'var(--accent)', border: 'none' }}
+            className="w-full py-3.5 rounded-xl font-semibold text-base cursor-pointer flex items-center justify-center gap-2"
+            style={{
+              background: 'linear-gradient(135deg, var(--accent), var(--accent-bright))',
+              color: '#0f0e13',
+              border: 'none',
+              fontFamily: 'var(--heading)',
+              letterSpacing: '0.5px',
+            }}
           >
-            + New Character
+            <Plus size={18} /> New Character
           </button>
         </div>
       )}

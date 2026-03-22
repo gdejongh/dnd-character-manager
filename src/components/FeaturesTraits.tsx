@@ -1,6 +1,7 @@
-import { useState } from 'react';
-import type { FormEvent } from 'react';
+import { useState, useRef, useCallback } from 'react';
+import type { FormEvent, TouchEvent as ReactTouchEvent } from 'react';
 import type { Feature } from '../types/database';
+import { Swords, Trash2 } from 'lucide-react';
 
 interface FeaturesTraitsProps {
   features: Feature[];
@@ -32,74 +33,25 @@ export function FeaturesTraits({ features, onAdd, onDelete }: FeaturesTraitsProp
   };
 
   return (
-    <div className="flex flex-col gap-3 p-4 pb-24">
-      <h3
-        className="text-sm font-semibold uppercase tracking-wider m-0"
-        style={{ color: 'var(--text)' }}
-      >
-        Features &amp; Traits
-      </h3>
+    <div className="flex flex-col gap-3 p-4 pb-24 animate-fade-in">
+      <div className="flex items-center gap-2 mb-1">
+        <Swords size={16} style={{ color: 'var(--accent)' }} />
+        <h3
+          className="text-xs uppercase tracking-widest m-0"
+          style={{ color: 'var(--accent)', fontFamily: 'var(--heading)', letterSpacing: '2px' }}
+        >
+          Features &amp; Traits
+        </h3>
+      </div>
 
       {features.map((feature) => (
-        <div
+        <FeatureCard
           key={feature.id}
-          className="p-4 rounded-xl"
-          style={{ border: '1px solid var(--border)' }}
-        >
-          <div
-            className="flex items-start justify-between cursor-pointer"
-            onClick={() =>
-              setExpandedId(expandedId === feature.id ? null : feature.id)
-            }
-            role="button"
-            tabIndex={0}
-            onKeyDown={(e) =>
-              e.key === 'Enter' &&
-              setExpandedId(expandedId === feature.id ? null : feature.id)
-            }
-          >
-            <div className="flex-1">
-              <h4
-                className="font-semibold text-sm m-0"
-                style={{ color: 'var(--text-h)' }}
-              >
-                {feature.title}
-              </h4>
-              {feature.source && (
-                <span
-                  className="text-xs mt-0.5 inline-block"
-                  style={{ color: 'var(--accent)' }}
-                >
-                  {feature.source}
-                </span>
-              )}
-            </div>
-            <span className="text-sm shrink-0 ml-2" style={{ color: 'var(--text)' }}>
-              {expandedId === feature.id ? '▾' : '▸'}
-            </span>
-          </div>
-
-          {expandedId === feature.id && (
-            <div
-              className="mt-3 pt-3"
-              style={{ borderTop: '1px solid var(--border)' }}
-            >
-              <p
-                className="text-sm whitespace-pre-wrap m-0"
-                style={{ color: 'var(--text)' }}
-              >
-                {feature.description || 'No description.'}
-              </p>
-              <button
-                onClick={() => onDelete(feature.id)}
-                className="mt-3 px-3 py-1.5 rounded-lg text-xs cursor-pointer"
-                style={{ background: '#ef4444', color: 'white', border: 'none' }}
-              >
-                Delete
-              </button>
-            </div>
-          )}
-        </div>
+          feature={feature}
+          isExpanded={expandedId === feature.id}
+          onToggle={() => setExpandedId(expandedId === feature.id ? null : feature.id)}
+          onDelete={() => onDelete(feature.id)}
+        />
       ))}
 
       {features.length === 0 && !showForm && (
@@ -111,8 +63,8 @@ export function FeaturesTraits({ features, onAdd, onDelete }: FeaturesTraitsProp
       {showForm ? (
         <form
           onSubmit={handleAdd}
-          className="flex flex-col gap-3 p-4 rounded-xl"
-          style={{ border: '1px solid var(--accent-border)' }}
+          className="flex flex-col gap-3 p-4 rounded-xl animate-fade-in"
+          style={{ border: '1px solid var(--accent-border)', background: 'var(--bg-surface)' }}
         >
           <input
             className="w-full px-4 py-3 rounded-lg text-sm outline-none"
@@ -143,18 +95,14 @@ export function FeaturesTraits({ features, onAdd, onDelete }: FeaturesTraitsProp
               type="button"
               onClick={() => setShowForm(false)}
               className="flex-1 py-3 rounded-lg text-sm cursor-pointer"
-              style={{
-                color: 'var(--text)',
-                background: 'transparent',
-                border: '1px solid var(--border)',
-              }}
+              style={{ color: 'var(--text)', background: 'transparent', border: '1px solid var(--border)' }}
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="flex-1 py-3 rounded-lg font-semibold text-white text-sm cursor-pointer"
-              style={{ background: 'var(--accent)', border: 'none' }}
+              className="flex-1 py-3 rounded-lg font-semibold text-sm cursor-pointer"
+              style={{ background: 'linear-gradient(135deg, var(--accent), var(--accent-bright))', color: '#0f0e13', border: 'none' }}
             >
               Add Feature
             </button>
@@ -164,15 +112,150 @@ export function FeaturesTraits({ features, onAdd, onDelete }: FeaturesTraitsProp
         <button
           onClick={() => setShowForm(true)}
           className="w-full py-3 rounded-xl font-semibold text-sm cursor-pointer"
-          style={{
-            background: 'var(--accent-bg)',
-            color: 'var(--accent)',
-            border: '1px solid var(--accent-border)',
-          }}
+          style={{ background: 'var(--accent-bg)', color: 'var(--accent)', border: '1px solid var(--accent-border)' }}
         >
           + Add Feature
         </button>
       )}
+    </div>
+  );
+}
+
+function FeatureCard({
+  feature,
+  isExpanded,
+  onToggle,
+  onDelete,
+}: {
+  feature: Feature;
+  isExpanded: boolean;
+  onToggle: () => void;
+  onDelete: () => void;
+}) {
+  const cardRef = useRef<HTMLDivElement>(null);
+  const startXRef = useRef(0);
+  const currentXRef = useRef(0);
+  const swipingRef = useRef(false);
+  const [showDeleteBtn, setShowDeleteBtn] = useState(false);
+
+  const handleTouchStart = useCallback((e: ReactTouchEvent) => {
+    startXRef.current = e.touches[0].clientX;
+    currentXRef.current = startXRef.current;
+    swipingRef.current = true;
+  }, []);
+
+  const handleTouchMove = useCallback((e: ReactTouchEvent) => {
+    if (!swipingRef.current) return;
+    const el = cardRef.current;
+    if (!el) return;
+    currentXRef.current = e.touches[0].clientX;
+    const dx = currentXRef.current - startXRef.current;
+    if (dx < 0) {
+      el.style.transform = `translateX(${Math.max(dx, -80)}px)`;
+      el.style.transition = 'none';
+    }
+  }, []);
+
+  const handleTouchEnd = useCallback(() => {
+    if (!swipingRef.current) return;
+    swipingRef.current = false;
+    const el = cardRef.current;
+    if (!el) return;
+    const dx = currentXRef.current - startXRef.current;
+    if (dx < -50) {
+      el.style.transition = 'transform 0.2s ease-out';
+      el.style.transform = 'translateX(-60px)';
+      setShowDeleteBtn(true);
+    } else {
+      el.style.transition = 'transform 0.2s ease-out';
+      el.style.transform = 'translateX(0)';
+      setShowDeleteBtn(false);
+    }
+  }, []);
+
+  const resetSwipe = useCallback(() => {
+    const el = cardRef.current;
+    if (el) {
+      el.style.transition = 'transform 0.2s ease-out';
+      el.style.transform = 'translateX(0)';
+    }
+    setShowDeleteBtn(false);
+  }, []);
+
+  return (
+    <div className="relative overflow-hidden rounded-xl" style={{ border: '1px solid var(--border)' }}>
+      {/* Delete button behind */}
+      {showDeleteBtn && (
+        <div
+          className="absolute right-0 top-0 bottom-0 w-[60px] flex items-center justify-center cursor-pointer"
+          style={{ background: 'var(--danger)' }}
+          onClick={() => { resetSwipe(); onDelete(); }}
+          role="button"
+          tabIndex={0}
+          onKeyDown={(e) => e.key === 'Enter' && onDelete()}
+        >
+          <Trash2 size={18} style={{ color: 'white' }} />
+        </div>
+      )}
+
+      <div
+        ref={cardRef}
+        className="relative p-4 rounded-xl"
+        style={{ background: 'var(--bg-surface)' }}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+      >
+        <div
+          className="flex items-start justify-between cursor-pointer"
+          onClick={onToggle}
+          role="button"
+          tabIndex={0}
+          onKeyDown={(e) => e.key === 'Enter' && onToggle()}
+        >
+          <div className="flex-1">
+            <h4
+              className="font-semibold text-sm m-0"
+              style={{ color: 'var(--text-h)', fontFamily: 'var(--heading)', letterSpacing: '0.3px' }}
+            >
+              {feature.title}
+            </h4>
+            {feature.source && (
+              <span
+                className="text-xs mt-0.5 inline-block px-2 py-0.5 rounded-full"
+                style={{
+                  color: 'var(--accent)',
+                  background: 'var(--accent-bg)',
+                  border: '1px solid var(--accent-border)',
+                }}
+              >
+                {feature.source}
+              </span>
+            )}
+          </div>
+          <span className="text-sm shrink-0 ml-2" style={{ color: 'var(--accent)' }}>
+            {isExpanded ? '▾' : '▸'}
+          </span>
+        </div>
+
+        {isExpanded && (
+          <div className="mt-3 pt-3 animate-fade-in" style={{ borderTop: '1px solid var(--border)' }}>
+            <p
+              className="text-sm whitespace-pre-wrap m-0"
+              style={{ color: 'var(--text)', lineHeight: '1.6', userSelect: 'text' }}
+            >
+              {feature.description || 'No description.'}
+            </p>
+            <button
+              onClick={onDelete}
+              className="mt-3 px-3 py-1.5 rounded-lg text-xs cursor-pointer flex items-center gap-1"
+              style={{ background: 'var(--danger)', color: 'white', border: 'none' }}
+            >
+              <Trash2 size={11} /> Delete
+            </button>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

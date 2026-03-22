@@ -20,27 +20,34 @@ import { Inventory } from './components/Inventory';
 import { FeaturesTraits } from './components/FeaturesTraits';
 import { Notes } from './components/Notes';
 import { TabBar } from './components/TabBar';
+import { ToastContainer } from './components/Toast';
+import { DiceRoller } from './components/DiceRoller';
+import { ChevronLeft } from 'lucide-react';
 import './App.css';
 
 function SetupScreen() {
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen p-6">
+    <div
+      className="flex flex-col items-center justify-center min-h-screen p-6"
+      style={{ background: 'var(--bg)' }}
+    >
       <div
-        className="w-full max-w-md p-6 rounded-xl"
+        className="w-full max-w-md p-6 rounded-2xl animate-fade-in"
         style={{
-          border: '1px solid var(--border)',
-          boxShadow: 'var(--shadow)',
+          background: 'linear-gradient(180deg, var(--bg-raised) 0%, var(--bg-surface) 100%)',
+          border: '1px solid var(--accent-border)',
+          boxShadow: 'var(--shadow-lg), 0 0 30px rgba(201,168,76,0.06)',
         }}
       >
         <h1
-          className="text-2xl font-bold mb-4 text-center"
-          style={{ color: 'var(--text-h)', fontSize: '1.5rem', letterSpacing: 'normal' }}
+          className="text-center mb-1 animate-shimmer"
+          style={{ fontSize: '1.6rem', letterSpacing: '1px' }}
         >
           ⚔️ D&D Character Manager
         </h1>
         <h2
-          className="text-lg font-semibold mb-3"
-          style={{ color: 'var(--text-h)', fontSize: '1.1rem' }}
+          className="text-center mb-4"
+          style={{ color: 'var(--text)', fontSize: '0.85rem', fontFamily: 'var(--sans)', fontWeight: 400 }}
         >
           Supabase Setup Required
         </h2>
@@ -60,66 +67,15 @@ function SetupScreen() {
             </a>
           </li>
           <li>
-            Open the <strong style={{ color: 'var(--text-h)' }}>SQL Editor</strong> and
-            paste the contents of{' '}
-            <code
-              style={{
-                background: 'var(--code-bg)',
-                padding: '2px 6px',
-                borderRadius: '4px',
-                fontSize: '13px',
-              }}
-            >
-              schema.sql
-            </code>
+            Open the <strong style={{ color: 'var(--text-h)' }}>SQL Editor</strong> and paste the
+            contents of{' '}
+            <code>schema.sql</code>
           </li>
           <li>
-            Copy{' '}
-            <code
-              style={{
-                background: 'var(--code-bg)',
-                padding: '2px 6px',
-                borderRadius: '4px',
-                fontSize: '13px',
-              }}
-            >
-              .env.local.example
-            </code>{' '}
-            →{' '}
-            <code
-              style={{
-                background: 'var(--code-bg)',
-                padding: '2px 6px',
-                borderRadius: '4px',
-                fontSize: '13px',
-              }}
-            >
-              .env.local
-            </code>
+            Copy <code>.env.local.example</code> → <code>.env.local</code>
           </li>
           <li>
-            Fill in{' '}
-            <code
-              style={{
-                background: 'var(--code-bg)',
-                padding: '2px 6px',
-                borderRadius: '4px',
-                fontSize: '13px',
-              }}
-            >
-              VITE_SUPABASE_URL
-            </code>{' '}
-            and{' '}
-            <code
-              style={{
-                background: 'var(--code-bg)',
-                padding: '2px 6px',
-                borderRadius: '4px',
-                fontSize: '13px',
-              }}
-            >
-              VITE_SUPABASE_ANON_KEY
-            </code>{' '}
+            Fill in <code>VITE_SUPABASE_URL</code> and <code>VITE_SUPABASE_ANON_KEY</code>{' '}
             from <strong style={{ color: 'var(--text-h)' }}>Settings → API</strong>
           </li>
           <li>Restart the dev server</li>
@@ -157,12 +113,24 @@ function App() {
   if (authLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <p style={{ color: 'var(--text)' }}>Loading…</p>
+        <div className="flex flex-col items-center gap-3">
+          <div
+            className="w-10 h-10 rounded-full"
+            style={{
+              border: '3px solid var(--border)',
+              borderTopColor: 'var(--accent)',
+              animation: 'diceRoll 1s linear infinite',
+            }}
+          />
+          <p style={{ color: 'var(--text)', fontFamily: 'var(--heading)', letterSpacing: '0.5px' }}>
+            Loading…
+          </p>
+        </div>
       </div>
     );
   }
 
-  // Supabase not configured — show setup instructions
+  // Supabase not configured
   if (!isSupabaseConfigured) {
     return <SetupScreen />;
   }
@@ -172,7 +140,7 @@ function App() {
     return <Auth onAuth={handleAuth} />;
   }
 
-  // Home screen — character selector
+  // Home screen
   if (!selectedCharacterId) {
     return (
       <HomeScreen
@@ -193,7 +161,19 @@ function App() {
   if (charLoading || !character) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <p style={{ color: 'var(--text)' }}>Loading character…</p>
+        <div className="flex flex-col items-center gap-3">
+          <div
+            className="w-10 h-10 rounded-full"
+            style={{
+              border: '3px solid var(--border)',
+              borderTopColor: 'var(--accent)',
+              animation: 'diceRoll 1s linear infinite',
+            }}
+          />
+          <p style={{ color: 'var(--text)', fontFamily: 'var(--heading)' }}>
+            Loading character…
+          </p>
+        </div>
       </div>
     );
   }
@@ -213,26 +193,33 @@ function App() {
 
   return (
     <div className="flex flex-col min-h-screen">
+      <ToastContainer />
+
       {/* Top bar */}
       <header
         className="flex items-center gap-3 px-4 py-3 sticky top-0 z-10"
-        style={{ background: 'var(--bg)', borderBottom: '1px solid var(--border)' }}
+        style={{
+          background: 'linear-gradient(180deg, var(--bg) 0%, rgba(15,14,19,0.95) 100%)',
+          borderBottom: '1px solid var(--border)',
+          backdropFilter: 'blur(8px)',
+        }}
       >
         <button
           onClick={() => setSelectedCharacterId(null)}
-          className="p-2 rounded-lg bg-transparent cursor-pointer shrink-0"
+          className="p-2 rounded-lg bg-transparent cursor-pointer shrink-0 flex items-center gap-1"
           style={{
-            color: 'var(--text-h)',
-            border: '1px solid var(--border)',
-            fontSize: '14px',
+            color: 'var(--accent)',
+            border: '1px solid var(--accent-border)',
+            fontSize: '13px',
+            fontFamily: 'var(--heading)',
           }}
         >
-          ← Back
+          <ChevronLeft size={14} /> Back
         </button>
         <div className="flex-1 min-w-0">
           <h1
-            className="text-base font-bold m-0 truncate"
-            style={{ color: 'var(--text-h)', fontSize: '1rem', letterSpacing: 'normal' }}
+            className="text-base font-bold m-0 truncate animate-shimmer"
+            style={{ fontSize: '1rem', letterSpacing: '0.5px' }}
           >
             {character.name}
           </h1>
@@ -243,54 +230,57 @@ function App() {
         </div>
       </header>
 
-      {/* Tab content */}
+      {/* Tab content with fade transition */}
       <main className="flex-1 overflow-y-auto">
-        {activeTab === 'sheet' && (
-          <CharacterSheet
-            character={character}
-            scores={scores}
-            onUpdateCharacter={updateCharacter}
-            onUpdateScore={updateScore}
-            onToggleSavingThrow={toggleSavingThrow}
-          />
-        )}
-        {activeTab === 'hp' && (
-          <HpTracker character={character} onUpdate={updateCharacter} />
-        )}
-        {activeTab === 'spells' && (
-          <SpellSlots
-            slots={slots}
-            spells={spells}
-            preparedLimit={preparedLimit}
-            onUpdateTotal={updateTotal}
-            onSetSlotUsed={setSlotUsed}
-            onResetAll={resetAll}
-            onAddSpell={addSpell}
-            onUpdateSpell={updateSpell}
-            onDeleteSpell={deleteSpell}
-          />
-        )}
-        {activeTab === 'items' && (
-          <Inventory
-            items={items}
-            strScore={strScore}
-            onAdd={addItem}
-            onUpdate={updateItem}
-            onDelete={deleteItem}
-          />
-        )}
-        {activeTab === 'features' && (
-          <FeaturesTraits
-            features={features}
-            onAdd={addFeature}
-            onDelete={deleteFeature}
-          />
-        )}
-        {activeTab === 'notes' && (
-          <Notes notes={notes} loading={notesLoading} onUpdateContent={updateContent} />
-        )}
+        <div key={activeTab} className="animate-fade-in">
+          {activeTab === 'sheet' && (
+            <CharacterSheet
+              character={character}
+              scores={scores}
+              onUpdateCharacter={updateCharacter}
+              onUpdateScore={updateScore}
+              onToggleSavingThrow={toggleSavingThrow}
+            />
+          )}
+          {activeTab === 'hp' && (
+            <HpTracker character={character} onUpdate={updateCharacter} />
+          )}
+          {activeTab === 'spells' && (
+            <SpellSlots
+              slots={slots}
+              spells={spells}
+              preparedLimit={preparedLimit}
+              onUpdateTotal={updateTotal}
+              onSetSlotUsed={setSlotUsed}
+              onResetAll={resetAll}
+              onAddSpell={addSpell}
+              onUpdateSpell={updateSpell}
+              onDeleteSpell={deleteSpell}
+            />
+          )}
+          {activeTab === 'items' && (
+            <Inventory
+              items={items}
+              strScore={strScore}
+              onAdd={addItem}
+              onUpdate={updateItem}
+              onDelete={deleteItem}
+            />
+          )}
+          {activeTab === 'features' && (
+            <FeaturesTraits
+              features={features}
+              onAdd={addFeature}
+              onDelete={deleteFeature}
+            />
+          )}
+          {activeTab === 'notes' && (
+            <Notes notes={notes} loading={notesLoading} onUpdateContent={updateContent} />
+          )}
+        </div>
       </main>
 
+      <DiceRoller />
       <TabBar activeTab={activeTab} onTabChange={setActiveTab} />
     </div>
   );

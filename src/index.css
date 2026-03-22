@@ -1,55 +1,67 @@
 @import "tailwindcss";
 
+/* ─── Dark Fantasy Theme ─── */
 :root {
-  --text: #6b6375;
-  --text-h: #08060d;
-  --bg: #fff;
-  --border: #e5e4e7;
-  --code-bg: #f4f3ec;
-  --accent: #aa3bff;
-  --accent-bg: rgba(170, 59, 255, 0.1);
-  --accent-border: rgba(170, 59, 255, 0.5);
-  --social-bg: rgba(244, 243, 236, 0.5);
+  --text: #8a8297;
+  --text-h: #e8e0f0;
+  --bg: #0f0e13;
+  --bg-surface: #16151d;
+  --bg-raised: #1c1b25;
+  --border: #2a2836;
+  --border-light: #3a3750;
+  --code-bg: #1a1922;
+  --accent: #c9a84c;
+  --accent-bright: #f0c040;
+  --accent-bg: rgba(201, 168, 76, 0.12);
+  --accent-border: rgba(201, 168, 76, 0.35);
+  --hp-green: #4ade80;
+  --hp-yellow: #fbbf24;
+  --hp-red: #b91c1c;
+  --hp-crimson: #dc2626;
+  --spell-indigo: #6366f1;
+  --spell-violet: #8b5cf6;
+  --spell-bg: rgba(99, 102, 241, 0.1);
+  --spell-border: rgba(99, 102, 241, 0.3);
+  --danger: #b91c1c;
+  --danger-bright: #ef4444;
   --shadow:
-    rgba(0, 0, 0, 0.1) 0 10px 15px -3px, rgba(0, 0, 0, 0.05) 0 4px 6px -2px;
+    0 4px 24px rgba(0, 0, 0, 0.5),
+    0 1px 4px rgba(0, 0, 0, 0.3);
+  --shadow-lg:
+    0 8px 40px rgba(0, 0, 0, 0.6),
+    0 2px 8px rgba(0, 0, 0, 0.4);
 
   --sans: system-ui, 'Segoe UI', Roboto, sans-serif;
-  --heading: system-ui, 'Segoe UI', Roboto, sans-serif;
+  --heading: 'Cinzel', Georgia, 'Times New Roman', serif;
   --mono: ui-monospace, Consolas, monospace;
 
-  font: 18px/145% var(--sans);
+  font: 16px/150% var(--sans);
   letter-spacing: 0.18px;
-  color-scheme: light dark;
+  color-scheme: dark;
   color: var(--text);
   background: var(--bg);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-
-  @media (max-width: 1024px) {
-    font-size: 16px;
-  }
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --text: #9ca3af;
-    --text-h: #f3f4f6;
-    --bg: #16171d;
-    --border: #2e303a;
-    --code-bg: #1f2028;
-    --accent: #c084fc;
-    --accent-bg: rgba(192, 132, 252, 0.15);
-    --accent-border: rgba(192, 132, 252, 0.5);
-    --social-bg: rgba(47, 48, 58, 0.5);
-    --shadow:
-      rgba(0, 0, 0, 0.4) 0 10px 15px -3px, rgba(0, 0, 0, 0.25) 0 4px 6px -2px;
-  }
-
-  #social .button-icon {
-    filter: invert(1) brightness(2);
-  }
+/* ─── Background Texture ─── */
+body {
+  margin: 0;
+  background:
+    radial-gradient(ellipse at 50% 0%, rgba(201, 168, 76, 0.03) 0%, transparent 60%),
+    var(--bg);
+  background-attachment: fixed;
+}
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0.025;
+  background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23c9a84c' fill-opacity='1'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
 }
 
 #root {
@@ -61,52 +73,96 @@
   flex-direction: column;
   box-sizing: border-box;
   text-align: left;
+  position: relative;
+  z-index: 1;
 }
 
-body {
-  margin: 0;
-}
-
-h1,
-h2 {
+/* ─── Typography ─── */
+h1, h2, h3 {
   font-family: var(--heading);
-  font-weight: 500;
-  color: var(--text-h);
+  font-weight: 600;
+  color: var(--accent);
+  letter-spacing: 0.5px;
 }
+h1 { font-size: 28px; margin: 20px 0; }
+h2 { font-size: 20px; line-height: 130%; margin: 0 0 8px; }
+h3 { font-size: 14px; }
+p { margin: 0; }
 
-h1 {
-  font-size: 56px;
-  letter-spacing: -1.68px;
-  margin: 32px 0;
-  @media (max-width: 1024px) {
-    font-size: 36px;
-    margin: 20px 0;
-  }
-}
-h2 {
-  font-size: 24px;
-  line-height: 118%;
-  letter-spacing: -0.24px;
-  margin: 0 0 8px;
-  @media (max-width: 1024px) {
-    font-size: 20px;
-  }
-}
-p {
-  margin: 0;
-}
-
-code,
-.counter {
+code, .counter {
   font-family: var(--mono);
   display: inline-flex;
   border-radius: 4px;
   color: var(--text-h);
 }
-
 code {
-  font-size: 15px;
+  font-size: 14px;
   line-height: 135%;
   padding: 4px 8px;
   background: var(--code-bg);
 }
+
+/* ─── Keyframes ─── */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes shimmer {
+  0% { background-position: -200% center; }
+  100% { background-position: 200% center; }
+}
+@keyframes glowPulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(201, 168, 76, 0); }
+  50% { box-shadow: 0 0 14px 3px rgba(201, 168, 76, 0.3); }
+}
+@keyframes slotDrain {
+  0% { transform: scale(1); filter: brightness(1); }
+  30% { transform: scale(0.85); filter: brightness(1.8); }
+  100% { transform: scale(1); filter: brightness(1); }
+}
+@keyframes diceRoll {
+  0% { transform: rotate(0deg) scale(1); }
+  25% { transform: rotate(180deg) scale(0.8); }
+  50% { transform: rotate(360deg) scale(1.15); }
+  75% { transform: rotate(540deg) scale(0.9); }
+  100% { transform: rotate(720deg) scale(1); }
+}
+@keyframes diceReveal {
+  0% { opacity: 0; transform: scale(2.5); filter: blur(10px); }
+  60% { opacity: 1; transform: scale(1.05); filter: blur(0); }
+  100% { opacity: 1; transform: scale(1); }
+}
+@keyframes toastIn {
+  from { opacity: 0; transform: translateY(-16px) scale(0.95); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes toastOut {
+  from { opacity: 1; transform: translateY(0) scale(1); }
+  to { opacity: 0; transform: translateY(-16px) scale(0.95); }
+}
+@keyframes hpPulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.08); }
+}
+
+/* ─── Utility classes ─── */
+.animate-fade-in { animation: fadeIn 0.25s ease-out both; }
+
+.animate-shimmer {
+  background: linear-gradient(
+    90deg, var(--accent) 0%, var(--accent-bright) 25%,
+    #fff5cc 50%, var(--accent-bright) 75%, var(--accent) 100%
+  );
+  background-size: 200% auto;
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: shimmer 4s linear infinite;
+}
+
+.stat-block {
+  clip-path: polygon(50% 0%, 100% 15%, 100% 85%, 50% 100%, 0% 85%, 0% 15%);
+}
+.stat-glow:focus-within { animation: glowPulse 1.5s ease-in-out infinite; }
+.slot-drain { animation: slotDrain 0.35s ease-out; }
+.hp-pulse { animation: hpPulse 0.3s ease-out; }
