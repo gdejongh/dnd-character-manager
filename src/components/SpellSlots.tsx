@@ -5,6 +5,7 @@ import type { SpellSlot, Spell } from '../types/database';
 interface SpellSlotsProps {
   slots: SpellSlot[];
   spells: Spell[];
+  preparedLimit: number | null;
   onUpdateTotal: (level: number, total: number) => void;
   onSetSlotUsed: (level: number, used: number) => void;
   onResetAll: () => void;
@@ -35,6 +36,7 @@ const inputStyle = {
 export function SpellSlots({
   slots,
   spells,
+  preparedLimit,
   onUpdateTotal,
   onSetSlotUsed,
   onResetAll,
@@ -43,6 +45,7 @@ export function SpellSlots({
   onDeleteSpell,
 }: SpellSlotsProps) {
   const [search, setSearch] = useState('');
+  const [filter, setFilter] = useState<'all' | 'prepared'>('all');
   const [expandedSpellId, setExpandedSpellId] = useState<string | null>(null);
   const [addingAtLevel, setAddingAtLevel] = useState<number | null>(null);
   const [editingSpellId, setEditingSpellId] = useState<string | null>(null);
@@ -52,13 +55,15 @@ export function SpellSlots({
   const hasAnySlots = slots.some((s) => s.total > 0);
 
   const q = search.toLowerCase();
-  const filteredSpells = q
-    ? spells.filter(
-        (s) =>
-          s.name.toLowerCase().includes(q) ||
-          s.description.toLowerCase().includes(q),
-      )
-    : spells;
+  const filteredSpells = spells.filter((s) => {
+    if (filter === 'prepared' && !s.prepared) return false;
+    if (q && !s.name.toLowerCase().includes(q) && !s.description.toLowerCase().includes(q)) return false;
+    return true;
+  });
+
+  // Cantrips don't count toward the prepared limit
+  const preparedCount = spells.filter((s) => s.prepared && s.level > 0).length;
+  const isOverLimit = preparedLimit !== null && preparedCount > preparedLimit;
 
   function spellsAtLevel(level: number) {
     return filteredSpells.filter((s) => s.level === level);
@@ -126,6 +131,50 @@ export function SpellSlots({
         )}
       </div>
 
+      {/* Filter toggle */}
+      <div
+        className="flex rounded-xl overflow-hidden"
+        style={{ border: '1px solid var(--border)' }}
+      >
+        {(['all', 'prepared'] as const).map((f) => (
+          <button
+            key={f}
+            onClick={() => setFilter(f)}
+            className="flex-1 py-2.5 text-sm font-medium cursor-pointer transition-colors"
+            style={{
+              background: filter === f ? 'var(--accent)' : 'var(--code-bg)',
+              color: filter === f ? 'white' : 'var(--text)',
+              border: 'none',
+            }}
+          >
+            {f === 'all'
+              ? `All Spells (${spells.length})`
+              : preparedLimit !== null
+                ? `Prepared (${preparedCount}/${preparedLimit})`
+                : `Prepared (${preparedCount})`}
+          </button>
+        ))}
+      </div>
+
+      {/* Over-limit warning */}
+      {isOverLimit && (
+        <div
+          className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm"
+          style={{
+            background: '#fef3c7',
+            border: '1px solid #f59e0b',
+            color: '#92400e',
+          }}
+        >
+          <span>⚠️</span>
+          <span>
+            You have <strong>{preparedCount}</strong> spells prepared but can only prepare{' '}
+            <strong>{preparedLimit}</strong>. Unprepare {preparedCount - (preparedLimit ?? 0)} spell
+            {preparedCount - (preparedLimit ?? 0) !== 1 ? 's' : ''}.
+          </span>
+        </div>
+      )}
+
       {/* Long Rest */}
       {hasAnySlots && !search && (
         <div className="flex justify-end">
@@ -148,8 +197,8 @@ export function SpellSlots({
         const slot = slots.find((s) => s.level === level);
         const levelSpells = spellsAtLevel(level);
 
-        // When searching, hide empty levels
-        if (search && levelSpells.length === 0) return null;
+        // When searching or filtering prepared, hide empty levels
+        if ((search || filter === 'prepared') && levelSpells.length === 0) return null;
 
         return (
           <section
@@ -462,10 +511,12 @@ export function SpellSlots({
         );
       })}
 
-      {/* Search found nothing */}
-      {search && filteredSpells.length === 0 && (
+      {/* Search/filter found nothing */}
+      {(search || filter === 'prepared') && filteredSpells.length === 0 && (
         <p className="text-center py-8" style={{ color: 'var(--text)' }}>
-          No spells matching "{search}"
+          {search
+            ? `No spells matching "${search}"${filter === 'prepared' ? ' in prepared spells' : ''}`
+            : 'No spells prepared yet — toggle the checkbox on a spell to prepare it.'}
         </p>
       )}
     </div>

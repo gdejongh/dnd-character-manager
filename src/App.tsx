@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { Tab } from './types/database';
 import { isSupabaseConfigured } from './lib/supabase';
+import { getPreparedSpellLimit } from './constants/dnd';
 import { useAuth } from './hooks/useAuth';
 import { useCharacters } from './hooks/useCharacters';
 import { useCharacter } from './hooks/useCharacter';
@@ -199,6 +200,17 @@ function App() {
 
   const strScore = scores.find((s) => s.ability === 'STR')?.score ?? 10;
 
+  const abilityScoreMap = Object.fromEntries(
+    (['STR', 'DEX', 'CON', 'INT', 'WIS', 'CHA'] as const).map((a) => [
+      a,
+      scores.find((s) => s.ability === a)?.score ?? 10,
+    ]),
+  ) as Record<import('./types/database').Ability, number>;
+
+  const preparedLimit = character
+    ? getPreparedSpellLimit(character.class, character.level, abilityScoreMap)
+    : null;
+
   return (
     <div className="flex flex-col min-h-screen">
       {/* Top bar */}
@@ -249,6 +261,7 @@ function App() {
           <SpellSlots
             slots={slots}
             spells={spells}
+            preparedLimit={preparedLimit}
             onUpdateTotal={updateTotal}
             onSetSlotUsed={setSlotUsed}
             onResetAll={resetAll}
