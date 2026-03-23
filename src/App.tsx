@@ -11,6 +11,7 @@ import { useSpells } from './hooks/useSpells';
 import { useInventory } from './hooks/useInventory';
 import { useFeatures } from './hooks/useFeatures';
 import { useNotes } from './hooks/useNotes';
+import { useCharacterImage } from './hooks/useCharacterImage';
 import { createCombatSession, joinCombatSession } from './hooks/useCombatSession';
 import { Auth } from './components/Auth';
 import { HomeScreen } from './components/HomeScreen';
@@ -126,6 +127,8 @@ function App() {
   const { items, addItem, updateItem, deleteItem } = useInventory(selectedCharacterId);
   const { features, addFeature, updateFeature, resetAllUses, deleteFeature } = useFeatures(selectedCharacterId);
   const { notes, loading: notesLoading, updateContent } = useNotes(selectedCharacterId);
+  const { uploading: imageUploading, error: imageError, uploadImage, deleteImage } =
+    useCharacterImage(user?.id, selectedCharacterId);
 
   async function handleAuth(email: string, password: string, isSignUp: boolean) {
     if (isSignUp) {
@@ -197,8 +200,8 @@ function App() {
           setCombatRole('dm');
           setCombatSessionId(sessionId);
         }}
-        onJoinCombat={async (sessionId, characterId, charName, charClass, hp, maxHp) => {
-          await joinCombatSession(sessionId, user.id, characterId, charName, charClass, hp, maxHp);
+        onJoinCombat={async (sessionId, characterId, charName, charClass, hp, maxHp, imageUrl, imagePosition) => {
+          await joinCombatSession(sessionId, user.id, characterId, charName, charClass, hp, maxHp, imageUrl, imagePosition);
           setCombatRole('player');
           setCombatSessionId(sessionId);
         }}
@@ -309,6 +312,10 @@ function App() {
               onUpdateCharacter={updateCharacter}
               onUpdateScore={updateScore}
               onToggleSavingThrow={toggleSavingThrow}
+              imageUploading={imageUploading}
+              imageError={imageError}
+              onUploadImage={uploadImage}
+              onDeleteImage={deleteImage}
             />
           )}
           {activeTab === 'hp' && (

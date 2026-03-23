@@ -30,7 +30,7 @@ export function useCharacter(characterId: string | null) {
 
   async function updateCharacter(
     updates: Partial<
-      Pick<Character, 'name' | 'race' | 'class' | 'level' | 'current_hp' | 'max_hp' | 'temp_hp' | 'skill_proficiencies'>
+      Pick<Character, 'name' | 'race' | 'class' | 'level' | 'current_hp' | 'max_hp' | 'temp_hp' | 'skill_proficiencies' | 'image_url' | 'image_position'>
     >,
   ) {
     if (!characterId) return;

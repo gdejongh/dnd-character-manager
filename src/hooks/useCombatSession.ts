@@ -69,6 +69,8 @@ export async function joinCombatSession(
   characterClass: string,
   currentHp: number,
   maxHp: number,
+  imageUrl: string | null = null,
+  imagePosition: number = 50,
 ): Promise<string> {
   // Check if already joined
   const { data: existing } = await supabase
@@ -117,6 +119,8 @@ export async function joinCombatSession(
     character_id: characterId,
     current_hp: currentHp,
     max_hp: maxHp,
+    image_url: imageUrl,
+    image_position: imagePosition,
     sort_order: nextOrder,
   });
 

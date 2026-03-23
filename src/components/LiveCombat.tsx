@@ -166,8 +166,15 @@ function InitiativeRow({
           {index + 1}
         </div>
 
-        {/* Icon */}
-        {isEnemy ? (
+        {/* Icon / Avatar */}
+        {combatant.image_url ? (
+          <div
+            className="w-8 h-8 rounded-full overflow-hidden shrink-0"
+            style={{ border: '1.5px solid var(--accent-border)' }}
+          >
+            <img src={combatant.image_url} alt={combatant.name} className="w-full h-full object-cover" style={{ objectPosition: `center ${combatant.image_position ?? 50}%` }} />
+          </div>
+        ) : isEnemy ? (
           <Skull size={16} style={{ color: '#ef4444', flexShrink: 0 }} />
         ) : isAlly ? (
           <Shield size={16} style={{ color: '#60a5fa', flexShrink: 0 }} />

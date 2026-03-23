@@ -9,6 +9,8 @@ export interface Character {
   max_hp: number;
   temp_hp: number;
   skill_proficiencies: string[];
+  image_url: string | null;
+  image_position: number;
   created_at: string;
   updated_at: string;
 }
@@ -112,5 +114,7 @@ export interface Combatant {
   character_id: string | null;
   current_hp: number;
   max_hp: number;
+  image_url: string | null;
+  image_position: number;
   sort_order: number;
 }

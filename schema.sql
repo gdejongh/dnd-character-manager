@@ -310,3 +310,43 @@ create policy "Delete combatants"
 alter publication supabase_realtime add table combat_sessions;
 alter publication supabase_realtime add table session_participants;
 alter publication supabase_realtime add table combatants;
+
+-- =================================================================
+--  11. Character Images (migration)
+-- =================================================================
+-- Run these statements if upgrading an existing database:
+--
+--   ALTER TABLE characters ADD COLUMN IF NOT EXISTS image_url text;
+--   ALTER TABLE combatants ADD COLUMN IF NOT EXISTS image_url text;
+--
+-- Storage RLS policies for the "character-images" bucket.
+-- The bucket must be PUBLIC so other players can view images in combat.
+--
+--   INSERT INTO storage.buckets (id, name, public)
+--   VALUES ('character-images', 'character-images', true)
+--   ON CONFLICT (id) DO UPDATE SET public = true;
+--
+--   CREATE POLICY "Users can upload own character images"
+--     ON storage.objects FOR INSERT
+--     WITH CHECK (
+--       bucket_id = 'character-images'
+--       AND (storage.foldername(name))[1] = auth.uid()::text
+--     );
+--
+--   CREATE POLICY "Users can update own character images"
+--     ON storage.objects FOR UPDATE
+--     USING (
+--       bucket_id = 'character-images'
+--       AND (storage.foldername(name))[1] = auth.uid()::text
+--     );
+--
+--   CREATE POLICY "Users can delete own character images"
+--     ON storage.objects FOR DELETE
+--     USING (
+--       bucket_id = 'character-images'
+--       AND (storage.foldername(name))[1] = auth.uid()::text
+--     );
+--
+--   CREATE POLICY "Anyone can view character images"
+--     ON storage.objects FOR SELECT
+--     USING (bucket_id = 'character-images');

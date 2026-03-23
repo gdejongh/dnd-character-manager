@@ -12,7 +12,7 @@ interface HomeScreenProps {
   onDelete: (id: string) => Promise<void>;
   onSignOut: () => void;
   onStartCombat: () => Promise<void>;
-  onJoinCombat: (sessionId: string, characterId: string, charName: string, charClass: string, hp: number, maxHp: number) => Promise<void>;
+  onJoinCombat: (sessionId: string, characterId: string, charName: string, charClass: string, hp: number, maxHp: number, imageUrl: string | null, imagePosition: number) => Promise<void>;
 }
 
 export function HomeScreen({
@@ -298,7 +298,7 @@ export function HomeScreen({
                   onClick={async () => {
                     if (!joinSessionId) return;
                     setJoining(true);
-                    await onJoinCombat(joinSessionId, c.id, c.name, c.class, c.current_hp, c.max_hp);
+                    await onJoinCombat(joinSessionId, c.id, c.name, c.class, c.current_hp, c.max_hp, c.image_url, c.image_position ?? 50);
                     setJoining(false);
                   }}
                   disabled={joining}
