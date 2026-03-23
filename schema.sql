@@ -301,6 +301,14 @@ create policy "Users can create sessions"
   on combat_sessions for insert with check (auth.uid() = dm_user_id);
 create policy "DM can update own sessions"
   on combat_sessions for update using (auth.uid() = dm_user_id);
+create policy "Participants can advance turn"
+  on combat_sessions for update using (
+    exists (
+      select 1 from session_participants sp
+      where sp.session_id = combat_sessions.id
+        and sp.user_id = auth.uid()
+    )
+  );
 create policy "DM can delete own sessions"
   on combat_sessions for delete using (auth.uid() = dm_user_id);
 

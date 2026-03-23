@@ -906,7 +906,7 @@ function DMActive({
   const [confirmEnd, setConfirmEnd] = useState(false);
 
   return (
-    <div className="flex flex-col flex-1">
+    <div className="flex flex-col flex-1 min-h-0">
       {/* Top bar */}
       <header
         className="flex items-center justify-between p-3 shrink-0"
@@ -1093,11 +1093,11 @@ function PlayerActive({
   const activeCombatant = combatants[session.current_turn_index];
 
   return (
-    <div className="flex flex-col flex-1">
+    <div className="flex flex-col flex-1 min-h-0">
       {/* YOUR TURN banner */}
       {isMyTurn && (
         <div
-          className="py-3 text-center"
+          className="py-3 text-center shrink-0"
           style={{
             background: 'linear-gradient(135deg, rgba(201,168,76,0.2), rgba(240,192,64,0.15))',
             borderBottom: '2px solid var(--accent)',
@@ -1640,7 +1640,7 @@ export function LiveCombat({
                   />
                 </div>
               </div>
-              <div className="flex-1 overflow-y-auto">
+              <div className="flex-1 min-h-0 overflow-y-auto">
                 {effectiveDmSheetCharId && (
                   <CombatSheetLoader
                     characterId={effectiveDmSheetCharId}
