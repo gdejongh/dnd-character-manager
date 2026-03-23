@@ -348,6 +348,10 @@ export function useCombatSession(
     const enemy = combatants.find((c) => c.id === id);
     if (!enemy) return;
     const newHp = Math.max(0, Math.min(enemy.max_hp, enemy.current_hp + delta));
+    // Optimistic local update
+    setCombatants((prev) =>
+      prev.map((c) => (c.id === id ? { ...c, current_hp: newHp } : c)),
+    );
     await supabase.from('combatants').update({ current_hp: newHp }).eq('id', id);
   }
 
@@ -383,25 +387,37 @@ export function useCombatSession(
   /** Apply an HP delta to any combatant, syncing all related tables */
   async function applyCombatantHpDelta(combatantId: string, delta: number) {
     const combatant = combatants.find((c) => c.id === combatantId);
-    if (!combatant) return;
+    if (!combatant) {
+      console.warn('[applyCombatantHpDelta] combatant not found:', combatantId);
+      return;
+    }
 
     const newHp = Math.max(0, Math.min(combatant.max_hp, combatant.current_hp + delta));
 
+    // Optimistic local update for immediate UI feedback
+    setCombatants((prev) =>
+      prev.map((c) => (c.id === combatantId ? { ...c, current_hp: newHp } : c)),
+    );
+
     // Always update the combatant row
-    await supabase.from('combatants').update({ current_hp: newHp }).eq('id', combatantId);
+    const { error } = await supabase.from('combatants').update({ current_hp: newHp }).eq('id', combatantId);
+    if (error) console.error('[applyCombatantHpDelta] combatant update error:', error);
 
     // If linked to a participant (player), also update participant + character
     if (combatant.participant_id) {
       const participant = participants.find((p) => p.id === combatant.participant_id);
       if (participant) {
-        await supabase.from('session_participants').update({ current_hp: newHp }).eq('id', participant.id);
-        await supabase.from('characters').update({ current_hp: newHp }).eq('id', participant.character_id);
+        const { error: pErr } = await supabase.from('session_participants').update({ current_hp: newHp }).eq('id', participant.id);
+        if (pErr) console.error('[applyCombatantHpDelta] participant update error:', pErr);
+        const { error: cErr } = await supabase.from('characters').update({ current_hp: newHp }).eq('id', participant.character_id);
+        if (cErr) console.error('[applyCombatantHpDelta] character update error:', cErr);
       }
     }
 
     // If DM character (enemy/ally with character_id), also update character table
     if (combatant.character_id && !combatant.participant_id) {
-      await supabase.from('characters').update({ current_hp: newHp }).eq('id', combatant.character_id);
+      const { error: cErr } = await supabase.from('characters').update({ current_hp: newHp }).eq('id', combatant.character_id);
+      if (cErr) console.error('[applyCombatantHpDelta] DM character update error:', cErr);
     }
   }
 
