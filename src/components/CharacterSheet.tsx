@@ -183,7 +183,7 @@ export function CharacterSheet({
       {/* Fullscreen image preview */}
       {showFullImage && character.image_url && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-6"
+          className="fixed inset-0 z-50 flex items-start justify-center pt-16 pb-6 px-6"
           style={{ background: 'rgba(0,0,0,0.85)' }}
           onClick={() => setShowFullImage(false)}
         >
@@ -197,8 +197,8 @@ export function CharacterSheet({
           <img
             src={character.image_url}
             alt={character.name}
-            className="max-w-full max-h-full rounded-xl object-contain animate-fade-in"
-            style={{ boxShadow: '0 0 40px rgba(0,0,0,0.6)' }}
+            className="max-w-full rounded-xl object-contain animate-fade-in"
+            style={{ boxShadow: '0 0 40px rgba(0,0,0,0.6)', maxHeight: 'calc(100dvh - 6rem)' }}
           />
         </div>
       )}

@@ -60,3 +60,7 @@ Use the fire-and-forget `showToast(message)` function from `src/lib/toast.ts` fo
 ### Environment
 
 Supabase credentials go in `.env.local` (see `.env.local.example`). The Supabase client in `src/lib/supabase.ts` exports an `isSupabaseConfigured` flag — when false, the app shows a setup screen instead of crashing.
+
+# Copilot Commit Policy
+
+Copilot and Copilot CLI must NOT commit or push changes automatically in this repository. All code changes should be staged only; the user will review and commit them manually.
