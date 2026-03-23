@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import type { Character, AbilityScore, SpellSlot, Spell, Feature, Ability } from '../types/database';
+import type { Character, AbilityScore, SpellSlot, Spell, Feature, Ability, ActionType } from '../types/database';
 import {
   getModifier,
   getProficiencyBonus,
@@ -24,6 +24,10 @@ interface CombatViewProps {
   onUpdateCharacter: (updates: Partial<Pick<Character, 'current_hp' | 'max_hp' | 'temp_hp'>>) => void;
   onSetSlotUsed: (level: number, used: number) => void;
   onUpdateFeature: (id: string, updates: Partial<Pick<Feature, 'used_uses'>>) => void;
+  /** When provided, Cast/Use buttons trigger this instead of internal animation handlers */
+  onActionInitiated?: (action: { spell?: Spell; feature?: Feature; actionType: ActionType }) => void;
+  /** Action types already used this turn — shows warning badge on those buttons */
+  usedActionTypes?: ReadonlySet<string>;
 }
 
 const ORD: Record<number, string> = {
@@ -246,6 +250,8 @@ export function CombatView({
   onUpdateCharacter,
   onSetSlotUsed,
   onUpdateFeature,
+  onActionInitiated,
+  usedActionTypes,
 }: CombatViewProps) {
   const [expandedSpell, setExpandedSpell] = useState<string | null>(null);
   const [expandedFeature, setExpandedFeature] = useState<string | null>(null);
@@ -627,6 +633,14 @@ export function CombatView({
                           {spell.name}
                         </span>
                         <ActionTypeBadge type={spell.action_type ?? 'action'} small />
+                        {usedActionTypes?.has(spell.action_type ?? 'action') && (
+                          <span
+                            className="text-xs px-1.5 py-0.5 rounded-full shrink-0"
+                            style={{ background: 'rgba(245,158,11,0.15)', color: '#f59e0b', fontSize: '0.6rem', fontFamily: 'var(--heading)', letterSpacing: '0.5px' }}
+                          >
+                            USED
+                          </span>
+                        )}
                         {/* Cast button */}
                         <button
                           className="px-3 py-1 rounded-lg text-xs font-bold cursor-pointer active:scale-90 transition-transform shrink-0"
@@ -642,7 +656,13 @@ export function CombatView({
                           disabled={!canCast && level > 0}
                           onClick={(e) => {
                             e.stopPropagation();
-                            if (canCast) handleCastSpell(spell);
+                            if (canCast) {
+                              if (onActionInitiated) {
+                                onActionInitiated({ spell, actionType: spell.action_type ?? 'action' });
+                              } else {
+                                handleCastSpell(spell);
+                              }
+                            }
                           }}
                         >
                           {level === 0 ? 'Cast' : `Cast (${ORD[level]})`}
@@ -723,6 +743,14 @@ export function CombatView({
                     {feature.title}
                   </span>
                   <ActionTypeBadge type={feature.action_type ?? 'other'} small />
+                  {usedActionTypes?.has(feature.action_type ?? 'other') && (
+                    <span
+                      className="text-xs px-1.5 py-0.5 rounded-full shrink-0"
+                      style={{ background: 'rgba(245,158,11,0.15)', color: '#f59e0b', fontSize: '0.6rem', fontFamily: 'var(--heading)', letterSpacing: '0.5px' }}
+                    >
+                      USED
+                    </span>
+                  )}
                   {hasUses && (
                     <div className="flex items-center gap-1 shrink-0">
                       {Array.from({ length: feature.max_uses! }).map((_, i) => (
@@ -763,7 +791,13 @@ export function CombatView({
                     disabled={depleted}
                     onClick={(e) => {
                       e.stopPropagation();
-                      if (!depleted) handleUseAbility(feature);
+                      if (!depleted) {
+                        if (onActionInitiated) {
+                          onActionInitiated({ feature, actionType: feature.action_type ?? 'other' });
+                        } else {
+                          handleUseAbility(feature);
+                        }
+                      }
                     }}
                   >
                     Use

@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import type { FormEvent } from 'react';
-import { Shield } from 'lucide-react';
+import { Shield, Mail } from 'lucide-react';
 
 interface AuthProps {
-  onAuth: (email: string, password: string, isSignUp: boolean) => Promise<void>;
+  onAuth: (email: string, password: string, isSignUp: boolean) => Promise<{ needsEmailVerification?: boolean }>;
 }
 
 export function Auth({ onAuth }: AuthProps) {
@@ -12,13 +12,17 @@ export function Auth({ onAuth }: AuthProps) {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [emailSent, setEmailSent] = useState(false);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setError('');
     setLoading(true);
     try {
-      await onAuth(email, password, isSignUp);
+      const result = await onAuth(email, password, isSignUp);
+      if (result?.needsEmailVerification) {
+        setEmailSent(true);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');
     }
@@ -51,6 +55,41 @@ export function Auth({ onAuth }: AuthProps) {
           </p>
         </div>
 
+        {emailSent ? (
+          <div className="flex flex-col items-center gap-4 py-2">
+            <Mail size={36} style={{ color: 'var(--accent)' }} />
+            <h2
+              className="text-lg font-bold text-center"
+              style={{ color: 'var(--text-h)', fontFamily: 'var(--heading)', margin: 0 }}
+            >
+              Check your email
+            </h2>
+            <p className="text-sm text-center" style={{ color: 'var(--text)', lineHeight: 1.5 }}>
+              We sent a verification link to{' '}
+              <strong style={{ color: 'var(--text-h)' }}>{email}</strong>.
+              <br />
+              Click the link to verify your account, then come back and sign in.
+            </p>
+            <button
+              onClick={() => {
+                setEmailSent(false);
+                setIsSignUp(false);
+                setPassword('');
+              }}
+              className="w-full py-3 rounded-lg font-semibold text-base cursor-pointer"
+              style={{
+                background: 'linear-gradient(135deg, var(--accent), var(--accent-bright))',
+                color: '#0f0e13',
+                border: 'none',
+                fontFamily: 'var(--heading)',
+                letterSpacing: '0.5px',
+              }}
+            >
+              Back to Sign In
+            </button>
+          </div>
+        ) : (
+        <>
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <input
             type="email"
@@ -107,6 +146,8 @@ export function Auth({ onAuth }: AuthProps) {
             ? 'Already have an account? Sign In'
             : "Don't have an account? Sign Up"}
         </button>
+        </>
+        )}
       </div>
     </div>
   );

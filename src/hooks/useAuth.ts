@@ -39,8 +39,11 @@ export function useAuth() {
   }
 
   async function signUp(email: string, password: string) {
-    const { error } = await supabase.auth.signUp({ email, password });
+    const { data, error } = await supabase.auth.signUp({ email, password });
     if (error) throw error;
+    // If no session is returned, email confirmation is required
+    const needsEmailVerification = !data.session;
+    return { needsEmailVerification };
   }
 
   async function signOut() {

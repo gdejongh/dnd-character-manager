@@ -1,5 +1,5 @@
-import { useCallback } from 'react';
-import type { Character } from '../types/database';
+import { useCallback, useEffect } from 'react';
+import type { Character, Spell, Feature, ActionType } from '../types/database';
 import { useCharacter } from '../hooks/useCharacter';
 import { useAbilityScores } from '../hooks/useAbilityScores';
 import { useSpellSlots } from '../hooks/useSpellSlots';
@@ -7,18 +7,49 @@ import { useSpells } from '../hooks/useSpells';
 import { useFeatures } from '../hooks/useFeatures';
 import { CombatView } from './CombatView';
 
+export interface ResourceConsumers {
+  consumeSpellSlot: (level: number) => Promise<void>;
+  consumeFeatureUse: (featureId: string) => Promise<void>;
+}
+
 interface CombatSheetLoaderProps {
   characterId: string;
   /** Optional callback to sync HP changes to the combat session tables */
   onCombatHpSync?: (newHp: number) => void;
+  /** When provided, Cast/Use buttons trigger this instead of internal animation handlers */
+  onActionInitiated?: (action: { spell?: Spell; feature?: Feature; actionType: ActionType }) => void;
+  /** Action types already used this turn */
+  usedActionTypes?: ReadonlySet<string>;
+  /** Ref that receives resource consumption functions for the parent to call */
+  resourceConsumersRef?: React.RefObject<ResourceConsumers | null>;
 }
 
-export function CombatSheetLoader({ characterId, onCombatHpSync }: CombatSheetLoaderProps) {
+export function CombatSheetLoader({ characterId, onCombatHpSync, onActionInitiated, usedActionTypes, resourceConsumersRef }: CombatSheetLoaderProps) {
   const { character, loading: charLoading, updateCharacter } = useCharacter(characterId);
   const { scores, loading: scoresLoading } = useAbilityScores(characterId);
   const { slots, setSlotUsed } = useSpellSlots(characterId);
   const { spells } = useSpells(characterId);
   const { features, updateFeature } = useFeatures(characterId);
+
+  // Expose resource consumption functions to parent via ref
+  useEffect(() => {
+    if (!resourceConsumersRef) return;
+    resourceConsumersRef.current = {
+      consumeSpellSlot: async (level: number) => {
+        const slot = slots.find((s) => s.level === level);
+        if (slot && slot.used < slot.total) {
+          await setSlotUsed(level, slot.used + 1);
+        }
+      },
+      consumeFeatureUse: async (featureId: string) => {
+        const feature = features.find((f) => f.id === featureId);
+        if (feature && feature.max_uses !== null && feature.used_uses < feature.max_uses) {
+          await updateFeature(featureId, { used_uses: feature.used_uses + 1 });
+        }
+      },
+    };
+    return () => { resourceConsumersRef.current = null; };
+  });
 
   const handleUpdateCharacter = useCallback(
     (updates: Partial<Pick<Character, 'current_hp' | 'max_hp' | 'temp_hp'>>) => {
@@ -62,6 +93,8 @@ export function CombatSheetLoader({ characterId, onCombatHpSync }: CombatSheetLo
       onUpdateCharacter={handleUpdateCharacter}
       onSetSlotUsed={setSlotUsed}
       onUpdateFeature={updateFeature}
+      onActionInitiated={onActionInitiated}
+      usedActionTypes={usedActionTypes}
     />
   );
 }

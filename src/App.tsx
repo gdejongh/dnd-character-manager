@@ -128,8 +128,11 @@ function App() {
   const { notes, loading: notesLoading, updateContent } = useNotes(selectedCharacterId);
 
   async function handleAuth(email: string, password: string, isSignUp: boolean) {
-    if (isSignUp) await signUp(email, password);
-    else await signIn(email, password);
+    if (isSignUp) {
+      return await signUp(email, password);
+    }
+    await signIn(email, password);
+    return {};
   }
 
   // Loading state

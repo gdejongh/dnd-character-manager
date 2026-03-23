@@ -22,6 +22,7 @@ interface UseCombatSessionReturn {
   nextTurn: () => Promise<void>;
   updateEnemyHp: (id: string, delta: number) => Promise<void>;
   updateMyHp: (newHp: number) => Promise<void>;
+  applyCombatantHpDelta: (combatantId: string, delta: number) => Promise<void>;
   endSession: () => Promise<void>;
 }
 
@@ -379,6 +380,31 @@ export function useCombatSession(
     }
   }
 
+  /** Apply an HP delta to any combatant, syncing all related tables */
+  async function applyCombatantHpDelta(combatantId: string, delta: number) {
+    const combatant = combatants.find((c) => c.id === combatantId);
+    if (!combatant) return;
+
+    const newHp = Math.max(0, Math.min(combatant.max_hp, combatant.current_hp + delta));
+
+    // Always update the combatant row
+    await supabase.from('combatants').update({ current_hp: newHp }).eq('id', combatantId);
+
+    // If linked to a participant (player), also update participant + character
+    if (combatant.participant_id) {
+      const participant = participants.find((p) => p.id === combatant.participant_id);
+      if (participant) {
+        await supabase.from('session_participants').update({ current_hp: newHp }).eq('id', participant.id);
+        await supabase.from('characters').update({ current_hp: newHp }).eq('id', participant.character_id);
+      }
+    }
+
+    // If DM character (enemy/ally with character_id), also update character table
+    if (combatant.character_id && !combatant.participant_id) {
+      await supabase.from('characters').update({ current_hp: newHp }).eq('id', combatant.character_id);
+    }
+  }
+
   async function endSession() {
     if (!session) return;
     await supabase
@@ -400,6 +426,7 @@ export function useCombatSession(
     nextTurn,
     updateEnemyHp,
     updateMyHp,
+    applyCombatantHpDelta,
     endSession,
   };
 }

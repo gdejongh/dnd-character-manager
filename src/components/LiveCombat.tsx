@@ -1,8 +1,11 @@
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import type { FormEvent } from 'react';
-import type { Character, Combatant, SessionParticipant } from '../types/database';
+import type { Character, Combatant, SessionParticipant, Spell, Feature, ActionType } from '../types/database';
 import { useCombatSession } from '../hooks/useCombatSession';
 import { CombatSheetLoader } from './CombatSheetLoader';
+import type { ResourceConsumers } from './CombatSheetLoader';
+import { TurnActionFlow } from './TurnActionFlow';
+import type { TurnActionResult } from './TurnActionFlow';
 import { NumericInput } from './NumericInput';
 import {
   Skull,
@@ -16,6 +19,7 @@ import {
   Crown,
   ScrollText,
   ChevronDown,
+  Flag,
 } from 'lucide-react';
 
 interface LiveCombatProps {
@@ -934,14 +938,39 @@ export function LiveCombat({
     nextTurn,
     updateEnemyHp,
     updateMyHp,
+    applyCombatantHpDelta,
     endSession,
   } = useCombatSession(sessionId, userId);
 
   const myParticipant = participants.find((p) => p.user_id === userId);
+  const myCombatant = combatants.find((c) => c.participant_id === myParticipant?.id);
+  const myCombatantIndex = combatants.findIndex((c) => c.participant_id === myParticipant?.id);
 
   // Tab switching between initiative order and combat sheet
   const [activeView, setActiveView] = useState<ActiveView>('initiative');
   const [dmSheetCharId, setDmSheetCharId] = useState<string | null>(null);
+
+  // Ref to the active CombatSheetLoader's resource consumption functions
+  const resourceConsumersRef = useRef<ResourceConsumers | null>(null);
+
+  // Turn-based action flow state — consolidated to avoid useEffect setState
+  const [turnState, setTurnState] = useState<{
+    forTurnIndex: number | null;
+    usedTypes: Set<string>;
+    action: { spell?: Spell; feature?: Feature; actionType: ActionType } | null;
+    warning: { spell?: Spell; feature?: Feature; actionType: ActionType } | null;
+  }>({ forTurnIndex: null, usedTypes: new Set(), action: null, warning: null });
+
+  const currentTurnIndex = session?.current_turn_index ?? null;
+  const isSameTurn = currentTurnIndex !== null && currentTurnIndex === turnState.forTurnIndex;
+
+  // Derived values — auto-reset when turn changes
+  const usedActionTypes = useMemo(
+    () => (isSameTurn ? turnState.usedTypes : new Set<string>()),
+    [isSameTurn, turnState.usedTypes],
+  );
+  const turnAction = isSameTurn ? turnState.action : null;
+  const actionWarning = isSameTurn ? turnState.warning : null;
 
   // DM's characters that are in this combat session (have character_id set)
   const dmCharacterCombatants = useMemo(
@@ -955,6 +984,66 @@ export function LiveCombat({
   // Effective DM sheet character: user selection or first available
   const effectiveDmSheetCharId = dmSheetCharId
     ?? (dmCharacterCombatants.length > 0 ? dmCharacterCombatants[0].character_id : null);
+
+  // Determine if it's the current user's turn
+  const isMyTurnAsPlayer = role === 'player' && myCombatantIndex === session?.current_turn_index;
+  const activeCombatant = session ? combatants[session.current_turn_index] : null;
+  const isMyTurnAsDm = role === 'dm' && activeCombatant && activeCombatant.combatant_type !== 'player' && !!activeCombatant.character_id;
+  const isMyTurn = isMyTurnAsPlayer || isMyTurnAsDm;
+
+  // The combatant whose turn it is for the current user's action flow
+  const actionFlowCombatantId = isMyTurnAsPlayer
+    ? (myCombatant?.id ?? null)
+    : isMyTurnAsDm ? (activeCombatant?.id ?? null) : null;
+
+  // Handle action initiated from combat sheet
+  const handleActionInitiated = useCallback((action: { spell?: Spell; feature?: Feature; actionType: ActionType }) => {
+    if (usedActionTypes.has(action.actionType)) {
+      setTurnState(prev => ({ ...prev, forTurnIndex: currentTurnIndex, warning: action }));
+    } else {
+      setTurnState(prev => ({ ...prev, forTurnIndex: currentTurnIndex, action }));
+      setActiveView('initiative'); // will show TurnActionFlow overlay
+    }
+  }, [usedActionTypes, currentTurnIndex]);
+
+  // Handle confirming a duplicate action warning
+  function confirmActionWarning() {
+    if (actionWarning) {
+      setTurnState(prev => ({ ...prev, action: actionWarning, warning: null }));
+      setActiveView('initiative');
+    }
+  }
+
+  // Handle action flow completion — apply damage, consume resources
+  const handleActionComplete = useCallback(async (result: TurnActionResult) => {
+    if (!turnAction) return;
+
+    // Apply HP changes to targets
+    if (result.effectType !== 'none' && result.amount > 0) {
+      const delta = result.effectType === 'damage' ? -result.amount : result.amount;
+      await Promise.all(
+        result.targets.map((combatantId) => applyCombatantHpDelta(combatantId, delta)),
+      );
+    }
+
+    // Consume spell slot for leveled spells
+    if (turnAction.spell && turnAction.spell.level > 0 && resourceConsumersRef.current) {
+      await resourceConsumersRef.current.consumeSpellSlot(turnAction.spell.level);
+    }
+
+    // Consume feature use for abilities with limited uses
+    if (turnAction.feature && resourceConsumersRef.current) {
+      await resourceConsumersRef.current.consumeFeatureUse(turnAction.feature.id);
+    }
+
+    // Mark action type as used and clear action flow
+    setTurnState(prev => ({
+      ...prev,
+      forTurnIndex: currentTurnIndex,
+      usedTypes: new Set([...(prev.forTurnIndex === currentTurnIndex ? prev.usedTypes : []), turnAction.actionType]),
+      action: null,
+    }));
+  }, [turnAction, applyCombatantHpDelta, currentTurnIndex]);
 
   // Auto-leave when session ends
   useEffect(() => {
@@ -1037,11 +1126,132 @@ export function LiveCombat({
     );
   }
 
+  // ── Shared UI pieces for active combat ──
+
+  // Action warning modal (duplicate action type)
+  const actionWarningModal = actionWarning && (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-6"
+      style={{ background: 'rgba(0,0,0,0.8)' }}
+    >
+      <div
+        className="w-full max-w-sm rounded-2xl p-5"
+        style={{ background: 'var(--bg-surface)', border: '1px solid var(--accent-border)' }}
+      >
+        <h3 className="text-sm font-bold mb-2" style={{ color: 'var(--accent)', fontFamily: 'var(--heading)', letterSpacing: '1px' }}>
+          ACTION ALREADY USED
+        </h3>
+        <p className="text-sm mb-4" style={{ color: 'var(--text)', lineHeight: '1.5' }}>
+          You&apos;ve already used your <strong style={{ color: 'var(--text-h)' }}>{actionWarning.actionType === 'bonus_action' ? 'Bonus Action' : actionWarning.actionType.charAt(0).toUpperCase() + actionWarning.actionType.slice(1)}</strong> this turn. Continue anyway?
+        </p>
+        <div className="flex gap-2">
+          <button
+            onClick={() => setTurnState(prev => ({ ...prev, warning: null }))}
+            className="flex-1 py-2.5 rounded-xl cursor-pointer"
+            style={{ color: 'var(--text)', background: 'transparent', border: '1px solid var(--border)', fontFamily: 'var(--heading)', fontSize: '0.8rem' }}
+          >
+            Cancel
+          </button>
+          <button
+            onClick={confirmActionWarning}
+            className="flex-1 py-2.5 rounded-xl cursor-pointer"
+            style={{ background: 'var(--accent-bg)', color: 'var(--accent)', border: '1px solid var(--accent-border)', fontFamily: 'var(--heading)', fontSize: '0.8rem' }}
+          >
+            Continue
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+
+  // TurnActionFlow overlay (when user is selecting targets / entering damage)
+  if (turnAction && session) {
+    return (
+      <TurnActionFlow
+        actionName={turnAction.spell?.name ?? turnAction.feature?.title ?? 'Action'}
+        actionDescription={turnAction.spell?.description ?? turnAction.feature?.description}
+        actionType={turnAction.actionType}
+        combatants={combatants}
+        participants={participants}
+        myCombatantId={actionFlowCombatantId}
+        onComplete={handleActionComplete}
+        onCancel={() => setTurnState(prev => ({ ...prev, action: null }))}
+      />
+    );
+  }
+
+  // End Turn button for players
+  const endTurnButton = isMyTurn && (
+    <div className="p-3" style={{ borderTop: '1px solid var(--border)', background: 'rgba(0,0,0,0.4)' }}>
+      {/* Action economy indicators */}
+      {usedActionTypes.size > 0 && (
+        <div className="flex items-center gap-2 mb-2 justify-center">
+          <span className="text-xs" style={{ color: 'var(--text)', fontFamily: 'var(--heading)', letterSpacing: '0.5px' }}>Used:</span>
+          {Array.from(usedActionTypes).map((at) => (
+            <span
+              key={at}
+              className="text-xs px-2 py-0.5 rounded-full"
+              style={{ background: 'rgba(245,158,11,0.15)', color: '#f59e0b', fontFamily: 'var(--heading)', fontSize: '0.6rem', letterSpacing: '0.5px' }}
+            >
+              {at === 'bonus_action' ? 'Bonus Action' : at.charAt(0).toUpperCase() + at.slice(1)}
+            </span>
+          ))}
+        </div>
+      )}
+      <button
+        onClick={nextTurn}
+        className="w-full py-3 rounded-xl font-bold cursor-pointer flex items-center justify-center gap-2"
+        style={{
+          background: 'linear-gradient(135deg, var(--accent), var(--accent-bright))',
+          color: '#0a0910',
+          border: 'none',
+          fontFamily: 'var(--heading)',
+          letterSpacing: '1.5px',
+          fontSize: '0.9rem',
+        }}
+      >
+        <Flag size={16} />
+        End Turn
+      </button>
+    </div>
+  );
+
   // Active combat — DM
   if (role === 'dm') {
     return (
       <div className="flex flex-col min-h-screen" style={{ background: darkBg }}>
+        {actionWarningModal}
         <ActiveViewTabs active={activeView} onChange={setActiveView} />
+
+        {/* DM turn notification for their characters */}
+        {isMyTurnAsDm && activeCombatant && activeView === 'initiative' && (
+          <div
+            className="py-2.5 text-center"
+            style={{
+              background: 'linear-gradient(135deg, rgba(201,168,76,0.15), rgba(240,192,64,0.1))',
+              borderBottom: '2px solid var(--accent)',
+              animation: 'yourTurnFlash 1.5s ease-in-out infinite',
+            }}
+          >
+            <span className="text-sm font-bold" style={{ color: 'var(--accent-bright)', fontFamily: 'var(--heading)', letterSpacing: '2px' }}>
+              ⚔️ {activeCombatant.name}&apos;s TURN
+            </span>
+            <button
+              onClick={() => {
+                const dmChar = dmCharacterCombatants.find((c) => c.id === activeCombatant.id);
+                if (dmChar?.character_id) {
+                  setDmSheetCharId(dmChar.character_id);
+                  setActiveView('sheet');
+                }
+              }}
+              className="ml-3 px-2 py-0.5 rounded text-xs cursor-pointer"
+              style={{ background: 'var(--accent-bg)', color: 'var(--accent)', border: '1px solid var(--accent-border)', fontFamily: 'var(--heading)', fontSize: '0.6rem' }}
+            >
+              Open Sheet →
+            </button>
+          </div>
+        )}
+
         {activeView === 'initiative' ? (
           <DMActive
             session={session}
@@ -1097,6 +1307,9 @@ export function LiveCombat({
                           if (delta !== 0) updateEnemyHp(combatant.id, delta);
                         }
                       }}
+                      onActionInitiated={isMyTurnAsDm && activeCombatant?.character_id === effectiveDmSheetCharId ? handleActionInitiated : undefined}
+                      usedActionTypes={isMyTurnAsDm && activeCombatant?.character_id === effectiveDmSheetCharId ? usedActionTypes : undefined}
+                      resourceConsumersRef={isMyTurnAsDm && activeCombatant?.character_id === effectiveDmSheetCharId ? resourceConsumersRef : undefined}
                     />
                   )}
                 </div>
@@ -1123,21 +1336,31 @@ export function LiveCombat({
   // Active combat — Player
   return (
     <div className="flex flex-col min-h-screen" style={{ background: darkBg }}>
+      {actionWarningModal}
       <ActiveViewTabs active={activeView} onChange={setActiveView} />
       {activeView === 'initiative' ? (
-        <PlayerActive
-          session={session}
-          combatants={combatants}
-          participants={participants}
-          userId={userId}
-          onMyHpChange={updateMyHp}
-        />
-      ) : myCharacterId ? (
-        <div className="flex-1 overflow-y-auto">
-          <CombatSheetLoader
-            characterId={myCharacterId}
-            onCombatHpSync={updateMyHp}
+        <>
+          <PlayerActive
+            session={session}
+            combatants={combatants}
+            participants={participants}
+            userId={userId}
+            onMyHpChange={updateMyHp}
           />
+          {endTurnButton}
+        </>
+      ) : myCharacterId ? (
+        <div className="flex flex-col flex-1 overflow-hidden">
+          <div className="flex-1 overflow-y-auto">
+            <CombatSheetLoader
+              characterId={myCharacterId}
+              onCombatHpSync={updateMyHp}
+              onActionInitiated={isMyTurnAsPlayer ? handleActionInitiated : undefined}
+              usedActionTypes={isMyTurnAsPlayer ? usedActionTypes : undefined}
+              resourceConsumersRef={isMyTurnAsPlayer ? resourceConsumersRef : undefined}
+            />
+          </div>
+          {endTurnButton}
         </div>
       ) : (
         <div className="flex-1 flex items-center justify-center p-6">
