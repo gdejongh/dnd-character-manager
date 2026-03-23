@@ -20,7 +20,15 @@ import {
   ScrollText,
   ChevronDown,
   Flag,
+  Undo2,
 } from 'lucide-react';
+
+interface CompletedAction {
+  spell?: Spell;
+  feature?: Feature;
+  actionType: ActionType;
+  result: TurnActionResult;
+}
 
 interface LiveCombatProps {
   sessionId: string;
@@ -959,7 +967,8 @@ export function LiveCombat({
     usedTypes: Set<string>;
     action: { spell?: Spell; feature?: Feature; actionType: ActionType } | null;
     warning: { spell?: Spell; feature?: Feature; actionType: ActionType } | null;
-  }>({ forTurnIndex: null, usedTypes: new Set(), action: null, warning: null });
+    undoStack: CompletedAction[];
+  }>({ forTurnIndex: null, usedTypes: new Set(), action: null, warning: null, undoStack: [] });
 
   const currentTurnIndex = session?.current_turn_index ?? null;
   const isSameTurn = currentTurnIndex !== null && currentTurnIndex === turnState.forTurnIndex;
@@ -971,6 +980,10 @@ export function LiveCombat({
   );
   const turnAction = isSameTurn ? turnState.action : null;
   const actionWarning = isSameTurn ? turnState.warning : null;
+  const undoStack = useMemo(
+    () => (isSameTurn ? turnState.undoStack : []),
+    [isSameTurn, turnState.undoStack],
+  );
 
   // DM's characters that are in this combat session (have character_id set)
   const dmCharacterCombatants = useMemo(
@@ -1036,14 +1049,56 @@ export function LiveCombat({
       await resourceConsumersRef.current.consumeFeatureUse(turnAction.feature.id);
     }
 
-    // Mark action type as used and clear action flow
+    // Push to undo stack, mark action type as used, clear action flow
+    const completedAction: CompletedAction = {
+      spell: turnAction.spell,
+      feature: turnAction.feature,
+      actionType: turnAction.actionType,
+      result,
+    };
     setTurnState(prev => ({
       ...prev,
       forTurnIndex: currentTurnIndex,
       usedTypes: new Set([...(prev.forTurnIndex === currentTurnIndex ? prev.usedTypes : []), turnAction.actionType]),
       action: null,
+      undoStack: [...(prev.forTurnIndex === currentTurnIndex ? prev.undoStack : []), completedAction],
     }));
   }, [turnAction, applyCombatantHpDelta, currentTurnIndex]);
+
+  // Undo the last completed action — reverse HP, restore resources, remove action type from used
+  const handleUndo = useCallback(async () => {
+    if (undoStack.length === 0) return;
+    const last = undoStack[undoStack.length - 1];
+
+    // Reverse HP changes
+    if (last.result.effectType !== 'none' && last.result.amount > 0) {
+      const reverseDelta = last.result.effectType === 'damage' ? last.result.amount : -last.result.amount;
+      await Promise.all(
+        last.result.targets.map((combatantId) => applyCombatantHpDelta(combatantId, reverseDelta)),
+      );
+    }
+
+    // Restore spell slot
+    if (last.spell && last.spell.level > 0 && resourceConsumersRef.current) {
+      await resourceConsumersRef.current.restoreSpellSlot(last.spell.level);
+    }
+
+    // Restore feature use
+    if (last.feature && resourceConsumersRef.current) {
+      await resourceConsumersRef.current.restoreFeatureUse(last.feature.id);
+    }
+
+    // Pop from undo stack and remove the action type from used set
+    setTurnState(prev => {
+      const newStack = prev.undoStack.slice(0, -1);
+      // Rebuild usedTypes from remaining stack
+      const newUsedTypes = new Set<string>();
+      for (const entry of newStack) {
+        newUsedTypes.add(entry.actionType);
+      }
+      return { ...prev, undoStack: newStack, usedTypes: newUsedTypes };
+    });
+  }, [undoStack, applyCombatantHpDelta]);
 
   // Auto-leave when session ends
   useEffect(() => {
@@ -1198,6 +1253,24 @@ export function LiveCombat({
           ))}
         </div>
       )}
+      {/* Undo last action button */}
+      {undoStack.length > 0 && (
+        <button
+          onClick={handleUndo}
+          className="w-full py-2.5 rounded-xl cursor-pointer flex items-center justify-center gap-2 mb-2"
+          style={{
+            background: 'rgba(239,68,68,0.1)',
+            color: '#f87171',
+            border: '1px solid rgba(239,68,68,0.3)',
+            fontFamily: 'var(--heading)',
+            letterSpacing: '1px',
+            fontSize: '0.8rem',
+          }}
+        >
+          <Undo2 size={14} />
+          Undo {undoStack[undoStack.length - 1].spell?.name ?? undoStack[undoStack.length - 1].feature?.title ?? 'Action'}
+        </button>
+      )}
       <button
         onClick={nextTurn}
         className="w-full py-3 rounded-xl font-bold cursor-pointer flex items-center justify-center gap-2"
@@ -1253,7 +1326,8 @@ export function LiveCombat({
           </div>
         )}
 
-        {activeView === 'initiative' ? (
+        {/* Initiative view */}
+        <div style={{ display: activeView === 'initiative' ? 'flex' : 'none', flexDirection: 'column', flex: 1 }}>
           <DMActive
             session={session}
             combatants={combatants}
@@ -1264,72 +1338,71 @@ export function LiveCombat({
             onInitiativeChange={updateCombatantInitiative}
             onEndSession={endSession}
           />
-        ) : (
-          <div className="flex flex-col flex-1 overflow-hidden">
-            {/* DM character selector dropdown */}
-            {dmCharacterCombatants.length > 0 ? (
-              <>
-                <div className="p-3" style={{ borderBottom: '1px solid var(--border)', background: 'rgba(0,0,0,0.3)' }}>
-                  <div className="relative">
-                    <select
-                      value={effectiveDmSheetCharId ?? ''}
-                      onChange={(e) => setDmSheetCharId(e.target.value || null)}
-                      className="w-full appearance-none py-2.5 px-3 pr-10 rounded-lg text-sm cursor-pointer"
-                      style={{
-                        background: 'var(--bg-surface)',
-                        color: 'var(--text-h)',
-                        border: '1px solid var(--border)',
-                        fontFamily: 'var(--heading)',
-                        fontSize: '0.85rem',
-                        letterSpacing: '0.5px',
-                      }}
-                    >
-                      {dmCharacterCombatants.map((c) => (
-                        <option key={c.id} value={c.character_id ?? ''}>
-                          {c.name} ({c.combatant_type === 'ally' ? 'Ally' : 'Enemy'})
-                        </option>
-                      ))}
-                    </select>
-                    <ChevronDown
-                      size={16}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none"
-                      style={{ color: 'var(--text)' }}
-                    />
-                  </div>
-                </div>
-                <div className="flex-1 overflow-y-auto">
-                  {effectiveDmSheetCharId && (
-                    <CombatSheetLoader
-                      characterId={effectiveDmSheetCharId}
-                      onCombatHpSync={(newHp) => {
-                        const combatant = combatants.find((c) => c.character_id === effectiveDmSheetCharId);
-                        if (combatant) {
-                          const delta = newHp - combatant.current_hp;
-                          if (delta !== 0) updateEnemyHp(combatant.id, delta);
-                        }
-                      }}
-                      onActionInitiated={isMyTurnAsDm && activeCombatant?.character_id === effectiveDmSheetCharId ? handleActionInitiated : undefined}
-                      usedActionTypes={isMyTurnAsDm && activeCombatant?.character_id === effectiveDmSheetCharId ? usedActionTypes : undefined}
-                      resourceConsumersRef={isMyTurnAsDm && activeCombatant?.character_id === effectiveDmSheetCharId ? resourceConsumersRef : undefined}
-                    />
-                  )}
-                </div>
-              </>
-            ) : (
-              <div className="flex-1 flex items-center justify-center p-6">
-                <div className="text-center">
-                  <ScrollText size={32} style={{ color: 'var(--text)', margin: '0 auto 1rem', opacity: 0.5 }} />
-                  <p className="text-sm mb-1" style={{ color: 'var(--text-h)', fontFamily: 'var(--heading)' }}>
-                    No Character Sheets Available
-                  </p>
-                  <p className="text-xs" style={{ color: 'var(--text)', maxWidth: '16rem', margin: '0 auto' }}>
-                    Add characters from your collection in the lobby to view their combat sheets here.
-                  </p>
+        </div>
+        {/* Combat sheet view — always mounted so resourceConsumersRef stays populated */}
+        <div style={{ display: activeView === 'sheet' ? 'flex' : 'none', flexDirection: 'column', flex: 1, overflow: 'hidden' }}>
+          {dmCharacterCombatants.length > 0 ? (
+            <>
+              <div className="p-3" style={{ borderBottom: '1px solid var(--border)', background: 'rgba(0,0,0,0.3)' }}>
+                <div className="relative">
+                  <select
+                    value={effectiveDmSheetCharId ?? ''}
+                    onChange={(e) => setDmSheetCharId(e.target.value || null)}
+                    className="w-full appearance-none py-2.5 px-3 pr-10 rounded-lg text-sm cursor-pointer"
+                    style={{
+                      background: 'var(--bg-surface)',
+                      color: 'var(--text-h)',
+                      border: '1px solid var(--border)',
+                      fontFamily: 'var(--heading)',
+                      fontSize: '0.85rem',
+                      letterSpacing: '0.5px',
+                    }}
+                  >
+                    {dmCharacterCombatants.map((c) => (
+                      <option key={c.id} value={c.character_id ?? ''}>
+                        {c.name} ({c.combatant_type === 'ally' ? 'Ally' : 'Enemy'})
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDown
+                    size={16}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none"
+                    style={{ color: 'var(--text)' }}
+                  />
                 </div>
               </div>
-            )}
-          </div>
-        )}
+              <div className="flex-1 overflow-y-auto">
+                {effectiveDmSheetCharId && (
+                  <CombatSheetLoader
+                    characterId={effectiveDmSheetCharId}
+                    onCombatHpSync={(newHp) => {
+                      const combatant = combatants.find((c) => c.character_id === effectiveDmSheetCharId);
+                      if (combatant) {
+                        const delta = newHp - combatant.current_hp;
+                        if (delta !== 0) updateEnemyHp(combatant.id, delta);
+                      }
+                    }}
+                    onActionInitiated={isMyTurnAsDm && activeCombatant?.character_id === effectiveDmSheetCharId ? handleActionInitiated : undefined}
+                    usedActionTypes={isMyTurnAsDm && activeCombatant?.character_id === effectiveDmSheetCharId ? usedActionTypes : undefined}
+                    resourceConsumersRef={isMyTurnAsDm && activeCombatant?.character_id === effectiveDmSheetCharId ? resourceConsumersRef : undefined}
+                  />
+                )}
+              </div>
+            </>
+          ) : (
+            <div className="flex-1 flex items-center justify-center p-6">
+              <div className="text-center">
+                <ScrollText size={32} style={{ color: 'var(--text)', margin: '0 auto 1rem', opacity: 0.5 }} />
+                <p className="text-sm mb-1" style={{ color: 'var(--text-h)', fontFamily: 'var(--heading)' }}>
+                  No Character Sheets Available
+                </p>
+                <p className="text-xs" style={{ color: 'var(--text)', maxWidth: '16rem', margin: '0 auto' }}>
+                  Add characters from your collection in the lobby to view their combat sheets here.
+                </p>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
     );
   }
@@ -1340,37 +1413,40 @@ export function LiveCombat({
       {actionWarningModal}
       {turnActionOverlay}
       <ActiveViewTabs active={activeView} onChange={setActiveView} />
-      {activeView === 'initiative' ? (
-        <>
-          <PlayerActive
-            session={session}
-            combatants={combatants}
-            participants={participants}
-            userId={userId}
-            onMyHpChange={updateMyHp}
-          />
-          {endTurnButton}
-        </>
-      ) : myCharacterId ? (
-        <div className="flex flex-col flex-1 overflow-hidden">
-          <div className="flex-1 overflow-y-auto">
-            <CombatSheetLoader
-              characterId={myCharacterId}
-              onCombatHpSync={updateMyHp}
-              onActionInitiated={isMyTurnAsPlayer ? handleActionInitiated : undefined}
-              usedActionTypes={isMyTurnAsPlayer ? usedActionTypes : undefined}
-              resourceConsumersRef={isMyTurnAsPlayer ? resourceConsumersRef : undefined}
-            />
+      {/* Initiative view */}
+      <div style={{ display: activeView === 'initiative' ? 'flex' : 'none', flexDirection: 'column', flex: 1 }}>
+        <PlayerActive
+          session={session}
+          combatants={combatants}
+          participants={participants}
+          userId={userId}
+          onMyHpChange={updateMyHp}
+        />
+        {endTurnButton}
+      </div>
+      {/* Combat sheet view — always mounted so resourceConsumersRef stays populated */}
+      <div style={{ display: activeView === 'sheet' ? 'flex' : 'none', flexDirection: 'column', flex: 1, overflow: 'hidden' }}>
+        {myCharacterId ? (
+          <>
+            <div className="flex-1 overflow-y-auto">
+              <CombatSheetLoader
+                characterId={myCharacterId}
+                onCombatHpSync={updateMyHp}
+                onActionInitiated={isMyTurnAsPlayer ? handleActionInitiated : undefined}
+                usedActionTypes={isMyTurnAsPlayer ? usedActionTypes : undefined}
+                resourceConsumersRef={isMyTurnAsPlayer ? resourceConsumersRef : undefined}
+              />
+            </div>
+            {endTurnButton}
+          </>
+        ) : (
+          <div className="flex-1 flex items-center justify-center p-6">
+            <p className="text-sm" style={{ color: 'var(--text)', fontFamily: 'var(--heading)' }}>
+              Character not linked to this session.
+            </p>
           </div>
-          {endTurnButton}
-        </div>
-      ) : (
-        <div className="flex-1 flex items-center justify-center p-6">
-          <p className="text-sm" style={{ color: 'var(--text)', fontFamily: 'var(--heading)' }}>
-            Character not linked to this session.
-          </p>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }

@@ -10,6 +10,8 @@ import { CombatView } from './CombatView';
 export interface ResourceConsumers {
   consumeSpellSlot: (level: number) => Promise<void>;
   consumeFeatureUse: (featureId: string) => Promise<void>;
+  restoreSpellSlot: (level: number) => Promise<void>;
+  restoreFeatureUse: (featureId: string) => Promise<void>;
 }
 
 interface CombatSheetLoaderProps {
@@ -45,6 +47,18 @@ export function CombatSheetLoader({ characterId, onCombatHpSync, onActionInitiat
         const feature = features.find((f) => f.id === featureId);
         if (feature && feature.max_uses !== null && feature.used_uses < feature.max_uses) {
           await updateFeature(featureId, { used_uses: feature.used_uses + 1 });
+        }
+      },
+      restoreSpellSlot: async (level: number) => {
+        const slot = slots.find((s) => s.level === level);
+        if (slot && slot.used > 0) {
+          await setSlotUsed(level, slot.used - 1);
+        }
+      },
+      restoreFeatureUse: async (featureId: string) => {
+        const feature = features.find((f) => f.id === featureId);
+        if (feature && feature.used_uses > 0) {
+          await updateFeature(featureId, { used_uses: feature.used_uses - 1 });
         }
       },
     };
