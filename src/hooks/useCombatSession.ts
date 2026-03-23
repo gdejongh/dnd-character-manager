@@ -301,6 +301,14 @@ export function useCombatSession(
     type: 'enemy' | 'ally',
   ) {
     if (!sessionId) return;
+
+    // Fetch character image data
+    const { data: character } = await supabase
+      .from('characters')
+      .select('image_url, image_position')
+      .eq('id', characterId)
+      .single();
+
     const nextOrder =
       combatants.length > 0
         ? Math.max(...combatants.map((c) => c.sort_order)) + 1
@@ -315,6 +323,8 @@ export function useCombatSession(
       character_id: characterId,
       current_hp: hp,
       max_hp: maxHp,
+      image_url: character?.image_url ?? null,
+      image_position: character?.image_position ?? 50,
       sort_order: nextOrder,
     });
   }

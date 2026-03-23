@@ -9,7 +9,7 @@ import {
   formatModifier,
 } from '../constants/dnd';
 import { NumericInput } from './NumericInput';
-import { Camera, Trash2, Loader, Move, X } from 'lucide-react';
+import { Camera, Trash2, Loader, Move, X, Pencil } from 'lucide-react';
 
 interface CharacterSheetProps {
   character: Character;
@@ -40,6 +40,7 @@ export function CharacterSheet({
   const [tappedAbility, setTappedAbility] = useState<Ability | null>(null);
   const [showFullImage, setShowFullImage] = useState(false);
   const [repositioning, setRepositioning] = useState(false);
+  const [showImageMenu, setShowImageMenu] = useState(false);
   const [adjustingNew, setAdjustingNew] = useState(false);
   const [newImageUrl, setNewImageUrl] = useState<string | null>(null);
   const [dragPos, setDragPos] = useState<number | null>(null);
@@ -65,15 +66,16 @@ export function CharacterSheet({
 
   const handleDragEnd = useCallback(() => {
     dragStartRef.current = null;
-    // Don't clear dragPos or save yet — keep the position visible until user confirms
-    if (!adjustingNew) {
-      if (dragPos !== null) {
-        onUpdateCharacter({ image_position: Math.round(dragPos) });
-      }
-      setDragPos(null);
-      setRepositioning(false);
+    // For inline repositioning, keep dragPos visible — user must confirm via menu
+  }, []);
+
+  const confirmReposition = useCallback(() => {
+    if (dragPos !== null) {
+      onUpdateCharacter({ image_position: Math.round(dragPos) });
     }
-  }, [dragPos, onUpdateCharacter, adjustingNew]);
+    setDragPos(null);
+    setRepositioning(false);
+  }, [dragPos, onUpdateCharacter]);
 
   const confirmNewImagePosition = useCallback(() => {
     if (newImageUrl) {
@@ -224,7 +226,7 @@ export function CharacterSheet({
       {/* Character Info Header */}
       <div className="flex gap-4">
         {/* Character Image */}
-        <div className="shrink-0">
+        <div className="shrink-0 relative">
           <div
             className="relative w-20 h-20 rounded-full overflow-hidden cursor-pointer"
             style={{
@@ -299,37 +301,83 @@ export function CharacterSheet({
               </div>
             )}
           </div>
-          {character.image_url && !imageUploading && (
-            <div className="flex items-center justify-center gap-2 mt-1">
-              <button
-                onClick={(e) => { e.stopPropagation(); fileInputRef.current?.click(); }}
-                className="text-[10px] cursor-pointer bg-transparent"
-                style={{ color: 'var(--accent)', border: 'none', padding: 0 }}
-              >
-                Change
-              </button>
-              <span style={{ color: 'var(--border-light)' }}>·</span>
-              <button
-                onClick={(e) => { e.stopPropagation(); setRepositioning(!repositioning); }}
-                className="text-[10px] cursor-pointer bg-transparent"
-                style={{ color: repositioning ? 'var(--accent-bright)' : 'var(--text)', border: 'none', padding: 0 }}
-              >
-                {repositioning ? 'Done' : 'Adjust'}
-              </button>
-              <span style={{ color: 'var(--border-light)' }}>·</span>
-              <button
-                onClick={async (e) => {
-                  e.stopPropagation();
-                  await onDeleteImage();
-                  onUpdateCharacter({ image_url: null } as never);
-                }}
-                className="text-[10px] cursor-pointer bg-transparent flex items-center gap-0.5"
-                style={{ color: 'var(--text)', border: 'none', padding: 0 }}
-              >
-                <Trash2 size={8} /> Del
-              </button>
-            </div>
+
+          {/* Edit badge — pencil icon, or Done button during repositioning */}
+          {character.image_url && !imageUploading && repositioning && (
+            <button
+              onClick={(e) => { e.stopPropagation(); confirmReposition(); }}
+              className="absolute -bottom-1 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full text-[10px] font-bold cursor-pointer whitespace-nowrap"
+              style={{
+                background: 'linear-gradient(135deg, var(--accent), var(--accent-bright))',
+                color: '#0f0e13',
+                border: '2px solid var(--bg)',
+                fontFamily: 'var(--heading)',
+                letterSpacing: '0.5px',
+              }}
+            >
+              Done
+            </button>
           )}
+          {character.image_url && !imageUploading && !repositioning && (
+            <button
+              onClick={(e) => { e.stopPropagation(); setShowImageMenu(!showImageMenu); }}
+              className="absolute -bottom-0.5 -right-0.5 w-6 h-6 rounded-full flex items-center justify-center cursor-pointer"
+              style={{
+                background: 'var(--accent)',
+                border: '2px solid var(--bg)',
+                color: '#0f0e13',
+              }}
+              aria-label="Edit character image"
+            >
+              <Pencil size={10} />
+            </button>
+          )}
+
+          {/* Image action menu */}
+          {showImageMenu && (
+            <>
+              <div
+                className="fixed inset-0 z-40"
+                onClick={() => setShowImageMenu(false)}
+              />
+              <div
+                className="absolute left-0 top-full mt-1 z-50 rounded-lg overflow-hidden animate-fade-in"
+                style={{
+                  background: 'var(--bg-raised)',
+                  border: '1px solid var(--border)',
+                  boxShadow: 'var(--shadow-lg)',
+                  minWidth: '8rem',
+                }}
+              >
+                <button
+                  onClick={() => { setShowImageMenu(false); fileInputRef.current?.click(); }}
+                  className="w-full flex items-center gap-2 px-3 py-2.5 text-xs cursor-pointer bg-transparent text-left"
+                  style={{ color: 'var(--text-h)', border: 'none', borderBottom: '1px solid var(--border)' }}
+                >
+                  <Camera size={12} /> Change Photo
+                </button>
+                <button
+                  onClick={() => { setShowImageMenu(false); setRepositioning(true); }}
+                  className="w-full flex items-center gap-2 px-3 py-2.5 text-xs cursor-pointer bg-transparent text-left"
+                  style={{ color: 'var(--text-h)', border: 'none', borderBottom: '1px solid var(--border)' }}
+                >
+                  <Move size={12} /> Adjust Position
+                </button>
+                <button
+                  onClick={async () => {
+                    setShowImageMenu(false);
+                    await onDeleteImage();
+                    onUpdateCharacter({ image_url: null } as never);
+                  }}
+                  className="w-full flex items-center gap-2 px-3 py-2.5 text-xs cursor-pointer bg-transparent text-left"
+                  style={{ color: 'var(--danger-bright)', border: 'none' }}
+                >
+                  <Trash2 size={12} /> Remove
+                </button>
+              </div>
+            </>
+          )}
+
           {imageError && (
             <p className="text-[10px] mt-1 text-center" style={{ color: 'var(--danger-bright)', maxWidth: '5rem' }}>
               {imageError}

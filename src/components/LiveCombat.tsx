@@ -105,6 +105,180 @@ function HpBar({ current, max, showNumber }: { current: number; max: number; sho
   );
 }
 
+/* ─── Turn Spotlight — hero display for the active combatant ─── */
+function TurnSpotlight({
+  combatant,
+  participant,
+  role,
+  userId,
+  onHpDelta,
+  onMyHpChange,
+}: {
+  combatant: Combatant;
+  participant: SessionParticipant | undefined;
+  role: 'dm' | 'player';
+  userId: string;
+  onHpDelta?: (delta: number) => void;
+  onMyHpChange?: (newHp: number) => void;
+}) {
+  const isEnemy = combatant.combatant_type === 'enemy';
+  const isAlly = combatant.combatant_type === 'ally';
+  const isMe = participant?.user_id === userId;
+  const isDmControlled = isEnemy || isAlly;
+
+  const hpPct = combatant.max_hp > 0 ? Math.max(0, Math.min(100, (combatant.current_hp / combatant.max_hp) * 100)) : 0;
+  const hpColor = hpPct > 60 ? 'var(--hp-green)' : hpPct > 30 ? 'var(--hp-yellow)' : 'var(--hp-red)';
+
+  const typeBadge = isEnemy ? { label: 'ENEMY', bg: 'rgba(239,68,68,0.15)', color: '#ef4444', border: 'rgba(239,68,68,0.3)' }
+    : isAlly ? { label: 'ALLY', bg: 'rgba(96,165,250,0.12)', color: '#60a5fa', border: 'rgba(96,165,250,0.3)' }
+    : null;
+
+  // Show HP controls for DM-controlled combatants (DM) or own character (player)
+  const showHpButtons = (role === 'dm' && isDmControlled) || (role === 'player' && isMe);
+
+  return (
+    <div
+      className="relative overflow-hidden rounded-xl"
+      style={{
+        background: 'linear-gradient(180deg, rgba(201,168,76,0.1) 0%, rgba(0,0,0,0.4) 100%)',
+        border: '1px solid rgba(201,168,76,0.4)',
+        animation: 'activeTurnGlow 2s ease-in-out infinite',
+      }}
+    >
+      {/* Large image area */}
+      <div className="relative" style={{ minHeight: '200px', maxHeight: '280px', overflow: 'hidden' }}>
+        {combatant.image_url ? (
+          <>
+            <img
+              src={combatant.image_url}
+              alt={combatant.name}
+              className="w-full h-full object-cover"
+              style={{
+                height: '280px',
+                objectPosition: `center ${combatant.image_position ?? 50}%`,
+              }}
+            />
+            {/* Gradient overlay at bottom for text readability */}
+            <div
+              className="absolute inset-0"
+              style={{
+                background: 'linear-gradient(180deg, transparent 30%, rgba(10,9,16,0.7) 70%, rgba(10,9,16,0.95) 100%)',
+              }}
+            />
+          </>
+        ) : (
+          <div
+            className="w-full flex items-center justify-center"
+            style={{ height: '180px', background: 'rgba(0,0,0,0.3)' }}
+          >
+            {isEnemy ? (
+              <Skull size={80} style={{ color: 'rgba(239,68,68,0.3)' }} />
+            ) : isAlly ? (
+              <Shield size={80} style={{ color: 'rgba(96,165,250,0.3)' }} />
+            ) : (
+              <Shield size={80} style={{ color: 'rgba(201,168,76,0.3)' }} />
+            )}
+          </div>
+        )}
+
+        {/* Name + badges overlaid at bottom of image */}
+        <div className="absolute bottom-0 left-0 right-0 px-4 pb-3">
+          <div className="flex items-end justify-between gap-2">
+            <div>
+              <h2
+                className="text-xl font-bold m-0 leading-tight"
+                style={{
+                  color: 'var(--accent-bright)',
+                  fontFamily: 'var(--heading)',
+                  letterSpacing: '1px',
+                  textShadow: '0 2px 8px rgba(0,0,0,0.8)',
+                }}
+              >
+                {combatant.name}
+              </h2>
+              <div className="flex items-center gap-2 mt-1">
+                {participant && !isEnemy && (
+                  <span className="text-xs" style={{ color: 'var(--text-h)', textShadow: '0 1px 4px rgba(0,0,0,0.8)' }}>
+                    {participant.character_class}
+                  </span>
+                )}
+                {typeBadge && (
+                  <span
+                    className="text-[10px] px-1.5 py-0.5 rounded"
+                    style={{ background: typeBadge.bg, color: typeBadge.color, border: `1px solid ${typeBadge.border}` }}
+                  >
+                    {typeBadge.label}
+                  </span>
+                )}
+                {isMe && (
+                  <span
+                    className="text-[10px] px-1.5 py-0.5 rounded"
+                    style={{ background: 'var(--accent-bg)', color: 'var(--accent)', border: '1px solid var(--accent-border)' }}
+                  >
+                    YOU
+                  </span>
+                )}
+              </div>
+            </div>
+            {/* Initiative badge */}
+            <div
+              className="flex flex-col items-center shrink-0 px-2 py-1 rounded-lg"
+              style={{ background: 'rgba(0,0,0,0.6)', border: '1px solid var(--accent-border)' }}
+            >
+              <span className="text-[9px] uppercase" style={{ color: 'var(--accent)', letterSpacing: '0.5px' }}>Init</span>
+              <span className="text-lg font-bold" style={{ color: 'var(--accent-bright)', fontFamily: 'var(--mono)' }}>
+                {combatant.initiative}
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* HP section */}
+      <div className="px-4 pt-3 pb-4">
+        <div className="flex items-center gap-3">
+          {showHpButtons && (
+            <button
+              onClick={() => {
+                if (role === 'dm') onHpDelta?.(-1);
+                else onMyHpChange?.(Math.max(0, combatant.current_hp - 1));
+              }}
+              className="w-10 h-10 rounded-lg flex items-center justify-center cursor-pointer shrink-0"
+              style={{ background: 'rgba(185,28,28,0.2)', color: 'var(--hp-red)', border: '1px solid rgba(185,28,28,0.3)' }}
+            >
+              <Minus size={18} />
+            </button>
+          )}
+          <div className="flex-1">
+            <div className="flex items-baseline justify-center gap-1 mb-1.5">
+              <span className="text-2xl font-bold" style={{ color: hpColor, fontFamily: 'var(--mono)' }}>
+                {combatant.current_hp}
+              </span>
+              <span className="text-sm" style={{ color: 'var(--text)', fontFamily: 'var(--mono)' }}>
+                / {combatant.max_hp}
+              </span>
+              <span className="text-xs ml-1" style={{ color: 'var(--text)' }}>HP</span>
+            </div>
+            <HpBar current={combatant.current_hp} max={combatant.max_hp} showNumber={false} />
+          </div>
+          {showHpButtons && (
+            <button
+              onClick={() => {
+                if (role === 'dm') onHpDelta?.(1);
+                else onMyHpChange?.(Math.min(combatant.max_hp, combatant.current_hp + 1));
+              }}
+              className="w-10 h-10 rounded-lg flex items-center justify-center cursor-pointer shrink-0"
+              style={{ background: 'rgba(74,222,128,0.1)', color: 'var(--hp-green)', border: '1px solid rgba(74,222,128,0.2)' }}
+            >
+              <Plus size={18} />
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ─── Initiative Row ─── */
 function InitiativeRow({
   combatant,
@@ -748,24 +922,56 @@ function DMActive({
         <Crown size={16} style={{ color: 'var(--accent)' }} />
       </header>
 
-      {/* Initiative list */}
+      {/* Active turn spotlight */}
       <div className="flex-1 overflow-y-auto p-4">
-        <div className="flex flex-col gap-2">
-          {combatants.map((c, i) => (
-            <InitiativeRow
-              key={c.id}
-              combatant={c}
-              index={i}
-              isActive={i === session.current_turn_index}
+        {combatants[session.current_turn_index] && (
+          <div className="mb-4">
+            <div className="flex items-center gap-2 mb-2">
+              <Swords size={12} style={{ color: 'var(--accent)' }} />
+              <span className="text-[10px] uppercase font-bold" style={{ color: 'var(--accent)', fontFamily: 'var(--heading)', letterSpacing: '1.5px' }}>
+                Current Turn
+              </span>
+            </div>
+            <TurnSpotlight
+              combatant={combatants[session.current_turn_index]}
+              participant={participants.find((p) => p.id === combatants[session.current_turn_index].participant_id)}
               role="dm"
-              participant={participants.find((p) => p.id === c.participant_id)}
               userId=""
-              onRemove={c.combatant_type !== 'player' ? () => onRemoveEnemy(c.id) : undefined}
-              onHpDelta={c.combatant_type !== 'player' ? (d) => onEnemyHpDelta(c.id, d) : undefined}
-              onInitiativeChange={(val) => onInitiativeChange(c.id, val)}
+              onHpDelta={combatants[session.current_turn_index].combatant_type !== 'player' ? (d) => onEnemyHpDelta(combatants[session.current_turn_index].id, d) : undefined}
             />
-          ))}
-        </div>
+          </div>
+        )}
+
+        {/* Remaining initiative order */}
+        {combatants.filter((_, i) => i !== session.current_turn_index).length > 0 && (
+          <>
+            <div className="flex items-center gap-2 mb-2 mt-1">
+              <span className="text-[10px] uppercase font-bold" style={{ color: 'var(--text)', fontFamily: 'var(--heading)', letterSpacing: '1px' }}>
+                Up Next
+              </span>
+              <div className="flex-1 h-px" style={{ background: 'var(--border)' }} />
+            </div>
+            <div className="flex flex-col gap-2">
+              {combatants.map((c, i) => {
+                if (i === session.current_turn_index) return null;
+                return (
+                  <InitiativeRow
+                    key={c.id}
+                    combatant={c}
+                    index={i}
+                    isActive={false}
+                    role="dm"
+                    participant={participants.find((p) => p.id === c.participant_id)}
+                    userId=""
+                    onRemove={c.combatant_type !== 'player' ? () => onRemoveEnemy(c.id) : undefined}
+                    onHpDelta={c.combatant_type !== 'player' ? (d) => onEnemyHpDelta(c.id, d) : undefined}
+                    onInitiativeChange={(val) => onInitiativeChange(c.id, val)}
+                  />
+                );
+              })}
+            </div>
+          </>
+        )}
       </div>
 
       {/* Bottom controls */}
@@ -861,15 +1067,16 @@ function PlayerActive({
   participants,
   userId,
   onMyHpChange,
+  endTurnControls,
 }: {
   session: { current_turn_index: number; round_number: number; room_code: string };
   combatants: Combatant[];
   participants: SessionParticipant[];
   userId: string;
   onMyHpChange: (newHp: number) => Promise<void>;
+  endTurnControls?: React.ReactNode;
 }) {
   const myParticipant = participants.find((p) => p.user_id === userId);
-  const myCombatant = combatants.find((c) => c.participant_id === myParticipant?.id);
   const myCombatantIndex = combatants.findIndex((c) => c.participant_id === myParticipant?.id);
   const isMyTurn = myCombatantIndex === session.current_turn_index;
   const prevTurnRef = useRef(isMyTurn);
@@ -881,6 +1088,8 @@ function PlayerActive({
     }
     prevTurnRef.current = isMyTurn;
   }, [isMyTurn]);
+
+  const activeCombatant = combatants[session.current_turn_index];
 
   return (
     <div className="flex flex-col flex-1">
@@ -921,52 +1130,59 @@ function PlayerActive({
         )}
       </header>
 
-      {/* My HP — large */}
-      {myParticipant && myCombatant && (
-        <div
-          className="p-4 flex items-center justify-center gap-4"
-          style={{ borderBottom: '1px solid var(--border)', background: 'rgba(0,0,0,0.2)' }}
-        >
-          <button
-            onClick={() => onMyHpChange(Math.max(0, myCombatant.current_hp - 1))}
-            className="w-14 h-14 rounded-xl flex items-center justify-center cursor-pointer"
-            style={{ background: 'rgba(185,28,28,0.2)', color: 'var(--hp-red)', border: '2px solid rgba(185,28,28,0.4)', fontSize: '1.5rem' }}
-          >
-            <Minus size={24} />
-          </button>
-          <div className="text-center min-w-[6rem]">
-            <p className="text-3xl font-bold m-0" style={{ color: 'var(--hp-crimson)', fontFamily: 'var(--mono)' }}>
-              {myCombatant.current_hp}
-            </p>
-            <p className="text-xs m-0" style={{ color: 'var(--text)' }}>/ {myCombatant.max_hp} HP</p>
-          </div>
-          <button
-            onClick={() => onMyHpChange(Math.min(myCombatant.max_hp, myCombatant.current_hp + 1))}
-            className="w-14 h-14 rounded-xl flex items-center justify-center cursor-pointer"
-            style={{ background: 'rgba(74,222,128,0.15)', color: 'var(--hp-green)', border: '2px solid rgba(74,222,128,0.3)', fontSize: '1.5rem' }}
-          >
-            <Plus size={24} />
-          </button>
-        </div>
-      )}
-
-      {/* Initiative list */}
+      {/* Active turn spotlight + initiative list */}
       <div className="flex-1 overflow-y-auto p-4">
-        <div className="flex flex-col gap-2">
-          {combatants.map((c, i) => (
-            <InitiativeRow
-              key={c.id}
-              combatant={c}
-              index={i}
-              isActive={i === session.current_turn_index}
+        {/* Spotlight for current turn */}
+        {activeCombatant && (
+          <div className="mb-4">
+            <div className="flex items-center gap-2 mb-2">
+              <Swords size={12} style={{ color: 'var(--accent)' }} />
+              <span className="text-[10px] uppercase font-bold" style={{ color: 'var(--accent)', fontFamily: 'var(--heading)', letterSpacing: '1.5px' }}>
+                Current Turn
+              </span>
+            </div>
+            <TurnSpotlight
+              combatant={activeCombatant}
+              participant={participants.find((p) => p.id === activeCombatant.participant_id)}
               role="player"
-              participant={participants.find((p) => p.id === c.participant_id)}
               userId={userId}
               onMyHpChange={onMyHpChange}
             />
-          ))}
-        </div>
+          </div>
+        )}
+
+        {/* Remaining initiative order */}
+        {combatants.filter((_, i) => i !== session.current_turn_index).length > 0 && (
+          <>
+            <div className="flex items-center gap-2 mb-2 mt-1">
+              <span className="text-[10px] uppercase font-bold" style={{ color: 'var(--text)', fontFamily: 'var(--heading)', letterSpacing: '1px' }}>
+                Up Next
+              </span>
+              <div className="flex-1 h-px" style={{ background: 'var(--border)' }} />
+            </div>
+            <div className="flex flex-col gap-2">
+              {combatants.map((c, i) => {
+                if (i === session.current_turn_index) return null;
+                return (
+                  <InitiativeRow
+                    key={c.id}
+                    combatant={c}
+                    index={i}
+                    isActive={false}
+                    role="player"
+                    participant={participants.find((p) => p.id === c.participant_id)}
+                    userId={userId}
+                    onMyHpChange={onMyHpChange}
+                  />
+                );
+              })}
+            </div>
+          </>
+        )}
       </div>
+
+      {/* End turn controls pinned at bottom */}
+      {endTurnControls}
     </div>
   );
 }
@@ -1473,8 +1689,8 @@ export function LiveCombat({
           participants={participants}
           userId={userId}
           onMyHpChange={updateMyHp}
+          endTurnControls={endTurnButton}
         />
-        {endTurnButton}
       </div>
       {/* Combat sheet view — always mounted so resourceConsumersRef stays populated */}
       <div style={{ display: activeView === 'sheet' ? 'flex' : 'none', flexDirection: 'column', flex: 1, overflow: 'hidden' }}>
