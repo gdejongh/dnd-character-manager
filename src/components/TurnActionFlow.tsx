@@ -180,7 +180,7 @@ export function TurnActionFlow({
   /* ── TARGETING PHASE ── */
   if (phase === 'targeting') {
     return (
-      <div className="flex flex-col min-h-screen" style={{ background: darkBg }}>
+      <div className="flex flex-col h-full" style={{ background: darkBg }}>
         {/* Header */}
         <header className="p-4" style={{ borderBottom: '1px solid var(--border)', background: 'rgba(0,0,0,0.4)' }}>
           <button
@@ -323,7 +323,7 @@ export function TurnActionFlow({
         </div>
 
         {/* Footer */}
-        <div className="p-4" style={{ borderTop: '1px solid var(--border)', background: 'rgba(0,0,0,0.4)' }}>
+        <div className="p-4" style={{ borderTop: '1px solid var(--border)', background: 'rgba(0,0,0,0.4)', paddingBottom: 'max(1rem, env(safe-area-inset-bottom))' }}>
           <button
             onClick={handleContinue}
             disabled={selectedTargets.size === 0}
@@ -351,7 +351,7 @@ export function TurnActionFlow({
   const selectedCombatants = combatants.filter((c) => selectedTargets.has(c.id));
 
   return (
-    <div className="flex flex-col min-h-screen" style={{ background: darkBg }}>
+    <div className="flex flex-col h-full" style={{ background: darkBg }}>
       {/* Header */}
       <header className="p-4" style={{ borderBottom: '1px solid var(--border)', background: 'rgba(0,0,0,0.4)' }}>
         <button
@@ -472,7 +472,7 @@ export function TurnActionFlow({
       </div>
 
       {/* Apply button */}
-      <div className="p-4" style={{ borderTop: '1px solid var(--border)', background: 'rgba(0,0,0,0.4)' }}>
+      <div className="p-4" style={{ borderTop: '1px solid var(--border)', background: 'rgba(0,0,0,0.4)', paddingBottom: 'max(1rem, env(safe-area-inset-bottom))' }}>
         <button
           onClick={handleApply}
           disabled={effectType !== 'none' && (!amount || parseInt(amount, 10) <= 0)}

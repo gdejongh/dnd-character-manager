@@ -24,9 +24,11 @@ interface CombatSheetLoaderProps {
   usedActionTypes?: ReadonlySet<string>;
   /** Ref that receives resource consumption functions for the parent to call */
   resourceConsumersRef?: React.RefObject<ResourceConsumers | null>;
+  /** When true, only reactions are usable (not this user's turn) */
+  offTurn?: boolean;
 }
 
-export function CombatSheetLoader({ characterId, onCombatHpSync, onActionInitiated, usedActionTypes, resourceConsumersRef }: CombatSheetLoaderProps) {
+export function CombatSheetLoader({ characterId, onCombatHpSync, onActionInitiated, usedActionTypes, resourceConsumersRef, offTurn }: CombatSheetLoaderProps) {
   const { character, loading: charLoading, updateCharacter } = useCharacter(characterId);
   const { scores, loading: scoresLoading } = useAbilityScores(characterId);
   const { slots, setSlotUsed } = useSpellSlots(characterId);
@@ -109,6 +111,7 @@ export function CombatSheetLoader({ characterId, onCombatHpSync, onActionInitiat
       onUpdateFeature={updateFeature}
       onActionInitiated={onActionInitiated}
       usedActionTypes={usedActionTypes}
+      offTurn={offTurn}
     />
   );
 }

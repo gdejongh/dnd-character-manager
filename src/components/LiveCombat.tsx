@@ -1385,6 +1385,7 @@ export function LiveCombat({
                     onActionInitiated={isMyTurnAsDm && activeCombatant?.character_id === effectiveDmSheetCharId ? handleActionInitiated : undefined}
                     usedActionTypes={isMyTurnAsDm && activeCombatant?.character_id === effectiveDmSheetCharId ? usedActionTypes : undefined}
                     resourceConsumersRef={isMyTurnAsDm && activeCombatant?.character_id === effectiveDmSheetCharId ? resourceConsumersRef : undefined}
+                    offTurn={!(isMyTurnAsDm && activeCombatant?.character_id === effectiveDmSheetCharId)}
                   />
                 )}
               </div>
@@ -1435,6 +1436,7 @@ export function LiveCombat({
                 onActionInitiated={isMyTurnAsPlayer ? handleActionInitiated : undefined}
                 usedActionTypes={isMyTurnAsPlayer ? usedActionTypes : undefined}
                 resourceConsumersRef={isMyTurnAsPlayer ? resourceConsumersRef : undefined}
+                offTurn={!isMyTurnAsPlayer}
               />
             </div>
             {endTurnButton}

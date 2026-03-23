@@ -28,6 +28,8 @@ interface CombatViewProps {
   onActionInitiated?: (action: { spell?: Spell; feature?: Feature; actionType: ActionType }) => void;
   /** Action types already used this turn — shows warning badge on those buttons */
   usedActionTypes?: ReadonlySet<string>;
+  /** When true, user is in a combat session but it's not their turn — only reactions allowed */
+  offTurn?: boolean;
 }
 
 const ORD: Record<number, string> = {
@@ -252,6 +254,7 @@ export function CombatView({
   onUpdateFeature,
   onActionInitiated,
   usedActionTypes,
+  offTurn,
 }: CombatViewProps) {
   const [expandedSpell, setExpandedSpell] = useState<string | null>(null);
   const [expandedFeature, setExpandedFeature] = useState<string | null>(null);
@@ -598,7 +601,9 @@ export function CombatView({
                 {/* Spell cards */}
                 {levelSpells.map((spell) => {
                   const isExpanded = expandedSpell === spell.id;
-                  const canCast = level === 0 || slotsAvailable > 0;
+                  const isReaction = spell.action_type === 'reaction';
+                  const blockedOffTurn = offTurn && !isReaction;
+                  const canCast = !blockedOffTurn && (level === 0 || slotsAvailable > 0);
 
                   return (
                     <div
@@ -709,7 +714,9 @@ export function CombatView({
             const isExpanded = expandedFeature === feature.id;
             const hasUses = feature.max_uses !== null && feature.max_uses > 0;
             const remaining = hasUses ? feature.max_uses! - feature.used_uses : Infinity;
-            const depleted = hasUses && remaining <= 0;
+            const isReaction = feature.action_type === 'reaction';
+            const blockedOffTurn = offTurn && !isReaction;
+            const depleted = blockedOffTurn || (hasUses && remaining <= 0);
 
             return (
               <div
