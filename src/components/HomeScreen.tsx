@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import type { FormEvent } from 'react';
 import type { Character } from '../types/database';
-import { LogOut, Trash2, Heart, Plus, Shield } from 'lucide-react';
+import { LogOut, Trash2, Heart, Plus, Shield, Swords, Users } from 'lucide-react';
+import { lookupSession } from '../hooks/useCombatSession';
 
 interface HomeScreenProps {
   characters: Character[];
@@ -10,6 +11,8 @@ interface HomeScreenProps {
   onCreate: (name: string, race: string, charClass: string) => Promise<Character | null>;
   onDelete: (id: string) => Promise<void>;
   onSignOut: () => void;
+  onStartCombat: () => Promise<void>;
+  onJoinCombat: (sessionId: string, characterId: string, charName: string, charClass: string, hp: number, maxHp: number) => Promise<void>;
 }
 
 export function HomeScreen({
@@ -19,12 +22,22 @@ export function HomeScreen({
   onCreate,
   onDelete,
   onSignOut,
+  onStartCombat,
+  onJoinCombat,
 }: HomeScreenProps) {
   const [showForm, setShowForm] = useState(false);
   const [name, setName] = useState('');
   const [race, setRace] = useState('');
   const [charClass, setCharClass] = useState('');
   const [creating, setCreating] = useState(false);
+
+  // Join combat state
+  const [joinStep, setJoinStep] = useState<'idle' | 'code' | 'pick'>('idle');
+  const [roomCode, setRoomCode] = useState('');
+  const [joinSessionId, setJoinSessionId] = useState<string | null>(null);
+  const [joinError, setJoinError] = useState('');
+  const [joining, setJoining] = useState(false);
+  const [startingCombat, setStartingCombat] = useState(false);
 
   async function handleCreate(e: FormEvent) {
     e.preventDefault();
@@ -152,6 +165,174 @@ export function HomeScreen({
           </>
         )}
       </div>
+
+      {/* ── Combat Session Buttons ── */}
+      {!loading && joinStep === 'idle' && (
+        <div
+          className="px-4 py-3 flex gap-3"
+          style={{ borderTop: '1px solid var(--border)' }}
+        >
+          <button
+            onClick={async () => {
+              setStartingCombat(true);
+              await onStartCombat();
+              setStartingCombat(false);
+            }}
+            disabled={startingCombat}
+            className="flex-1 py-3 rounded-xl font-semibold text-sm cursor-pointer flex items-center justify-center gap-2 disabled:opacity-50"
+            style={{
+              background: 'linear-gradient(135deg, #7f1d1d, #991b1b)',
+              color: '#fff',
+              border: '1px solid rgba(239,68,68,0.3)',
+              fontFamily: 'var(--heading)',
+              letterSpacing: '0.5px',
+            }}
+          >
+            <Swords size={16} />
+            {startingCombat ? 'Creating…' : 'Start Combat'}
+          </button>
+          <button
+            onClick={() => setJoinStep('code')}
+            className="flex-1 py-3 rounded-xl font-semibold text-sm cursor-pointer flex items-center justify-center gap-2"
+            style={{
+              background: 'var(--accent-bg)',
+              color: 'var(--accent)',
+              border: '1px solid var(--accent-border)',
+              fontFamily: 'var(--heading)',
+              letterSpacing: '0.5px',
+            }}
+          >
+            <Users size={16} />
+            Join Combat
+          </button>
+        </div>
+      )}
+
+      {/* ── Join Flow: Enter Room Code ── */}
+      {joinStep === 'code' && (
+        <div className="px-4 py-4 animate-fade-in" style={{ borderTop: '1px solid var(--border)', background: 'var(--bg-surface)' }}>
+          <h3
+            className="text-center mb-3"
+            style={{ fontFamily: 'var(--heading)', color: 'var(--accent)', fontSize: '0.85rem', letterSpacing: '1px' }}
+          >
+            ENTER ROOM CODE
+          </h3>
+          <form
+            onSubmit={async (e: FormEvent) => {
+              e.preventDefault();
+              setJoinError('');
+              setJoining(true);
+              const sess = await lookupSession(roomCode);
+              setJoining(false);
+              if (sess) {
+                setJoinSessionId(sess.id);
+                setJoinStep('pick');
+              } else {
+                setJoinError('Session not found. Check the code and try again.');
+              }
+            }}
+            className="flex flex-col gap-3"
+          >
+            <input
+              type="text"
+              placeholder="e.g. DRAGON-42"
+              value={roomCode}
+              onChange={(e) => setRoomCode(e.target.value.toUpperCase())}
+              className="w-full px-4 py-3.5 rounded-lg text-center text-lg outline-none tracking-widest"
+              style={{
+                ...inputStyle,
+                fontFamily: 'var(--mono)',
+                fontSize: '1.2rem',
+                letterSpacing: '3px',
+              }}
+              autoFocus
+            />
+            {joinError && (
+              <p className="text-xs text-center" style={{ color: 'var(--danger-bright)' }}>{joinError}</p>
+            )}
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={() => { setJoinStep('idle'); setRoomCode(''); setJoinError(''); }}
+                className="flex-1 py-3 rounded-lg cursor-pointer"
+                style={{ color: 'var(--text)', background: 'transparent', border: '1px solid var(--border)' }}
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={!roomCode.trim() || joining}
+                className="flex-1 py-3 rounded-lg cursor-pointer font-semibold disabled:opacity-30"
+                style={{
+                  background: 'linear-gradient(135deg, var(--accent), var(--accent-bright))',
+                  color: '#0f0e13',
+                  border: 'none',
+                  fontFamily: 'var(--heading)',
+                }}
+              >
+                {joining ? 'Checking…' : 'Find Session'}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* ── Join Flow: Pick Character ── */}
+      {joinStep === 'pick' && (
+        <div className="px-4 py-4 animate-fade-in" style={{ borderTop: '1px solid var(--border)', background: 'var(--bg-surface)' }}>
+          <h3
+            className="text-center mb-3"
+            style={{ fontFamily: 'var(--heading)', color: 'var(--accent)', fontSize: '0.85rem', letterSpacing: '1px' }}
+          >
+            CHOOSE YOUR CHARACTER
+          </h3>
+          {characters.length === 0 ? (
+            <p className="text-center text-sm py-4" style={{ color: 'var(--text)' }}>
+              You need to create a character first!
+            </p>
+          ) : (
+            <div className="flex flex-col gap-2 max-h-60 overflow-y-auto">
+              {characters.map((c) => (
+                <button
+                  key={c.id}
+                  onClick={async () => {
+                    if (!joinSessionId) return;
+                    setJoining(true);
+                    await onJoinCombat(joinSessionId, c.id, c.name, c.class, c.current_hp, c.max_hp);
+                    setJoining(false);
+                  }}
+                  disabled={joining}
+                  className="flex items-center gap-3 p-3 rounded-lg cursor-pointer text-left w-full disabled:opacity-50"
+                  style={{
+                    background: 'rgba(255,255,255,0.03)',
+                    border: '1px solid var(--border)',
+                  }}
+                >
+                  <Shield size={16} style={{ color: 'var(--accent)' }} />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold truncate" style={{ color: 'var(--text-h)', fontFamily: 'var(--heading)', fontSize: '0.85rem' }}>
+                      {c.name}
+                    </p>
+                    <p className="text-xs truncate" style={{ color: 'var(--text)' }}>
+                      {[c.race, c.class].filter(Boolean).join(' · ')}
+                    </p>
+                  </div>
+                  <span className="text-xs" style={{ color: 'var(--hp-crimson)', fontFamily: 'var(--mono)' }}>
+                    {c.current_hp}/{c.max_hp}
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
+          <button
+            onClick={() => { setJoinStep('idle'); setRoomCode(''); setJoinSessionId(null); }}
+            className="w-full mt-3 py-2.5 rounded-lg cursor-pointer"
+            style={{ color: 'var(--text)', background: 'transparent', border: '1px solid var(--border)' }}
+          >
+            Cancel
+          </button>
+        </div>
+      )}
 
       {/* New Character Form / Button */}
       {showForm ? (

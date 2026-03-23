@@ -11,6 +11,7 @@ import { useSpells } from './hooks/useSpells';
 import { useInventory } from './hooks/useInventory';
 import { useFeatures } from './hooks/useFeatures';
 import { useNotes } from './hooks/useNotes';
+import { createCombatSession, joinCombatSession } from './hooks/useCombatSession';
 import { Auth } from './components/Auth';
 import { HomeScreen } from './components/HomeScreen';
 import { CharacterSheet } from './components/CharacterSheet';
@@ -24,6 +25,7 @@ import { TabBar } from './components/TabBar';
 import { CombatTransition } from './components/CombatTransition';
 import { ToastContainer } from './components/Toast';
 import { LongRestButton } from './components/LongRestButton';
+import { LiveCombat } from './components/LiveCombat';
 import { ExportPdfButton } from './components/ExportPdf';
 import { exportCharacterPdf } from './lib/exportPdf';
 import type { PdfStyle } from './lib/exportPdf';
@@ -96,6 +98,10 @@ function App() {
   const [activeTab, setActiveTab] = useState<Tab>('sheet');
   const [showCombatTransition, setShowCombatTransition] = useState(false);
 
+  // Live Combat Session state
+  const [combatSessionId, setCombatSessionId] = useState<string | null>(null);
+  const [combatRole, setCombatRole] = useState<'dm' | 'player'>('dm');
+
   const handleTabChange = useCallback(
     (tab: Tab) => {
       if (tab === 'combat' && activeTab !== 'combat') {
@@ -157,6 +163,18 @@ function App() {
     return <Auth onAuth={handleAuth} />;
   }
 
+  // Live Combat Session
+  if (combatSessionId) {
+    return (
+      <LiveCombat
+        sessionId={combatSessionId}
+        userId={user.id}
+        role={combatRole}
+        onLeave={() => setCombatSessionId(null)}
+      />
+    );
+  }
+
   // Home screen
   if (!selectedCharacterId) {
     return (
@@ -170,6 +188,16 @@ function App() {
         onCreate={createCharacter}
         onDelete={deleteCharacter}
         onSignOut={signOut}
+        onStartCombat={async () => {
+          const sessionId = await createCombatSession(user.id);
+          setCombatRole('dm');
+          setCombatSessionId(sessionId);
+        }}
+        onJoinCombat={async (sessionId, characterId, charName, charClass, hp, maxHp) => {
+          await joinCombatSession(sessionId, user.id, characterId, charName, charClass, hp, maxHp);
+          setCombatRole('player');
+          setCombatSessionId(sessionId);
+        }}
       />
     );
   }

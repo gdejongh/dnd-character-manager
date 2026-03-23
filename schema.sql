@@ -207,3 +207,87 @@ create trigger characters_updated_at
 create trigger notes_updated_at
   before update on notes
   for each row execute function update_updated_at();
+
+-- =================================================================
+--  8. Combat Sessions
+-- =================================================================
+create table combat_sessions (
+  id                uuid primary key default gen_random_uuid(),
+  room_code         text not null unique,
+  dm_user_id        uuid references auth.users(id) on delete cascade not null,
+  status            text not null default 'lobby' check (status in ('lobby','active','ended')),
+  current_turn_index integer not null default 0,
+  round_number      integer not null default 1,
+  created_at        timestamptz not null default now()
+);
+
+-- 9. Session Participants (players who joined a combat session)
+create table session_participants (
+  id                uuid primary key default gen_random_uuid(),
+  session_id        uuid references combat_sessions(id) on delete cascade not null,
+  user_id           uuid references auth.users(id) on delete cascade not null,
+  character_id      uuid references characters(id) on delete cascade not null,
+  character_name    text not null,
+  character_class   text not null default '',
+  current_hp        integer not null default 0,
+  max_hp            integer not null default 0,
+  joined_at         timestamptz not null default now(),
+  unique (session_id, user_id)
+);
+
+-- 10. Combatants (initiative order — players + enemies)
+create table combatants (
+  id                uuid primary key default gen_random_uuid(),
+  session_id        uuid references combat_sessions(id) on delete cascade not null,
+  name              text not null,
+  combatant_type    text not null default 'enemy' check (combatant_type in ('player','enemy')),
+  initiative        integer not null default 0,
+  participant_id    uuid references session_participants(id) on delete cascade,
+  current_hp        integer not null default 0,
+  max_hp            integer not null default 0,
+  sort_order        integer not null default 0
+);
+
+-- =================================================================
+--  RLS — Combat tables
+-- =================================================================
+alter table combat_sessions      enable row level security;
+alter table session_participants enable row level security;
+alter table combatants           enable row level security;
+
+-- combat_sessions: anyone authenticated can view active/lobby sessions; DM can modify their own
+create policy "Anyone can view sessions"
+  on combat_sessions for select using (auth.uid() is not null);
+create policy "Users can create sessions"
+  on combat_sessions for insert with check (auth.uid() = dm_user_id);
+create policy "DM can update own sessions"
+  on combat_sessions for update using (auth.uid() = dm_user_id);
+create policy "DM can delete own sessions"
+  on combat_sessions for delete using (auth.uid() = dm_user_id);
+
+-- session_participants: viewable by anyone in the session; users can insert/update their own
+create policy "View participants in any session"
+  on session_participants for select using (auth.uid() is not null);
+create policy "Users can join sessions"
+  on session_participants for insert with check (auth.uid() = user_id);
+create policy "Users can update own participant"
+  on session_participants for update using (auth.uid() = user_id);
+create policy "Users can leave sessions"
+  on session_participants for delete using (auth.uid() = user_id);
+
+-- combatants: viewable by anyone authenticated; DM of session or the linked participant can modify
+create policy "View combatants in any session"
+  on combatants for select using (auth.uid() is not null);
+create policy "Insert combatants"
+  on combatants for insert with check (auth.uid() is not null);
+create policy "Update combatants"
+  on combatants for update using (auth.uid() is not null);
+create policy "Delete combatants"
+  on combatants for delete using (auth.uid() is not null);
+
+-- =================================================================
+--  Realtime — enable for combat tables
+-- =================================================================
+alter publication supabase_realtime add table combat_sessions;
+alter publication supabase_realtime add table session_participants;
+alter publication supabase_realtime add table combatants;

@@ -328,3 +328,13 @@ code {
   z-index: 10;
   animation: combatTransText 700ms 1000ms ease-out forwards;
 }
+
+/* ── Live Combat Session animations ── */
+@keyframes activeTurnGlow {
+  0%, 100% { box-shadow: 0 0 10px rgba(201,168,76,0.1), inset 0 0 8px rgba(201,168,76,0.02); }
+  50% { box-shadow: 0 0 25px rgba(201,168,76,0.25), inset 0 0 15px rgba(201,168,76,0.05); }
+}
+@keyframes yourTurnFlash {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}

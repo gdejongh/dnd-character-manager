@@ -74,3 +74,42 @@ export interface Spell {
 export type Ability = 'STR' | 'DEX' | 'CON' | 'INT' | 'WIS' | 'CHA';
 
 export type Tab = 'sheet' | 'hp' | 'spells' | 'items' | 'features' | 'notes' | 'combat';
+
+/* ── Live Combat Session ── */
+
+export type SessionStatus = 'lobby' | 'active' | 'ended';
+export type CombatantType = 'player' | 'enemy';
+
+export interface CombatSession {
+  id: string;
+  room_code: string;
+  dm_user_id: string;
+  status: SessionStatus;
+  current_turn_index: number;
+  round_number: number;
+  created_at: string;
+}
+
+export interface SessionParticipant {
+  id: string;
+  session_id: string;
+  user_id: string;
+  character_id: string;
+  character_name: string;
+  character_class: string;
+  current_hp: number;
+  max_hp: number;
+  joined_at: string;
+}
+
+export interface Combatant {
+  id: string;
+  session_id: string;
+  name: string;
+  combatant_type: CombatantType;
+  initiative: number;
+  participant_id: string | null;
+  current_hp: number;
+  max_hp: number;
+  sort_order: number;
+}
