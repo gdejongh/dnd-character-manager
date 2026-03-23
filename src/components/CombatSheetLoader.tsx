@@ -1,9 +1,10 @@
 import { useCallback, useEffect } from 'react';
-import type { Character, Spell, Feature, ActionType } from '../types/database';
+import type { Character, Spell, Feature, Weapon, ActionType } from '../types/database';
 import { useCharacter } from '../hooks/useCharacter';
 import { useAbilityScores } from '../hooks/useAbilityScores';
 import { useSpellSlots } from '../hooks/useSpellSlots';
 import { useSpells } from '../hooks/useSpells';
+import { useWeapons } from '../hooks/useWeapons';
 import { useFeatures } from '../hooks/useFeatures';
 import { CombatView } from './CombatView';
 
@@ -18,8 +19,8 @@ interface CombatSheetLoaderProps {
   characterId: string;
   /** Optional callback to sync HP changes to the combat session tables */
   onCombatHpSync?: (newHp: number) => void;
-  /** When provided, Cast/Use buttons trigger this instead of internal animation handlers */
-  onActionInitiated?: (action: { spell?: Spell; feature?: Feature; actionType: ActionType }) => void;
+  /** When provided, Cast/Use/Attack buttons trigger this instead of internal animation handlers */
+  onActionInitiated?: (action: { spell?: Spell; feature?: Feature; weapon?: Weapon; actionType: ActionType }) => void;
   /** Action types already used this turn */
   usedActionTypes?: ReadonlySet<string>;
   /** Ref that receives resource consumption functions for the parent to call */
@@ -33,6 +34,7 @@ export function CombatSheetLoader({ characterId, onCombatHpSync, onActionInitiat
   const { scores, loading: scoresLoading } = useAbilityScores(characterId);
   const { slots, setSlotUsed } = useSpellSlots(characterId);
   const { spells } = useSpells(characterId);
+  const { weapons } = useWeapons(characterId);
   const { features, updateFeature } = useFeatures(characterId);
 
   // Expose resource consumption functions to parent via ref
@@ -105,6 +107,7 @@ export function CombatSheetLoader({ characterId, onCombatHpSync, onActionInitiat
       scores={scores}
       slots={slots}
       spells={spells}
+      weapons={weapons}
       features={features}
       onUpdateCharacter={handleUpdateCharacter}
       onSetSlotUsed={setSlotUsed}

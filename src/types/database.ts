@@ -73,9 +73,21 @@ export interface Spell {
   created_at: string;
 }
 
+export interface Weapon {
+  id: string;
+  character_id: string;
+  name: string;
+  damage_dice: string;
+  damage_type: string;
+  ability_mod: 'STR' | 'DEX';
+  proficient: boolean;
+  action_type: ActionType;
+  created_at: string;
+}
+
 export type Ability = 'STR' | 'DEX' | 'CON' | 'INT' | 'WIS' | 'CHA';
 
-export type Tab = 'sheet' | 'hp' | 'spells' | 'items' | 'features' | 'notes' | 'combat';
+export type Tab = 'sheet' | 'hp' | 'spells' | 'weapons' | 'items' | 'features' | 'notes' | 'combat';
 
 /* ── Live Combat Session ── */
 

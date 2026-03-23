@@ -199,6 +199,34 @@ create policy "Delete own spells"
   on spells for delete
   using (character_id in (select id from characters where user_id = auth.uid()));
 
+-- 7b. Weapons / Attacks -------------------------------------------
+create table weapons (
+  id            uuid primary key default gen_random_uuid(),
+  character_id  uuid references characters(id) on delete cascade not null,
+  name          text not null,
+  damage_dice   text not null default '1d4',
+  damage_type   text not null default 'slashing',
+  ability_mod   text not null default 'STR' check (ability_mod in ('STR','DEX')),
+  proficient    boolean not null default true,
+  action_type   text not null default 'action' check (action_type in ('action','bonus_action','reaction','other')),
+  created_at    timestamptz not null default now()
+);
+
+alter table weapons enable row level security;
+
+create policy "View own weapons"
+  on weapons for select
+  using (character_id in (select id from characters where user_id = auth.uid()));
+create policy "Insert own weapons"
+  on weapons for insert
+  with check (character_id in (select id from characters where user_id = auth.uid()));
+create policy "Update own weapons"
+  on weapons for update
+  using (character_id in (select id from characters where user_id = auth.uid()));
+create policy "Delete own weapons"
+  on weapons for delete
+  using (character_id in (select id from characters where user_id = auth.uid()));
+
 -- =================================================================
 --  Auto-update `updated_at` triggers
 -- =================================================================

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import type { Character, AbilityScore, SpellSlot, Spell, Feature, Ability, ActionType } from '../types/database';
+import type { Character, AbilityScore, SpellSlot, Spell, Feature, Weapon, Ability, ActionType } from '../types/database';
 import {
   getModifier,
   getProficiencyBonus,
@@ -7,11 +7,13 @@ import {
   getSpellSaveDC,
   getSpellAttackBonus,
   getSpellcastingAbility,
+  getWeaponAttackBonus,
+  formatWeaponDamage,
   ABILITY_NAMES,
 } from '../constants/dnd';
 import { ActionTypeBadge, ActionTypeFilterBar } from './ActionType';
 import type { ActionTypeFilter } from '../constants/actionTypes';
-import { Heart, Shield, Zap, FlameKindling, ChevronDown, Sparkles } from 'lucide-react';
+import { Heart, Shield, Zap, FlameKindling, ChevronDown, Sparkles, Swords } from 'lucide-react';
 
 /* ── Types ───────────────────────────────────────────────────────────────── */
 
@@ -20,12 +22,13 @@ interface CombatViewProps {
   scores: AbilityScore[];
   slots: SpellSlot[];
   spells: Spell[];
+  weapons: Weapon[];
   features: Feature[];
   onUpdateCharacter: (updates: Partial<Pick<Character, 'current_hp' | 'max_hp' | 'temp_hp'>>) => void;
   onSetSlotUsed: (level: number, used: number) => void;
   onUpdateFeature: (id: string, updates: Partial<Pick<Feature, 'used_uses'>>) => void;
-  /** When provided, Cast/Use buttons trigger this instead of internal animation handlers */
-  onActionInitiated?: (action: { spell?: Spell; feature?: Feature; actionType: ActionType }) => void;
+  /** When provided, Cast/Use/Attack buttons trigger this instead of internal animation handlers */
+  onActionInitiated?: (action: { spell?: Spell; feature?: Feature; weapon?: Weapon; actionType: ActionType }) => void;
   /** Action types already used this turn — shows warning badge on those buttons */
   usedActionTypes?: ReadonlySet<string>;
   /** When true, user is in a combat session but it's not their turn — only reactions allowed */
@@ -248,6 +251,7 @@ export function CombatView({
   scores,
   slots,
   spells,
+  weapons,
   features,
   onUpdateCharacter,
   onSetSlotUsed,
@@ -260,6 +264,7 @@ export function CombatView({
   const [expandedFeature, setExpandedFeature] = useState<string | null>(null);
   const [castingSpell, setCastingSpell] = useState<string | null>(null);
   const [usingAbility, setUsingAbility] = useState<string | null>(null);
+  const [attackingWeapon, setAttackingWeapon] = useState<string | null>(null);
   const [customAmount, setCustomAmount] = useState('');
   const [actionFilter, setActionFilter] = useState<ActionTypeFilter>('all');
 
@@ -298,6 +303,12 @@ export function CombatView({
   const filteredFeatures = features.filter((f) => {
     if (actionFilter === 'all') return true;
     return (f.action_type ?? 'other') === actionFilter;
+  });
+
+  // Filtered weapons
+  const filteredWeapons = weapons.filter((w) => {
+    if (actionFilter === 'all') return true;
+    return (w.action_type ?? 'action') === actionFilter;
   });
 
   // HP helpers
@@ -344,6 +355,10 @@ export function CombatView({
     setUsingAbility(feature.title);
   }, [onUpdateFeature]);
 
+  const handleWeaponAttack = useCallback((_weapon: Weapon) => {
+    setAttackingWeapon(_weapon.name);
+  }, []);
+
   const hpPercent = character.max_hp > 0 ? (character.current_hp / character.max_hp) * 100 : 0;
   const hpColor = hpPercent > 50 ? 'var(--hp-green)' : hpPercent > 25 ? 'var(--hp-yellow)' : 'var(--hp-crimson)';
   const barGradient = hpPercent > 50
@@ -360,6 +375,9 @@ export function CombatView({
       )}
       {usingAbility && (
         <AbilityBurst name={usingAbility} onDone={() => setUsingAbility(null)} />
+      )}
+      {attackingWeapon && (
+        <AbilityBurst name={attackingWeapon} onDone={() => setAttackingWeapon(null)} />
       )}
 
       {/* ── Combat Header ──────────────────────────────────────────────── */}
@@ -538,14 +556,18 @@ export function CombatView({
         value={actionFilter}
         onChange={setActionFilter}
         counts={{
-          all: allPreparedSpells.length + features.length,
+          all: allPreparedSpells.length + weapons.length + features.length,
           action: allPreparedSpells.filter((s) => (s.action_type ?? 'action') === 'action').length
+            + weapons.filter((w) => (w.action_type ?? 'action') === 'action').length
             + features.filter((f) => f.action_type === 'action').length,
           bonus_action: allPreparedSpells.filter((s) => s.action_type === 'bonus_action').length
+            + weapons.filter((w) => w.action_type === 'bonus_action').length
             + features.filter((f) => f.action_type === 'bonus_action').length,
           reaction: allPreparedSpells.filter((s) => s.action_type === 'reaction').length
+            + weapons.filter((w) => w.action_type === 'reaction').length
             + features.filter((f) => f.action_type === 'reaction').length,
           other: allPreparedSpells.filter((s) => (!s.action_type || s.action_type === 'other')).length
+            + weapons.filter((w) => (!w.action_type || w.action_type === 'other')).length
             + features.filter((f) => (!f.action_type || f.action_type === 'other')).length,
         }}
       />
@@ -698,6 +720,95 @@ export function CombatView({
       )}
 
       {/* ── Combat Abilities ───────────────────────────────────────────── */}
+      {filteredWeapons.length > 0 && (
+        <div>
+          <div className="flex items-center gap-2 mb-2 mt-1">
+            <Swords size={14} style={{ color: 'var(--hp-crimson)' }} />
+            <h3
+              className="text-xs uppercase tracking-widest m-0"
+              style={{ color: 'var(--hp-crimson)', fontFamily: 'var(--heading)', letterSpacing: '2px' }}
+            >
+              Weapons
+            </h3>
+          </div>
+
+          {filteredWeapons.map((weapon) => {
+            const atkBonus = getWeaponAttackBonus(character.level, abilityScoreMap, weapon.ability_mod, weapon.proficient);
+            const dmgStr = formatWeaponDamage(weapon.damage_dice, abilityScoreMap, weapon.ability_mod, weapon.damage_type);
+            const isReaction = weapon.action_type === 'reaction';
+            const blockedOffTurn = offTurn && !isReaction;
+
+            return (
+              <div
+                key={weapon.id}
+                className="mb-1.5 rounded-lg overflow-hidden"
+                style={{
+                  border: '1px solid rgba(220,38,38,0.3)',
+                  background: 'var(--bg-surface)',
+                  opacity: blockedOffTurn ? 0.5 : 1,
+                }}
+              >
+                <div className="flex items-center gap-2 px-3 py-2.5">
+                  <span
+                    className="flex-1 text-sm font-semibold"
+                    style={{ color: 'var(--text-h)', fontFamily: 'var(--heading)', letterSpacing: '0.3px' }}
+                  >
+                    {weapon.name}
+                  </span>
+                  <span className="text-[10px] shrink-0" style={{ color: 'var(--text)' }}>
+                    <span style={{ color: 'var(--accent)', fontFamily: 'var(--heading)' }}>ATK </span>
+                    <span style={{ color: 'var(--text-h)', fontFamily: 'var(--mono)', fontWeight: 700 }}>
+                      {formatModifier(atkBonus)}
+                    </span>
+                  </span>
+                  <span className="text-[10px] shrink-0" style={{ color: 'var(--text)' }}>
+                    <span style={{ color: 'var(--hp-crimson)', fontFamily: 'var(--heading)' }}>DMG </span>
+                    <span style={{ color: 'var(--text-h)', fontFamily: 'var(--mono)', fontWeight: 700 }}>
+                      {dmgStr}
+                    </span>
+                  </span>
+                  <ActionTypeBadge type={weapon.action_type ?? 'action'} small />
+                  {usedActionTypes?.has(weapon.action_type ?? 'action') && (
+                    <span
+                      className="text-xs px-1.5 py-0.5 rounded-full shrink-0"
+                      style={{ background: 'rgba(245,158,11,0.15)', color: '#f59e0b', fontSize: '0.6rem', fontFamily: 'var(--heading)', letterSpacing: '0.5px' }}
+                    >
+                      USED
+                    </span>
+                  )}
+                  <button
+                    className="px-3 py-1 rounded-lg text-xs font-bold cursor-pointer active:scale-90 transition-transform shrink-0"
+                    style={{
+                      background: blockedOffTurn
+                        ? 'var(--border)'
+                        : 'linear-gradient(135deg, #991b1b, #dc2626)',
+                      color: blockedOffTurn ? 'var(--text)' : '#fff',
+                      border: 'none',
+                      fontFamily: 'var(--heading)',
+                      letterSpacing: '0.5px',
+                    }}
+                    disabled={blockedOffTurn}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (!blockedOffTurn) {
+                        if (onActionInitiated) {
+                          onActionInitiated({ weapon, actionType: weapon.action_type ?? 'action' });
+                        } else {
+                          handleWeaponAttack(weapon);
+                        }
+                      }
+                    }}
+                  >
+                    Attack
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* ── Features & Traits ──────────────────────────────────────────── */}
       {filteredFeatures.length > 0 && (
         <div>
           <div className="flex items-center gap-2 mb-2 mt-1">
@@ -836,17 +947,17 @@ export function CombatView({
       )}
 
       {/* Empty state */}
-      {preparedSpells.length === 0 && filteredFeatures.length === 0 && (
+      {preparedSpells.length === 0 && filteredWeapons.length === 0 && filteredFeatures.length === 0 && (
         <div className="text-center py-8" style={{ color: 'var(--text)' }}>
           <p className="text-sm">
             {actionFilter !== 'all'
-              ? 'No spells or abilities match this filter.'
-              : 'No prepared spells or abilities.'}
+              ? 'No spells, weapons, or abilities match this filter.'
+              : 'No prepared spells, weapons, or abilities.'}
           </p>
           <p className="text-xs mt-1" style={{ color: 'var(--text)' }}>
             {actionFilter !== 'all'
               ? 'Try a different action type filter.'
-              : 'Prepare spells in the Spells tab and add features in the Traits tab.'}
+              : 'Prepare spells in the Spells tab, add weapons in the Arms tab, and add features in the Traits tab.'}
           </p>
         </div>
       )}

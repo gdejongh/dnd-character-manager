@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { FormEvent } from 'react';
 import type { Character } from '../types/database';
+import type { ActiveSessionInfo } from '../hooks/useCombatSession';
 import { LogOut, Trash2, Heart, Plus, Shield, Swords, Users } from 'lucide-react';
 import { lookupSession } from '../hooks/useCombatSession';
 
@@ -13,6 +14,8 @@ interface HomeScreenProps {
   onSignOut: () => void;
   onStartCombat: () => Promise<void>;
   onJoinCombat: (sessionId: string, characterId: string, charName: string, charClass: string, hp: number, maxHp: number, imageUrl: string | null, imagePosition: number) => Promise<void>;
+  activeSession: ActiveSessionInfo | null;
+  onRejoinCombat: (sessionId: string, role: 'dm' | 'player') => void;
 }
 
 export function HomeScreen({
@@ -24,6 +27,8 @@ export function HomeScreen({
   onSignOut,
   onStartCombat,
   onJoinCombat,
+  activeSession,
+  onRejoinCombat,
 }: HomeScreenProps) {
   const [showForm, setShowForm] = useState(false);
   const [name, setName] = useState('');
@@ -88,6 +93,61 @@ export function HomeScreen({
           <LogOut size={16} />
         </button>
       </header>
+
+      {/* ── Rejoin Active Session Banner ── */}
+      {activeSession && (
+        <div
+          className="mx-4 mt-3 animate-fade-in"
+          style={{
+            background: 'linear-gradient(135deg, rgba(185,28,28,0.12) 0%, rgba(201,168,76,0.10) 100%)',
+            border: '1px solid rgba(239,68,68,0.35)',
+            borderRadius: '12px',
+            overflow: 'hidden',
+          }}
+        >
+          <button
+            onClick={() => onRejoinCombat(activeSession.sessionId, activeSession.role)}
+            className="w-full flex items-center gap-3 p-4 cursor-pointer bg-transparent text-left"
+            style={{ border: 'none' }}
+          >
+            <div
+              className="shrink-0 w-10 h-10 rounded-lg flex items-center justify-center"
+              style={{
+                background: 'linear-gradient(135deg, #7f1d1d, #991b1b)',
+                boxShadow: '0 0 12px rgba(239,68,68,0.3)',
+              }}
+            >
+              <Swords size={18} style={{ color: '#fca5a5' }} />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p
+                className="text-sm font-semibold m-0"
+                style={{ color: 'var(--text-h)', fontFamily: 'var(--heading)', letterSpacing: '0.5px' }}
+              >
+                Battle in Progress
+              </p>
+              <p className="text-xs m-0 mt-0.5" style={{ color: 'var(--text)' }}>
+                Room <span style={{ color: 'var(--accent)', fontFamily: 'var(--mono)', letterSpacing: '1px' }}>{activeSession.roomCode}</span>
+                {' · '}
+                {activeSession.role === 'dm' ? 'Dungeon Master' : 'Player'}
+                {' · '}
+                {activeSession.status === 'lobby' ? 'In Lobby' : 'Combat Active'}
+              </p>
+            </div>
+            <span
+              className="shrink-0 px-3 py-1.5 rounded-lg text-xs font-semibold"
+              style={{
+                background: 'linear-gradient(135deg, #7f1d1d, #991b1b)',
+                color: '#fca5a5',
+                fontFamily: 'var(--heading)',
+                letterSpacing: '0.5px',
+              }}
+            >
+              Rejoin
+            </span>
+          </button>
+        </div>
+      )}
 
       {/* Character List */}
       <div className="flex-1 p-4">

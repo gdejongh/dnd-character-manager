@@ -121,3 +121,26 @@ export function getSpellAttackBonus(
   const mod = getModifier(abilityScores[ability] ?? 10);
   return getProficiencyBonus(level) + mod;
 }
+
+/** Weapon attack bonus = ability modifier + proficiency bonus (if proficient) */
+export function getWeaponAttackBonus(
+  level: number,
+  abilityScores: Record<Ability, number>,
+  abilityMod: Ability,
+  proficient: boolean,
+): number {
+  const mod = getModifier(abilityScores[abilityMod] ?? 10);
+  return mod + (proficient ? getProficiencyBonus(level) : 0);
+}
+
+/** Format weapon damage string, e.g. "1d8 + 3 slashing" */
+export function formatWeaponDamage(
+  damageDice: string,
+  abilityScores: Record<Ability, number>,
+  abilityMod: Ability,
+  damageType: string,
+): string {
+  const mod = getModifier(abilityScores[abilityMod] ?? 10);
+  const modStr = mod !== 0 ? ` ${formatModifier(mod)}` : '';
+  return `${damageDice}${modStr} ${damageType}`;
+}

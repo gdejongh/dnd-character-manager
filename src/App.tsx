@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import type { Tab } from './types/database';
 import { isSupabaseConfigured } from './lib/supabase';
 import { getPreparedSpellLimit } from './constants/dnd';
@@ -11,14 +11,17 @@ import { useSpells } from './hooks/useSpells';
 import { useInventory } from './hooks/useInventory';
 import { useFeatures } from './hooks/useFeatures';
 import { useNotes } from './hooks/useNotes';
+import { useWeapons } from './hooks/useWeapons';
 import { useCharacterImage } from './hooks/useCharacterImage';
-import { createCombatSession, joinCombatSession } from './hooks/useCombatSession';
+import { createCombatSession, joinCombatSession, findActiveSession } from './hooks/useCombatSession';
+import type { ActiveSessionInfo } from './hooks/useCombatSession';
 import { Auth } from './components/Auth';
 import { HomeScreen } from './components/HomeScreen';
 import { CharacterSheet } from './components/CharacterSheet';
 import { HpTracker } from './components/HpTracker';
 import { SpellSlots } from './components/SpellSlots';
 import { Inventory } from './components/Inventory';
+import { Weapons } from './components/Weapons';
 import { FeaturesTraits } from './components/FeaturesTraits';
 import { Notes } from './components/Notes';
 import { CombatView } from './components/CombatView';
@@ -103,6 +106,19 @@ function App() {
   const [combatSessionId, setCombatSessionId] = useState<string | null>(null);
   const [combatRole, setCombatRole] = useState<'dm' | 'player'>('dm');
 
+  // Active session detection for rejoin
+  const [activeSession, setActiveSession] = useState<ActiveSessionInfo | null>(null);
+
+  // Check for active sessions when user lands on HomeScreen
+  useEffect(() => {
+    if (!user || combatSessionId) return;
+    let cancelled = false;
+    findActiveSession(user.id).then((info) => {
+      if (!cancelled) setActiveSession(info);
+    });
+    return () => { cancelled = true; };
+  }, [user, combatSessionId]);
+
   const handleTabChange = useCallback(
     (tab: Tab) => {
       if (tab === 'combat' && activeTab !== 'combat') {
@@ -126,6 +142,7 @@ function App() {
     useSpells(selectedCharacterId);
   const { items, addItem, updateItem, deleteItem } = useInventory(selectedCharacterId);
   const { features, addFeature, updateFeature, resetAllUses, deleteFeature } = useFeatures(selectedCharacterId);
+  const { weapons, addWeapon, updateWeapon, deleteWeapon } = useWeapons(selectedCharacterId);
   const { notes, loading: notesLoading, updateContent } = useNotes(selectedCharacterId);
   const { uploading: imageUploading, error: imageError, uploadImage, deleteImage } =
     useCharacterImage(user?.id, selectedCharacterId);
@@ -177,7 +194,10 @@ function App() {
         userId={user.id}
         role={combatRole}
         characters={characters}
-        onLeave={() => setCombatSessionId(null)}
+        onLeave={() => {
+          setCombatSessionId(null);
+          setActiveSession(null);
+        }}
       />
     );
   }
@@ -203,6 +223,11 @@ function App() {
         onJoinCombat={async (sessionId, characterId, charName, charClass, hp, maxHp, imageUrl, imagePosition) => {
           await joinCombatSession(sessionId, user.id, characterId, charName, charClass, hp, maxHp, imageUrl, imagePosition);
           setCombatRole('player');
+          setCombatSessionId(sessionId);
+        }}
+        activeSession={activeSession}
+        onRejoinCombat={(sessionId, role) => {
+          setCombatRole(role);
           setCombatSessionId(sessionId);
         }}
       />
@@ -342,6 +367,16 @@ function App() {
               onDelete={deleteItem}
             />
           )}
+          {activeTab === 'weapons' && (
+            <Weapons
+              weapons={weapons}
+              scores={scores}
+              level={character.level}
+              onAdd={addWeapon}
+              onUpdate={updateWeapon}
+              onDelete={deleteWeapon}
+            />
+          )}
           {activeTab === 'features' && (
             <FeaturesTraits
               features={features}
@@ -359,6 +394,7 @@ function App() {
               scores={scores}
               slots={slots}
               spells={spells}
+              weapons={weapons}
               features={features}
               onUpdateCharacter={updateCharacter}
               onSetSlotUsed={setSlotUsed}

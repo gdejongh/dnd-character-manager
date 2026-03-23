@@ -1,5 +1,5 @@
 import type { Tab } from '../types/database';
-import { Shield, Heart, Sparkles, Backpack, Swords, ScrollText, Crown } from 'lucide-react';
+import { Shield, Heart, Sparkles, Backpack, Swords, ScrollText, Crown, Axe } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 
 interface TabBarProps {
@@ -11,6 +11,7 @@ const TABS: { id: Tab; label: string; Icon: LucideIcon }[] = [
   { id: 'sheet', label: 'Sheet', Icon: Shield },
   { id: 'hp', label: 'HP', Icon: Heart },
   { id: 'spells', label: 'Spells', Icon: Sparkles },
+  { id: 'weapons', label: 'Arms', Icon: Axe },
   { id: 'items', label: 'Items', Icon: Backpack },
   { id: 'features', label: 'Traits', Icon: Crown },
   { id: 'notes', label: 'Notes', Icon: ScrollText },
@@ -39,7 +40,7 @@ export function TabBar({ activeTab, onTabChange }: TabBarProps) {
         }}
       />
 
-      {/* Regular tabs - first 3 */}
+      {/* Regular tabs - first half */}
       {TABS.slice(0, 3).map((tab) => (
         <TabButton key={tab.id} tab={tab} isActive={activeTab === tab.id} onTabChange={onTabChange} />
       ))}
@@ -89,7 +90,7 @@ export function TabBar({ activeTab, onTabChange }: TabBarProps) {
         </span>
       </button>
 
-      {/* Regular tabs - last 3 */}
+      {/* Regular tabs - second half */}
       {TABS.slice(3).map((tab) => (
         <TabButton key={tab.id} tab={tab} isActive={activeTab === tab.id} onTabChange={onTabChange} />
       ))}

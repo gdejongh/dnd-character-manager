@@ -49,6 +49,64 @@ export async function createCombatSession(userId: string): Promise<string> {
   throw new Error('Could not generate unique room code after retries');
 }
 
+export interface ActiveSessionInfo {
+  sessionId: string;
+  roomCode: string;
+  role: 'dm' | 'player';
+  status: 'lobby' | 'active';
+}
+
+/** Check if the user is already in an active (lobby/active) combat session. */
+export async function findActiveSession(
+  userId: string,
+): Promise<ActiveSessionInfo | null> {
+  // Check if user is DM of an active session
+  const { data: dmSession } = await supabase
+    .from('combat_sessions')
+    .select('id, room_code, status')
+    .eq('dm_user_id', userId)
+    .in('status', ['lobby', 'active'])
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (dmSession) {
+    return {
+      sessionId: dmSession.id,
+      roomCode: dmSession.room_code,
+      role: 'dm',
+      status: dmSession.status as 'lobby' | 'active',
+    };
+  }
+
+  // Check if user is a participant in an active session
+  const { data: participation } = await supabase
+    .from('session_participants')
+    .select('session_id, combat_sessions(id, room_code, status)')
+    .eq('user_id', userId)
+    .limit(10);
+
+  if (participation) {
+    for (const p of participation) {
+      const session = p.combat_sessions as unknown as {
+        id: string;
+        room_code: string;
+        status: string;
+      } | null;
+      if (session && (session.status === 'lobby' || session.status === 'active')) {
+        return {
+          sessionId: session.id,
+          roomCode: session.room_code,
+          role: 'player',
+          status: session.status as 'lobby' | 'active',
+        };
+      }
+    }
+  }
+
+  return null;
+}
+
 export async function lookupSession(
   roomCode: string,
 ): Promise<CombatSession | null> {

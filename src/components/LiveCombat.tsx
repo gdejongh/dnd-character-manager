@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import type { FormEvent } from 'react';
-import type { Character, Combatant, SessionParticipant, Spell, Feature, ActionType } from '../types/database';
+import type { Character, Combatant, SessionParticipant, Spell, Feature, Weapon, ActionType } from '../types/database';
 import { useCombatSession } from '../hooks/useCombatSession';
 import { CombatSheetLoader } from './CombatSheetLoader';
 import type { ResourceConsumers } from './CombatSheetLoader';
@@ -26,6 +26,7 @@ import {
 interface CompletedAction {
   spell?: Spell;
   feature?: Feature;
+  weapon?: Weapon;
   actionType: ActionType;
   result: TurnActionResult;
 }
@@ -50,7 +51,7 @@ function ActiveViewTabs({ active, onChange }: { active: ActiveView; onChange: (v
   ];
   return (
     <div
-      className="flex"
+      className="flex shrink-0"
       style={{ borderBottom: '1px solid var(--border)', background: 'rgba(0,0,0,0.5)' }}
     >
       {tabs.map((t) => {
@@ -542,10 +543,10 @@ function DMLobby({
   const canStart = playerCount > 0;
 
   return (
-    <div className="flex flex-col min-h-screen" style={{ background: darkBg }}>
+    <div className="flex flex-col h-dvh overflow-hidden" style={{ background: darkBg }}>
       {/* Header */}
       <header
-        className="p-4 text-center"
+        className="p-4 text-center shrink-0"
         style={{ borderBottom: '1px solid var(--border)', background: 'rgba(0,0,0,0.3)' }}
       >
         <div className="flex items-center justify-between mb-3">
@@ -578,7 +579,7 @@ function DMLobby({
         </p>
       </header>
 
-      <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-4">
+      <div className="flex-1 min-h-0 overflow-y-auto p-4 flex flex-col gap-4">
         {/* Players joined */}
         <section>
           <h3
@@ -749,7 +750,7 @@ function DMLobby({
       </div>
 
       {/* Begin Combat */}
-      <div className="p-4" style={{ borderTop: '1px solid var(--border)', background: 'rgba(0,0,0,0.3)' }}>
+      <div className="p-4 shrink-0" style={{ borderTop: '1px solid var(--border)', background: 'rgba(0,0,0,0.3)' }}>
         <button
           onClick={async () => {
             setStarting(true);
@@ -797,9 +798,9 @@ function PlayerLobby({
   onLeave: () => void;
 }) {
   return (
-    <div className="flex flex-col min-h-screen" style={{ background: darkBg }}>
+    <div className="flex flex-col h-dvh overflow-hidden" style={{ background: darkBg }}>
       <header
-        className="p-4 text-center"
+        className="p-4 text-center shrink-0"
         style={{ borderBottom: '1px solid var(--border)', background: 'rgba(0,0,0,0.3)' }}
       >
         <div className="flex items-center justify-between mb-3">
@@ -908,7 +909,7 @@ function DMActive({
     <div className="flex flex-col flex-1">
       {/* Top bar */}
       <header
-        className="flex items-center justify-between p-3"
+        className="flex items-center justify-between p-3 shrink-0"
         style={{ borderBottom: '1px solid var(--border)', background: 'rgba(0,0,0,0.4)' }}
       >
         <div className="flex items-center gap-3">
@@ -923,7 +924,7 @@ function DMActive({
       </header>
 
       {/* Active turn spotlight */}
-      <div className="flex-1 overflow-y-auto p-4">
+      <div className="flex-1 min-h-0 overflow-y-auto p-4">
         {combatants[session.current_turn_index] && (
           <div className="mb-4">
             <div className="flex items-center gap-2 mb-2">
@@ -975,7 +976,7 @@ function DMActive({
       </div>
 
       {/* Bottom controls */}
-      <div className="p-4" style={{ borderTop: '1px solid var(--border)', background: 'rgba(0,0,0,0.4)' }}>
+      <div className="p-4 shrink-0" style={{ borderTop: '1px solid var(--border)', background: 'rgba(0,0,0,0.4)' }}>
         {/* Action economy indicators */}
         {usedActionTypes && usedActionTypes.size > 0 && (
           <div className="flex items-center gap-2 mb-2 justify-center">
@@ -1006,7 +1007,7 @@ function DMActive({
             }}
           >
             <Undo2 size={14} />
-            Undo {undoStack[undoStack.length - 1].spell?.name ?? undoStack[undoStack.length - 1].feature?.title ?? 'Action'}
+            Undo {undoStack[undoStack.length - 1].spell?.name ?? undoStack[undoStack.length - 1].feature?.title ?? undoStack[undoStack.length - 1].weapon?.name ?? 'Action'}
           </button>
         )}
         <div className="flex gap-3">
@@ -1114,7 +1115,7 @@ function PlayerActive({
 
       {/* Top bar */}
       <header
-        className="flex items-center justify-between p-3"
+        className="flex items-center justify-between p-3 shrink-0"
         style={{ borderBottom: '1px solid var(--border)', background: 'rgba(0,0,0,0.4)' }}
       >
         <span className="text-xs px-2 py-1 rounded" style={{ background: 'var(--accent-bg)', color: 'var(--accent)', border: '1px solid var(--accent-border)', fontFamily: 'var(--mono)' }}>
@@ -1131,7 +1132,7 @@ function PlayerActive({
       </header>
 
       {/* Active turn spotlight + initiative list */}
-      <div className="flex-1 overflow-y-auto p-4">
+      <div className="flex-1 min-h-0 overflow-y-auto p-4">
         {/* Spotlight for current turn */}
         {activeCombatant && (
           <div className="mb-4">
@@ -1229,8 +1230,8 @@ export function LiveCombat({
   const [turnState, setTurnState] = useState<{
     forTurnIndex: number | null;
     usedTypes: Set<string>;
-    action: { spell?: Spell; feature?: Feature; actionType: ActionType } | null;
-    warning: { spell?: Spell; feature?: Feature; actionType: ActionType } | null;
+    action: { spell?: Spell; feature?: Feature; weapon?: Weapon; actionType: ActionType } | null;
+    warning: { spell?: Spell; feature?: Feature; weapon?: Weapon; actionType: ActionType } | null;
     undoStack: CompletedAction[];
   }>({ forTurnIndex: null, usedTypes: new Set(), action: null, warning: null, undoStack: [] });
 
@@ -1274,7 +1275,7 @@ export function LiveCombat({
     : isMyTurnAsDm ? (activeCombatant?.id ?? null) : null;
 
   // Handle action initiated from combat sheet
-  const handleActionInitiated = useCallback((action: { spell?: Spell; feature?: Feature; actionType: ActionType }) => {
+  const handleActionInitiated = useCallback((action: { spell?: Spell; feature?: Feature; weapon?: Weapon; actionType: ActionType }) => {
     if (usedActionTypes.has(action.actionType)) {
       setTurnState(prev => ({ ...prev, forTurnIndex: currentTurnIndex, warning: action }));
     } else {
@@ -1317,6 +1318,7 @@ export function LiveCombat({
     const completedAction: CompletedAction = {
       spell: turnAction.spell,
       feature: turnAction.feature,
+      weapon: turnAction.weapon,
       actionType: turnAction.actionType,
       result,
     };
@@ -1487,7 +1489,7 @@ export function LiveCombat({
   const turnActionOverlay = turnAction && session ? (
     <div className="fixed inset-0 z-50">
       <TurnActionFlow
-        actionName={turnAction.spell?.name ?? turnAction.feature?.title ?? 'Action'}
+        actionName={turnAction.spell?.name ?? turnAction.feature?.title ?? turnAction.weapon?.name ?? 'Action'}
         actionDescription={turnAction.spell?.description ?? turnAction.feature?.description}
         actionType={turnAction.actionType}
         combatants={combatants}
@@ -1501,7 +1503,7 @@ export function LiveCombat({
 
   // End Turn button for players
   const endTurnButton = isMyTurn && (
-    <div className="p-3" style={{ borderTop: '1px solid var(--border)', background: 'rgba(0,0,0,0.4)' }}>
+    <div className="p-3 shrink-0" style={{ borderTop: '1px solid var(--border)', background: 'rgba(0,0,0,0.4)' }}>
       {/* Action economy indicators */}
       {usedActionTypes.size > 0 && (
         <div className="flex items-center gap-2 mb-2 justify-center">
@@ -1532,7 +1534,7 @@ export function LiveCombat({
           }}
         >
           <Undo2 size={14} />
-          Undo {undoStack[undoStack.length - 1].spell?.name ?? undoStack[undoStack.length - 1].feature?.title ?? 'Action'}
+          Undo {undoStack[undoStack.length - 1].spell?.name ?? undoStack[undoStack.length - 1].feature?.title ?? undoStack[undoStack.length - 1].weapon?.name ?? 'Action'}
         </button>
       )}
       <button
@@ -1556,7 +1558,7 @@ export function LiveCombat({
   // Active combat — DM
   if (role === 'dm') {
     return (
-      <div className="flex flex-col min-h-screen" style={{ background: darkBg }}>
+      <div className="flex flex-col h-dvh overflow-hidden" style={{ background: darkBg }}>
         {actionWarningModal}
         {turnActionOverlay}
         <ActiveViewTabs active={activeView} onChange={setActiveView} />
@@ -1564,7 +1566,7 @@ export function LiveCombat({
         {/* DM turn notification for their characters */}
         {isMyTurnAsDm && activeCombatant && activeView === 'initiative' && (
           <div
-            className="py-2.5 text-center"
+            className="py-2.5 text-center shrink-0"
             style={{
               background: 'linear-gradient(135deg, rgba(201,168,76,0.15), rgba(240,192,64,0.1))',
               borderBottom: '2px solid var(--accent)',
@@ -1591,7 +1593,7 @@ export function LiveCombat({
         )}
 
         {/* Initiative view */}
-        <div style={{ display: activeView === 'initiative' ? 'flex' : 'none', flexDirection: 'column', flex: 1 }}>
+        <div style={{ display: activeView === 'initiative' ? 'flex' : 'none', flexDirection: 'column', flex: 1, minHeight: 0 }}>
           <DMActive
             session={session}
             combatants={combatants}
@@ -1607,7 +1609,7 @@ export function LiveCombat({
           />
         </div>
         {/* Combat sheet view — always mounted so resourceConsumersRef stays populated */}
-        <div style={{ display: activeView === 'sheet' ? 'flex' : 'none', flexDirection: 'column', flex: 1, overflow: 'hidden' }}>
+        <div style={{ display: activeView === 'sheet' ? 'flex' : 'none', flexDirection: 'column', flex: 1, minHeight: 0, overflow: 'hidden' }}>
           {dmCharacterCombatants.length > 0 ? (
             <>
               <div className="p-3" style={{ borderBottom: '1px solid var(--border)', background: 'rgba(0,0,0,0.3)' }}>
@@ -1677,12 +1679,12 @@ export function LiveCombat({
 
   // Active combat — Player
   return (
-    <div className="flex flex-col min-h-screen" style={{ background: darkBg }}>
+    <div className="flex flex-col h-dvh overflow-hidden" style={{ background: darkBg }}>
       {actionWarningModal}
       {turnActionOverlay}
       <ActiveViewTabs active={activeView} onChange={setActiveView} />
       {/* Initiative view */}
-      <div style={{ display: activeView === 'initiative' ? 'flex' : 'none', flexDirection: 'column', flex: 1 }}>
+      <div style={{ display: activeView === 'initiative' ? 'flex' : 'none', flexDirection: 'column', flex: 1, minHeight: 0 }}>
         <PlayerActive
           session={session}
           combatants={combatants}
@@ -1693,10 +1695,10 @@ export function LiveCombat({
         />
       </div>
       {/* Combat sheet view — always mounted so resourceConsumersRef stays populated */}
-      <div style={{ display: activeView === 'sheet' ? 'flex' : 'none', flexDirection: 'column', flex: 1, overflow: 'hidden' }}>
+      <div style={{ display: activeView === 'sheet' ? 'flex' : 'none', flexDirection: 'column', flex: 1, minHeight: 0, overflow: 'hidden' }}>
         {myCharacterId ? (
           <>
-            <div className="flex-1 overflow-y-auto">
+            <div className="flex-1 min-h-0 overflow-y-auto">
               <CombatSheetLoader
                 characterId={myCharacterId}
                 onCombatHpSync={updateMyHp}
