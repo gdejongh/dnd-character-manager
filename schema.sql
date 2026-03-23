@@ -88,6 +88,16 @@ create policy "Users can insert own characters"
   on characters for insert with check (auth.uid() = user_id);
 create policy "Users can update own characters"
   on characters for update using (auth.uid() = user_id);
+create policy "DM can update characters in own combat sessions"
+  on characters for update using (
+    exists (
+      select 1 from session_participants sp
+      join combat_sessions cs on cs.id = sp.session_id
+      where sp.character_id = characters.id
+        and cs.dm_user_id = auth.uid()
+        and cs.status in ('lobby', 'active')
+    )
+  );
 create policy "Users can delete own characters"
   on characters for delete using (auth.uid() = user_id);
 
@@ -273,6 +283,14 @@ create policy "Users can join sessions"
   on session_participants for insert with check (auth.uid() = user_id);
 create policy "Users can update own participant"
   on session_participants for update using (auth.uid() = user_id);
+create policy "DM can update participants in own sessions"
+  on session_participants for update using (
+    exists (
+      select 1 from combat_sessions cs
+      where cs.id = session_participants.session_id
+        and cs.dm_user_id = auth.uid()
+    )
+  );
 create policy "Users can leave sessions"
   on session_participants for delete using (auth.uid() = user_id);
 

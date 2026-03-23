@@ -258,7 +258,7 @@ function InitiativeRow({
 
       {role === 'dm' && !isDmControlled && participant && (
         <div className="mt-2 ml-10">
-          <HpBar current={participant.current_hp} max={participant.max_hp} showNumber={true} />
+          <HpBar current={combatant.current_hp} max={combatant.max_hp} showNumber={true} />
         </div>
       )}
 
@@ -270,22 +270,22 @@ function InitiativeRow({
 
       {role === 'player' && !isEnemy && !isAlly && participant && !isMe && (
         <div className="mt-2 ml-10">
-          <HpBar current={participant.current_hp} max={participant.max_hp} showNumber={false} />
+          <HpBar current={combatant.current_hp} max={combatant.max_hp} showNumber={false} />
         </div>
       )}
 
       {role === 'player' && isMe && participant && (
         <div className="flex items-center gap-2 mt-2 ml-10">
           <button
-            onClick={() => onMyHpChange?.(Math.max(0, participant.current_hp - 1))}
+            onClick={() => onMyHpChange?.(Math.max(0, combatant.current_hp - 1))}
             className="w-10 h-10 rounded-lg flex items-center justify-center cursor-pointer"
             style={{ background: 'rgba(185,28,28,0.2)', color: 'var(--hp-red)', border: '1px solid rgba(185,28,28,0.3)' }}
           >
             <Minus size={18} />
           </button>
-          <HpBar current={participant.current_hp} max={participant.max_hp} showNumber={true} />
+          <HpBar current={combatant.current_hp} max={combatant.max_hp} showNumber={true} />
           <button
-            onClick={() => onMyHpChange?.(Math.min(participant.max_hp, participant.current_hp + 1))}
+            onClick={() => onMyHpChange?.(Math.min(combatant.max_hp, combatant.current_hp + 1))}
             className="w-10 h-10 rounded-lg flex items-center justify-center cursor-pointer"
             style={{ background: 'rgba(74,222,128,0.1)', color: 'var(--hp-green)', border: '1px solid rgba(74,222,128,0.2)' }}
           >
@@ -872,7 +872,7 @@ function PlayerActive({
           style={{ borderBottom: '1px solid var(--border)', background: 'rgba(0,0,0,0.2)' }}
         >
           <button
-            onClick={() => onMyHpChange(Math.max(0, myParticipant.current_hp - 1))}
+            onClick={() => onMyHpChange(Math.max(0, myCombatant.current_hp - 1))}
             className="w-14 h-14 rounded-xl flex items-center justify-center cursor-pointer"
             style={{ background: 'rgba(185,28,28,0.2)', color: 'var(--hp-red)', border: '2px solid rgba(185,28,28,0.4)', fontSize: '1.5rem' }}
           >
@@ -880,12 +880,12 @@ function PlayerActive({
           </button>
           <div className="text-center min-w-[6rem]">
             <p className="text-3xl font-bold m-0" style={{ color: 'var(--hp-crimson)', fontFamily: 'var(--mono)' }}>
-              {myParticipant.current_hp}
+              {myCombatant.current_hp}
             </p>
-            <p className="text-xs m-0" style={{ color: 'var(--text)' }}>/ {myParticipant.max_hp} HP</p>
+            <p className="text-xs m-0" style={{ color: 'var(--text)' }}>/ {myCombatant.max_hp} HP</p>
           </div>
           <button
-            onClick={() => onMyHpChange(Math.min(myParticipant.max_hp, myParticipant.current_hp + 1))}
+            onClick={() => onMyHpChange(Math.min(myCombatant.max_hp, myCombatant.current_hp + 1))}
             className="w-14 h-14 rounded-xl flex items-center justify-center cursor-pointer"
             style={{ background: 'rgba(74,222,128,0.15)', color: 'var(--hp-green)', border: '2px solid rgba(74,222,128,0.3)', fontSize: '1.5rem' }}
           >
