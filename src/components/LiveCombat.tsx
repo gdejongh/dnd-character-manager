@@ -1164,9 +1164,9 @@ export function LiveCombat({
     </div>
   );
 
-  // TurnActionFlow overlay (when user is selecting targets / entering damage)
-  if (turnAction && session) {
-    return (
+  // TurnActionFlow overlay element (rendered on top of content, not replacing it)
+  const turnActionOverlay = turnAction && session ? (
+    <div className="fixed inset-0 z-50">
       <TurnActionFlow
         actionName={turnAction.spell?.name ?? turnAction.feature?.title ?? 'Action'}
         actionDescription={turnAction.spell?.description ?? turnAction.feature?.description}
@@ -1177,8 +1177,8 @@ export function LiveCombat({
         onComplete={handleActionComplete}
         onCancel={() => setTurnState(prev => ({ ...prev, action: null }))}
       />
-    );
-  }
+    </div>
+  ) : null;
 
   // End Turn button for players
   const endTurnButton = isMyTurn && (
@@ -1221,6 +1221,7 @@ export function LiveCombat({
     return (
       <div className="flex flex-col min-h-screen" style={{ background: darkBg }}>
         {actionWarningModal}
+        {turnActionOverlay}
         <ActiveViewTabs active={activeView} onChange={setActiveView} />
 
         {/* DM turn notification for their characters */}
@@ -1337,6 +1338,7 @@ export function LiveCombat({
   return (
     <div className="flex flex-col min-h-screen" style={{ background: darkBg }}>
       {actionWarningModal}
+      {turnActionOverlay}
       <ActiveViewTabs active={activeView} onChange={setActiveView} />
       {activeView === 'initiative' ? (
         <>
