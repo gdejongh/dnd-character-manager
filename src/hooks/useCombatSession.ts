@@ -15,6 +15,7 @@ interface UseCombatSessionReturn {
   loading: boolean;
 
   addEnemy: (name: string, initiative: number, hp: number) => Promise<void>;
+  addCombatantFromCharacter: (name: string, hp: number, maxHp: number, type: 'enemy' | 'ally') => Promise<void>;
   removeEnemy: (id: string) => Promise<void>;
   updateCombatantInitiative: (id: string, initiative: number) => Promise<void>;
   beginCombat: () => Promise<void>;
@@ -286,6 +287,30 @@ export function useCombatSession(
     });
   }
 
+  async function addCombatantFromCharacter(
+    name: string,
+    hp: number,
+    maxHp: number,
+    type: 'enemy' | 'ally',
+  ) {
+    if (!sessionId) return;
+    const nextOrder =
+      combatants.length > 0
+        ? Math.max(...combatants.map((c) => c.sort_order)) + 1
+        : 1;
+
+    await supabase.from('combatants').insert({
+      session_id: sessionId,
+      name,
+      combatant_type: type,
+      initiative: 0,
+      participant_id: null,
+      current_hp: hp,
+      max_hp: maxHp,
+      sort_order: nextOrder,
+    });
+  }
+
   async function removeEnemy(id: string) {
     await supabase.from('combatants').delete().eq('id', id);
   }
@@ -365,6 +390,7 @@ export function useCombatSession(
     combatants,
     loading,
     addEnemy,
+    addCombatantFromCharacter,
     removeEnemy,
     updateCombatantInitiative,
     beginCombat,

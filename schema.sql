@@ -240,7 +240,7 @@ create table combatants (
   id                uuid primary key default gen_random_uuid(),
   session_id        uuid references combat_sessions(id) on delete cascade not null,
   name              text not null,
-  combatant_type    text not null default 'enemy' check (combatant_type in ('player','enemy')),
+  combatant_type    text not null default 'enemy' check (combatant_type in ('player','enemy','ally')),
   initiative        integer not null default 0,
   participant_id    uuid references session_participants(id) on delete cascade,
   current_hp        integer not null default 0,

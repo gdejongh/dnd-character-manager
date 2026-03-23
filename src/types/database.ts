@@ -78,7 +78,7 @@ export type Tab = 'sheet' | 'hp' | 'spells' | 'items' | 'features' | 'notes' | '
 /* ── Live Combat Session ── */
 
 export type SessionStatus = 'lobby' | 'active' | 'ended';
-export type CombatantType = 'player' | 'enemy';
+export type CombatantType = 'player' | 'enemy' | 'ally';
 
 export interface CombatSession {
   id: string;

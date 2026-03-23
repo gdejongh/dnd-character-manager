@@ -170,6 +170,7 @@ function App() {
         sessionId={combatSessionId}
         userId={user.id}
         role={combatRole}
+        characters={characters}
         onLeave={() => setCombatSessionId(null)}
       />
     );

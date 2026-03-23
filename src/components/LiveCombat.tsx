@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import type { FormEvent } from 'react';
-import type { Combatant, SessionParticipant } from '../types/database';
+import type { Character, Combatant, SessionParticipant } from '../types/database';
 import { useCombatSession } from '../hooks/useCombatSession';
 import { NumericInput } from './NumericInput';
 import {
@@ -19,6 +19,7 @@ interface LiveCombatProps {
   sessionId: string;
   userId: string;
   role: 'dm' | 'player';
+  characters: Character[];
   onLeave: () => void;
 }
 
@@ -73,9 +74,11 @@ function InitiativeRow({
   onMyHpChange?: (newHp: number) => void;
 }) {
   const isEnemy = combatant.combatant_type === 'enemy';
+  const isAlly = combatant.combatant_type === 'ally';
+  const isDmControlled = isEnemy || isAlly;
   const isMe = participant?.user_id === userId;
 
-  const leftBorder = isEnemy ? '#7f1d1d' : 'var(--accent)';
+  const leftBorder = isEnemy ? '#7f1d1d' : isAlly ? '#1e40af' : 'var(--accent)';
 
   return (
     <div
@@ -110,6 +113,8 @@ function InitiativeRow({
         {/* Icon */}
         {isEnemy ? (
           <Skull size={16} style={{ color: '#ef4444', flexShrink: 0 }} />
+        ) : isAlly ? (
+          <Shield size={16} style={{ color: '#60a5fa', flexShrink: 0 }} />
         ) : (
           <Shield size={16} style={{ color: 'var(--accent)', flexShrink: 0 }} />
         )}
@@ -133,6 +138,14 @@ function InitiativeRow({
                 style={{ background: 'var(--accent-bg)', color: 'var(--accent)', border: '1px solid var(--accent-border)' }}
               >
                 YOU
+              </span>
+            )}
+            {isAlly && (
+              <span
+                className="text-[10px] px-1.5 py-0.5 rounded"
+                style={{ background: 'rgba(96,165,250,0.12)', color: '#60a5fa', border: '1px solid rgba(96,165,250,0.3)' }}
+              >
+                ALLY
               </span>
             )}
           </div>
@@ -175,7 +188,7 @@ function InitiativeRow({
       </div>
 
       {/* HP section — different per role/type */}
-      {role === 'dm' && isEnemy && (
+      {role === 'dm' && isDmControlled && (
         <div className="flex items-center gap-2 mt-2 ml-10">
           <button
             onClick={() => onHpDelta?.(-1)}
@@ -195,13 +208,19 @@ function InitiativeRow({
         </div>
       )}
 
-      {role === 'dm' && !isEnemy && participant && (
+      {role === 'dm' && !isDmControlled && participant && (
         <div className="mt-2 ml-10">
           <HpBar current={participant.current_hp} max={participant.max_hp} showNumber={true} />
         </div>
       )}
 
-      {role === 'player' && !isEnemy && participant && !isMe && (
+      {role === 'player' && isAlly && (
+        <div className="mt-2 ml-10">
+          <HpBar current={combatant.current_hp} max={combatant.max_hp} showNumber={false} />
+        </div>
+      )}
+
+      {role === 'player' && !isEnemy && !isAlly && participant && !isMe && (
         <div className="mt-2 ml-10">
           <HpBar current={participant.current_hp} max={participant.max_hp} showNumber={false} />
         </div>
@@ -227,8 +246,8 @@ function InitiativeRow({
         </div>
       )}
 
-      {/* DM: remove enemy button */}
-      {role === 'dm' && isEnemy && onRemove && (
+      {/* DM: remove enemy/ally button */}
+      {role === 'dm' && isDmControlled && onRemove && (
         <button
           onClick={onRemove}
           className="mt-2 ml-10 text-xs flex items-center gap-1 cursor-pointer bg-transparent"
@@ -248,7 +267,9 @@ function DMLobby({
   roomCode,
   participants,
   combatants,
+  characters,
   onAddEnemy,
+  onAddCharacterCombatant,
   onRemoveEnemy,
   onInitiativeChange,
   onBeginCombat,
@@ -257,7 +278,9 @@ function DMLobby({
   roomCode: string;
   participants: SessionParticipant[];
   combatants: Combatant[];
+  characters: Character[];
   onAddEnemy: (name: string, initiative: number, hp: number) => Promise<void>;
+  onAddCharacterCombatant: (name: string, hp: number, maxHp: number, type: 'enemy' | 'ally') => Promise<void>;
   onRemoveEnemy: (id: string) => Promise<void>;
   onInitiativeChange: (id: string, init: number) => Promise<void>;
   onBeginCombat: () => Promise<void>;
@@ -267,6 +290,7 @@ function DMLobby({
   const [enemyInit, setEnemyInit] = useState(10);
   const [enemyHp, setEnemyHp] = useState(10);
   const [starting, setStarting] = useState(false);
+  const [showCharPicker, setShowCharPicker] = useState(false);
 
   async function handleAddEnemy(e: FormEvent) {
     e.preventDefault();
@@ -409,6 +433,56 @@ function DMLobby({
           </form>
         </section>
 
+        {/* Add from Your Characters */}
+        <section>
+          <button
+            onClick={() => setShowCharPicker(!showCharPicker)}
+            className="text-sm flex items-center gap-2 cursor-pointer bg-transparent mb-2"
+            style={{ color: 'var(--accent)', fontFamily: 'var(--heading)', letterSpacing: '0.5px', border: 'none', padding: 0 }}
+          >
+            <Shield size={14} />
+            {showCharPicker ? 'Hide Characters' : 'Add from Your Characters'}
+          </button>
+          {showCharPicker && (
+            <div className="flex flex-col gap-2 animate-fade-in">
+              {characters.length === 0 ? (
+                <p className="text-xs py-2" style={{ color: 'var(--text)' }}>No saved characters</p>
+              ) : (
+                characters.map((c) => (
+                  <div
+                    key={c.id}
+                    className="flex items-center gap-2 p-2.5 rounded-lg"
+                    style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border)' }}
+                  >
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold truncate" style={{ color: 'var(--text-h)', fontFamily: 'var(--heading)', fontSize: '0.8rem' }}>
+                        {c.name}
+                      </p>
+                      <p className="text-xs truncate" style={{ color: 'var(--text)' }}>
+                        {[c.race, c.class].filter(Boolean).join(' · ')} · {c.current_hp}/{c.max_hp} HP
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => onAddCharacterCombatant(c.name, c.current_hp, c.max_hp, 'enemy')}
+                      className="px-2.5 py-1.5 rounded text-xs cursor-pointer"
+                      style={{ background: 'rgba(185,28,28,0.15)', color: '#ef4444', border: '1px solid rgba(185,28,28,0.3)', fontFamily: 'var(--heading)', fontSize: '0.7rem' }}
+                    >
+                      Enemy
+                    </button>
+                    <button
+                      onClick={() => onAddCharacterCombatant(c.name, c.current_hp, c.max_hp, 'ally')}
+                      className="px-2.5 py-1.5 rounded text-xs cursor-pointer"
+                      style={{ background: 'rgba(96,165,250,0.12)', color: '#60a5fa', border: '1px solid rgba(96,165,250,0.3)', fontFamily: 'var(--heading)', fontSize: '0.7rem' }}
+                    >
+                      Ally
+                    </button>
+                  </div>
+                ))
+              )}
+            </div>
+          )}
+        </section>
+
         {/* Initiative Order */}
         {combatants.length > 0 && (
           <section>
@@ -428,7 +502,7 @@ function DMLobby({
                   role="dm"
                   participant={participants.find((p) => p.id === c.participant_id)}
                   userId=""
-                  onRemove={c.combatant_type === 'enemy' ? () => onRemoveEnemy(c.id) : undefined}
+                  onRemove={c.combatant_type !== 'player' ? () => onRemoveEnemy(c.id) : undefined}
                   onInitiativeChange={(val) => onInitiativeChange(c.id, val)}
                 />
               ))}
@@ -617,8 +691,8 @@ function DMActive({
               role="dm"
               participant={participants.find((p) => p.id === c.participant_id)}
               userId=""
-              onRemove={c.combatant_type === 'enemy' ? () => onRemoveEnemy(c.id) : undefined}
-              onHpDelta={c.combatant_type === 'enemy' ? (d) => onEnemyHpDelta(c.id, d) : undefined}
+              onRemove={c.combatant_type !== 'player' ? () => onRemoveEnemy(c.id) : undefined}
+              onHpDelta={c.combatant_type !== 'player' ? (d) => onEnemyHpDelta(c.id, d) : undefined}
               onInitiativeChange={(val) => onInitiativeChange(c.id, val)}
             />
           ))}
@@ -800,6 +874,7 @@ export function LiveCombat({
   sessionId,
   userId,
   role,
+  characters,
   onLeave,
 }: LiveCombatProps) {
   const {
@@ -808,6 +883,7 @@ export function LiveCombat({
     combatants,
     loading,
     addEnemy,
+    addCombatantFromCharacter,
     removeEnemy,
     updateCombatantInitiative,
     beginCombat,
@@ -880,7 +956,9 @@ export function LiveCombat({
           roomCode={session.room_code}
           participants={participants}
           combatants={combatants}
+          characters={characters}
           onAddEnemy={addEnemy}
+          onAddCharacterCombatant={addCombatantFromCharacter}
           onRemoveEnemy={removeEnemy}
           onInitiativeChange={updateCombatantInitiative}
           onBeginCombat={beginCombat}
