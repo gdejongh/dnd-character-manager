@@ -235,47 +235,49 @@ function TurnSpotlight({
         </div>
       </div>
 
-      {/* HP section */}
-      <div className="px-4 pt-3 pb-4">
-        <div className="flex items-center gap-3">
-          {showHpButtons && (
-            <button
-              onClick={() => {
-                if (role === 'dm') onHpDelta?.(-1);
-                else onMyHpChange?.(Math.max(0, combatant.current_hp - 1));
-              }}
-              className="w-10 h-10 rounded-lg flex items-center justify-center cursor-pointer shrink-0"
-              style={{ background: 'rgba(185,28,28,0.2)', color: 'var(--hp-red)', border: '1px solid rgba(185,28,28,0.3)' }}
-            >
-              <Minus size={18} />
-            </button>
-          )}
-          <div className="flex-1">
-            <div className="flex items-baseline justify-center gap-1 mb-1.5">
-              <span className="text-2xl font-bold" style={{ color: hpColor, fontFamily: 'var(--mono)' }}>
-                {combatant.current_hp}
-              </span>
-              <span className="text-sm" style={{ color: 'var(--text)', fontFamily: 'var(--mono)' }}>
-                / {combatant.max_hp}
-              </span>
-              <span className="text-xs ml-1" style={{ color: 'var(--text)' }}>HP</span>
+      {/* HP section — hidden from players for DM-controlled combatants */}
+      {(role === 'dm' || !isDmControlled) && (
+        <div className="px-4 pt-3 pb-4">
+          <div className="flex items-center gap-3">
+            {showHpButtons && (
+              <button
+                onClick={() => {
+                  if (role === 'dm') onHpDelta?.(-1);
+                  else onMyHpChange?.(Math.max(0, combatant.current_hp - 1));
+                }}
+                className="w-10 h-10 rounded-lg flex items-center justify-center cursor-pointer shrink-0"
+                style={{ background: 'rgba(185,28,28,0.2)', color: 'var(--hp-red)', border: '1px solid rgba(185,28,28,0.3)' }}
+              >
+                <Minus size={18} />
+              </button>
+            )}
+            <div className="flex-1">
+              <div className="flex items-baseline justify-center gap-1 mb-1.5">
+                <span className="text-2xl font-bold" style={{ color: hpColor, fontFamily: 'var(--mono)' }}>
+                  {combatant.current_hp}
+                </span>
+                <span className="text-sm" style={{ color: 'var(--text)', fontFamily: 'var(--mono)' }}>
+                  / {combatant.max_hp}
+                </span>
+                <span className="text-xs ml-1" style={{ color: 'var(--text)' }}>HP</span>
+              </div>
+              <HpBar current={combatant.current_hp} max={combatant.max_hp} showNumber={false} />
             </div>
-            <HpBar current={combatant.current_hp} max={combatant.max_hp} showNumber={false} />
+            {showHpButtons && (
+              <button
+                onClick={() => {
+                  if (role === 'dm') onHpDelta?.(1);
+                  else onMyHpChange?.(Math.min(combatant.max_hp, combatant.current_hp + 1));
+                }}
+                className="w-10 h-10 rounded-lg flex items-center justify-center cursor-pointer shrink-0"
+                style={{ background: 'rgba(74,222,128,0.1)', color: 'var(--hp-green)', border: '1px solid rgba(74,222,128,0.2)' }}
+              >
+                <Plus size={18} />
+              </button>
+            )}
           </div>
-          {showHpButtons && (
-            <button
-              onClick={() => {
-                if (role === 'dm') onHpDelta?.(1);
-                else onMyHpChange?.(Math.min(combatant.max_hp, combatant.current_hp + 1));
-              }}
-              className="w-10 h-10 rounded-lg flex items-center justify-center cursor-pointer shrink-0"
-              style={{ background: 'rgba(74,222,128,0.1)', color: 'var(--hp-green)', border: '1px solid rgba(74,222,128,0.2)' }}
-            >
-              <Plus size={18} />
-            </button>
-          )}
         </div>
-      </div>
+      )}
     </div>
   );
 }
