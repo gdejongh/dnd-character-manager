@@ -1,7 +1,8 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import type { FormEvent } from 'react';
 import type { Character, Combatant, SessionParticipant } from '../types/database';
 import { useCombatSession } from '../hooks/useCombatSession';
+import { CombatSheetLoader } from './CombatSheetLoader';
 import { NumericInput } from './NumericInput';
 import {
   Skull,
@@ -13,6 +14,8 @@ import {
   X,
   Swords,
   Crown,
+  ScrollText,
+  ChevronDown,
 } from 'lucide-react';
 
 interface LiveCombatProps {
@@ -23,7 +26,48 @@ interface LiveCombatProps {
   onLeave: () => void;
 }
 
+type ActiveView = 'initiative' | 'sheet';
+
 const darkBg = 'linear-gradient(180deg, #0a0910 0%, #0d0b14 50%, #0a0910 100%)';
+
+/* ─── Active View Tab Bar ─── */
+function ActiveViewTabs({ active, onChange }: { active: ActiveView; onChange: (v: ActiveView) => void }) {
+  const tabs: { key: ActiveView; label: string; icon: typeof Swords }[] = [
+    { key: 'initiative', label: 'Initiative', icon: Swords },
+    { key: 'sheet', label: 'Combat Sheet', icon: ScrollText },
+  ];
+  return (
+    <div
+      className="flex"
+      style={{ borderBottom: '1px solid var(--border)', background: 'rgba(0,0,0,0.5)' }}
+    >
+      {tabs.map((t) => {
+        const Icon = t.icon;
+        const isActive = active === t.key;
+        return (
+          <button
+            key={t.key}
+            onClick={() => onChange(t.key)}
+            className="flex-1 flex items-center justify-center gap-2 py-3 cursor-pointer transition-colors duration-200"
+            style={{
+              background: isActive ? 'rgba(201,168,76,0.08)' : 'transparent',
+              borderBottom: isActive ? '2px solid var(--accent)' : '2px solid transparent',
+              color: isActive ? 'var(--accent)' : 'var(--text)',
+              fontFamily: 'var(--heading)',
+              fontSize: '0.75rem',
+              letterSpacing: '1px',
+              border: 'none',
+              borderRadius: 0,
+            }}
+          >
+            <Icon size={14} style={{ flexShrink: 0 }} />
+            {t.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
 
 /* ─── HP Bar ─── */
 function HpBar({ current, max, showNumber }: { current: number; max: number; showNumber: boolean }) {
@@ -280,7 +324,7 @@ function DMLobby({
   combatants: Combatant[];
   characters: Character[];
   onAddEnemy: (name: string, initiative: number, hp: number) => Promise<void>;
-  onAddCharacterCombatant: (name: string, hp: number, maxHp: number, type: 'enemy' | 'ally') => Promise<void>;
+  onAddCharacterCombatant: (characterId: string, name: string, hp: number, maxHp: number, type: 'enemy' | 'ally') => Promise<void>;
   onRemoveEnemy: (id: string) => Promise<void>;
   onInitiativeChange: (id: string, init: number) => Promise<void>;
   onBeginCombat: () => Promise<void>;
@@ -463,14 +507,14 @@ function DMLobby({
                       </p>
                     </div>
                     <button
-                      onClick={() => onAddCharacterCombatant(c.name, c.current_hp, c.max_hp, 'enemy')}
+                      onClick={() => onAddCharacterCombatant(c.id, c.name, c.current_hp, c.max_hp, 'enemy')}
                       className="px-2.5 py-1.5 rounded text-xs cursor-pointer"
                       style={{ background: 'rgba(185,28,28,0.15)', color: '#ef4444', border: '1px solid rgba(185,28,28,0.3)', fontFamily: 'var(--heading)', fontSize: '0.7rem' }}
                     >
                       Enemy
                     </button>
                     <button
-                      onClick={() => onAddCharacterCombatant(c.name, c.current_hp, c.max_hp, 'ally')}
+                      onClick={() => onAddCharacterCombatant(c.id, c.name, c.current_hp, c.max_hp, 'ally')}
                       className="px-2.5 py-1.5 rounded text-xs cursor-pointer"
                       style={{ background: 'rgba(96,165,250,0.12)', color: '#60a5fa', border: '1px solid rgba(96,165,250,0.3)', fontFamily: 'var(--heading)', fontSize: '0.7rem' }}
                     >
@@ -662,7 +706,7 @@ function DMActive({
   const [confirmEnd, setConfirmEnd] = useState(false);
 
   return (
-    <div className="flex flex-col min-h-screen" style={{ background: darkBg }}>
+    <div className="flex flex-col flex-1">
       {/* Top bar */}
       <header
         className="flex items-center justify-between p-3"
@@ -779,7 +823,7 @@ function PlayerActive({
   }, [isMyTurn]);
 
   return (
-    <div className="flex flex-col min-h-screen" style={{ background: darkBg }}>
+    <div className="flex flex-col flex-1">
       {/* YOUR TURN banner */}
       {isMyTurn && (
         <div
@@ -895,6 +939,23 @@ export function LiveCombat({
 
   const myParticipant = participants.find((p) => p.user_id === userId);
 
+  // Tab switching between initiative order and combat sheet
+  const [activeView, setActiveView] = useState<ActiveView>('initiative');
+  const [dmSheetCharId, setDmSheetCharId] = useState<string | null>(null);
+
+  // DM's characters that are in this combat session (have character_id set)
+  const dmCharacterCombatants = useMemo(
+    () => combatants.filter((c) => c.character_id && c.combatant_type !== 'player'),
+    [combatants],
+  );
+
+  // For player: find their character_id from participants
+  const myCharacterId = myParticipant?.character_id ?? null;
+
+  // Effective DM sheet character: user selection or first available
+  const effectiveDmSheetCharId = dmSheetCharId
+    ?? (dmCharacterCombatants.length > 0 ? dmCharacterCombatants[0].character_id : null);
+
   // Auto-leave when session ends
   useEffect(() => {
     if (session?.status === 'ended') {
@@ -976,29 +1037,115 @@ export function LiveCombat({
     );
   }
 
-  // Active combat
+  // Active combat — DM
   if (role === 'dm') {
     return (
-      <DMActive
-        session={session}
-        combatants={combatants}
-        participants={participants}
-        onNextTurn={nextTurn}
-        onEnemyHpDelta={updateEnemyHp}
-        onRemoveEnemy={removeEnemy}
-        onInitiativeChange={updateCombatantInitiative}
-        onEndSession={endSession}
-      />
+      <div className="flex flex-col min-h-screen" style={{ background: darkBg }}>
+        <ActiveViewTabs active={activeView} onChange={setActiveView} />
+        {activeView === 'initiative' ? (
+          <DMActive
+            session={session}
+            combatants={combatants}
+            participants={participants}
+            onNextTurn={nextTurn}
+            onEnemyHpDelta={updateEnemyHp}
+            onRemoveEnemy={removeEnemy}
+            onInitiativeChange={updateCombatantInitiative}
+            onEndSession={endSession}
+          />
+        ) : (
+          <div className="flex flex-col flex-1 overflow-hidden">
+            {/* DM character selector dropdown */}
+            {dmCharacterCombatants.length > 0 ? (
+              <>
+                <div className="p-3" style={{ borderBottom: '1px solid var(--border)', background: 'rgba(0,0,0,0.3)' }}>
+                  <div className="relative">
+                    <select
+                      value={effectiveDmSheetCharId ?? ''}
+                      onChange={(e) => setDmSheetCharId(e.target.value || null)}
+                      className="w-full appearance-none py-2.5 px-3 pr-10 rounded-lg text-sm cursor-pointer"
+                      style={{
+                        background: 'var(--bg-surface)',
+                        color: 'var(--text-h)',
+                        border: '1px solid var(--border)',
+                        fontFamily: 'var(--heading)',
+                        fontSize: '0.85rem',
+                        letterSpacing: '0.5px',
+                      }}
+                    >
+                      {dmCharacterCombatants.map((c) => (
+                        <option key={c.id} value={c.character_id ?? ''}>
+                          {c.name} ({c.combatant_type === 'ally' ? 'Ally' : 'Enemy'})
+                        </option>
+                      ))}
+                    </select>
+                    <ChevronDown
+                      size={16}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none"
+                      style={{ color: 'var(--text)' }}
+                    />
+                  </div>
+                </div>
+                <div className="flex-1 overflow-y-auto">
+                  {effectiveDmSheetCharId && (
+                    <CombatSheetLoader
+                      characterId={effectiveDmSheetCharId}
+                      onCombatHpSync={(newHp) => {
+                        const combatant = combatants.find((c) => c.character_id === effectiveDmSheetCharId);
+                        if (combatant) {
+                          const delta = newHp - combatant.current_hp;
+                          if (delta !== 0) updateEnemyHp(combatant.id, delta);
+                        }
+                      }}
+                    />
+                  )}
+                </div>
+              </>
+            ) : (
+              <div className="flex-1 flex items-center justify-center p-6">
+                <div className="text-center">
+                  <ScrollText size={32} style={{ color: 'var(--text)', margin: '0 auto 1rem', opacity: 0.5 }} />
+                  <p className="text-sm mb-1" style={{ color: 'var(--text-h)', fontFamily: 'var(--heading)' }}>
+                    No Character Sheets Available
+                  </p>
+                  <p className="text-xs" style={{ color: 'var(--text)', maxWidth: '16rem', margin: '0 auto' }}>
+                    Add characters from your collection in the lobby to view their combat sheets here.
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
     );
   }
 
+  // Active combat — Player
   return (
-    <PlayerActive
-      session={session}
-      combatants={combatants}
-      participants={participants}
-      userId={userId}
-      onMyHpChange={updateMyHp}
-    />
+    <div className="flex flex-col min-h-screen" style={{ background: darkBg }}>
+      <ActiveViewTabs active={activeView} onChange={setActiveView} />
+      {activeView === 'initiative' ? (
+        <PlayerActive
+          session={session}
+          combatants={combatants}
+          participants={participants}
+          userId={userId}
+          onMyHpChange={updateMyHp}
+        />
+      ) : myCharacterId ? (
+        <div className="flex-1 overflow-y-auto">
+          <CombatSheetLoader
+            characterId={myCharacterId}
+            onCombatHpSync={updateMyHp}
+          />
+        </div>
+      ) : (
+        <div className="flex-1 flex items-center justify-center p-6">
+          <p className="text-sm" style={{ color: 'var(--text)', fontFamily: 'var(--heading)' }}>
+            Character not linked to this session.
+          </p>
+        </div>
+      )}
+    </div>
   );
 }

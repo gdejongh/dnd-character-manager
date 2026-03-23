@@ -243,6 +243,7 @@ create table combatants (
   combatant_type    text not null default 'enemy' check (combatant_type in ('player','enemy','ally')),
   initiative        integer not null default 0,
   participant_id    uuid references session_participants(id) on delete cascade,
+  character_id      uuid references characters(id) on delete set null,
   current_hp        integer not null default 0,
   max_hp            integer not null default 0,
   sort_order        integer not null default 0

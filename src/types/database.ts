@@ -109,6 +109,7 @@ export interface Combatant {
   combatant_type: CombatantType;
   initiative: number;
   participant_id: string | null;
+  character_id: string | null;
   current_hp: number;
   max_hp: number;
   sort_order: number;

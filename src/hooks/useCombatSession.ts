@@ -15,7 +15,7 @@ interface UseCombatSessionReturn {
   loading: boolean;
 
   addEnemy: (name: string, initiative: number, hp: number) => Promise<void>;
-  addCombatantFromCharacter: (name: string, hp: number, maxHp: number, type: 'enemy' | 'ally') => Promise<void>;
+  addCombatantFromCharacter: (characterId: string, name: string, hp: number, maxHp: number, type: 'enemy' | 'ally') => Promise<void>;
   removeEnemy: (id: string) => Promise<void>;
   updateCombatantInitiative: (id: string, initiative: number) => Promise<void>;
   beginCombat: () => Promise<void>;
@@ -113,6 +113,7 @@ export async function joinCombatSession(
     combatant_type: 'player',
     initiative: 0,
     participant_id: participantId,
+    character_id: characterId,
     current_hp: currentHp,
     max_hp: maxHp,
     sort_order: nextOrder,
@@ -288,6 +289,7 @@ export function useCombatSession(
   }
 
   async function addCombatantFromCharacter(
+    characterId: string,
     name: string,
     hp: number,
     maxHp: number,
@@ -305,6 +307,7 @@ export function useCombatSession(
       combatant_type: type,
       initiative: 0,
       participant_id: null,
+      character_id: characterId,
       current_hp: hp,
       max_hp: maxHp,
       sort_order: nextOrder,
