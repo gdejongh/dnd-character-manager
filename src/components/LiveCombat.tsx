@@ -705,6 +705,9 @@ function DMActive({
   onRemoveEnemy,
   onInitiativeChange,
   onEndSession,
+  undoStack,
+  usedActionTypes,
+  onUndo,
 }: {
   session: { current_turn_index: number; round_number: number; room_code: string };
   combatants: Combatant[];
@@ -714,6 +717,9 @@ function DMActive({
   onRemoveEnemy: (id: string) => Promise<void>;
   onInitiativeChange: (id: string, init: number) => Promise<void>;
   onEndSession: () => Promise<void>;
+  undoStack?: CompletedAction[];
+  usedActionTypes?: Set<string>;
+  onUndo?: () => void;
 }) {
   const [confirmEnd, setConfirmEnd] = useState(false);
 
@@ -756,7 +762,41 @@ function DMActive({
       </div>
 
       {/* Bottom controls */}
-      <div className="p-4 flex gap-3" style={{ borderTop: '1px solid var(--border)', background: 'rgba(0,0,0,0.4)' }}>
+      <div className="p-4" style={{ borderTop: '1px solid var(--border)', background: 'rgba(0,0,0,0.4)' }}>
+        {/* Action economy indicators */}
+        {usedActionTypes && usedActionTypes.size > 0 && (
+          <div className="flex items-center gap-2 mb-2 justify-center">
+            <span className="text-xs" style={{ color: 'var(--text)', fontFamily: 'var(--heading)', letterSpacing: '0.5px' }}>Used:</span>
+            {Array.from(usedActionTypes).map((at) => (
+              <span
+                key={at}
+                className="text-xs px-2 py-0.5 rounded-full"
+                style={{ background: 'rgba(245,158,11,0.15)', color: '#f59e0b', fontFamily: 'var(--heading)', fontSize: '0.6rem', letterSpacing: '0.5px' }}
+              >
+                {at === 'bonus_action' ? 'Bonus Action' : at.charAt(0).toUpperCase() + at.slice(1)}
+              </span>
+            ))}
+          </div>
+        )}
+        {/* Undo last action button */}
+        {undoStack && undoStack.length > 0 && onUndo && (
+          <button
+            onClick={onUndo}
+            className="w-full py-2.5 rounded-xl cursor-pointer flex items-center justify-center gap-2 mb-2"
+            style={{
+              background: 'rgba(239,68,68,0.1)',
+              color: '#f87171',
+              border: '1px solid rgba(239,68,68,0.3)',
+              fontFamily: 'var(--heading)',
+              letterSpacing: '1px',
+              fontSize: '0.8rem',
+            }}
+          >
+            <Undo2 size={14} />
+            Undo {undoStack[undoStack.length - 1].spell?.name ?? undoStack[undoStack.length - 1].feature?.title ?? 'Action'}
+          </button>
+        )}
+        <div className="flex gap-3">
         {confirmEnd ? (
           <>
             <button
@@ -799,6 +839,7 @@ function DMActive({
             </button>
           </>
         )}
+        </div>
       </div>
     </div>
   );
@@ -1337,6 +1378,9 @@ export function LiveCombat({
             onRemoveEnemy={removeEnemy}
             onInitiativeChange={updateCombatantInitiative}
             onEndSession={endSession}
+            undoStack={isMyTurnAsDm ? undoStack : undefined}
+            usedActionTypes={isMyTurnAsDm ? usedActionTypes : undefined}
+            onUndo={isMyTurnAsDm ? handleUndo : undefined}
           />
         </div>
         {/* Combat sheet view — always mounted so resourceConsumersRef stays populated */}
