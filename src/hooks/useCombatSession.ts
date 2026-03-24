@@ -495,10 +495,11 @@ export function useCombatSession(
 
   async function endSession() {
     if (!session) return;
-    await supabase
+    const { error } = await supabase
       .from('combat_sessions')
       .update({ status: 'ended' })
       .eq('id', session.id);
+    if (error) throw error;
   }
 
   return {

@@ -7,6 +7,8 @@ import type { ResourceConsumers } from './CombatSheetLoader';
 import { TurnActionFlow } from './TurnActionFlow';
 import type { TurnActionResult } from './TurnActionFlow';
 import { NumericInput } from './NumericInput';
+import { showToast } from '../lib/toast';
+import { supabase } from '../lib/supabase';
 import {
   Skull,
   Shield,
@@ -1216,6 +1218,31 @@ export function LiveCombat({
     applyCombatantHpDelta,
     endSession,
   } = useCombatSession(sessionId, userId);
+  const isDm = role === 'dm';
+
+  const handleLeaveSession = useCallback(async () => {
+    if (!session) {
+      onLeave();
+      return;
+    }
+
+    try {
+      // DM leaving should end the entire session for everyone (lobby or active).
+      if (isDm) {
+        await endSession();
+      } else {
+        const myParticipantId = participants.find((p) => p.user_id === userId)?.id;
+        if (myParticipantId) {
+          const { error } = await supabase.from('session_participants').delete().eq('id', myParticipantId);
+          if (error) throw error;
+        }
+      }
+      onLeave();
+    } catch (error) {
+      console.error('Error leaving combat session:', error);
+      showToast('Could not leave session. Please try again.');
+    }
+  }, [session, isDm, endSession, participants, userId, onLeave]);
 
   const myParticipant = participants.find((p) => p.user_id === userId);
   const myCombatant = combatants.find((c) => c.participant_id === myParticipant?.id);
@@ -1435,7 +1462,7 @@ export function LiveCombat({
           onRemoveEnemy={removeEnemy}
           onInitiativeChange={updateCombatantInitiative}
           onBeginCombat={beginCombat}
-          onLeave={onLeave}
+          onLeave={handleLeaveSession}
         />
       );
     }
@@ -1444,7 +1471,7 @@ export function LiveCombat({
         roomCode={session.room_code}
         myName={myParticipant?.character_name ?? 'Unknown'}
         participants={participants}
-        onLeave={onLeave}
+        onLeave={handleLeaveSession}
       />
     );
   }
@@ -1604,7 +1631,7 @@ export function LiveCombat({
             onEnemyHpDelta={updateEnemyHp}
             onRemoveEnemy={removeEnemy}
             onInitiativeChange={updateCombatantInitiative}
-            onEndSession={endSession}
+            onEndSession={handleLeaveSession}
             undoStack={isMyTurnAsDm ? undoStack : undefined}
             usedActionTypes={isMyTurnAsDm ? usedActionTypes : undefined}
             onUndo={isMyTurnAsDm ? handleUndo : undefined}
