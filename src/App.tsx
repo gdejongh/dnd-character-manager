@@ -130,10 +130,10 @@ function App() {
     [activeTab],
   );
 
-  const { characters, loading: charsLoading, createCharacter, deleteCharacter } =
+  const { characters, loading: charsLoading, createCharacter, deleteCharacter, syncCharacter } =
     useCharacters(user?.id);
   const { character, loading: charLoading, updateCharacter } =
-    useCharacter(selectedCharacterId);
+    useCharacter(selectedCharacterId, syncCharacter);
   const { scores, updateScore, toggleSavingThrow } =
     useAbilityScores(selectedCharacterId);
   const { slots, updateTotal, setSlotUsed, resetAll } =

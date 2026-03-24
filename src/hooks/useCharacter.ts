@@ -2,7 +2,10 @@ import { useState, useEffect } from 'react';
 import type { Character } from '../types/database';
 import { supabase } from '../lib/supabase';
 
-export function useCharacter(characterId: string | null) {
+export function useCharacter(
+  characterId: string | null,
+  onCharacterSync?: (character: Character) => void,
+) {
   const [character, setCharacter] = useState<Character | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -22,11 +25,14 @@ export function useCharacter(characterId: string | null) {
       .then(({ data, error }) => {
         if (!active) return;
         if (error) console.error('Error fetching character:', error);
-        else setCharacter(data);
+        else {
+          setCharacter(data);
+          onCharacterSync?.(data);
+        }
         setLoading(false);
       });
     return () => { active = false; };
-  }, [characterId]);
+  }, [characterId, onCharacterSync]);
 
   async function updateCharacter(
     updates: Partial<
@@ -42,7 +48,10 @@ export function useCharacter(characterId: string | null) {
       .single();
 
     if (error) console.error('Error updating character:', error);
-    else setCharacter(data);
+    else {
+      setCharacter(data);
+      onCharacterSync?.(data);
+    }
   }
 
   return { character, loading, updateCharacter };

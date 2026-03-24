@@ -58,9 +58,13 @@ export function SpellSlots({
   const [drainingSlot, setDrainingSlot] = useState<string | null>(null);
   const drainTimeoutRef = useRef<ReturnType<typeof setTimeout>>(undefined);
 
+  function isSpellPrepared(spell: Spell) {
+    return spell.level === 0 || spell.prepared;
+  }
+
   const q = search.toLowerCase();
   const filteredSpells = spells.filter((s) => {
-    if (filter === 'prepared' && !s.prepared) return false;
+    if (filter === 'prepared' && !isSpellPrepared(s)) return false;
     if (actionFilter !== 'all' && s.action_type !== actionFilter) return false;
     if (q && !s.name.toLowerCase().includes(q) && !s.description.toLowerCase().includes(q)) return false;
     return true;
@@ -302,7 +306,11 @@ export function SpellSlots({
               )}
 
               {/* Spells at this level */}
-              {levelSpells.map((spell) => (
+              {levelSpells.map((spell) => {
+                const isCantrip = spell.level === 0;
+                const isPrepared = isSpellPrepared(spell);
+
+                return (
                 <div key={spell.id}>
                   {editingSpellId === spell.id ? (
                     <form
@@ -371,23 +379,40 @@ export function SpellSlots({
                         tabIndex={0}
                         onKeyDown={(e) => e.key === 'Enter' && setExpandedSpellId(expandedSpellId === spell.id ? null : spell.id)}
                       >
-                        <button
-                          onClick={(e) => { e.stopPropagation(); onUpdateSpell(spell.id, { prepared: !spell.prepared }); }}
-                          className="w-6 h-6 rounded flex items-center justify-center shrink-0 cursor-pointer"
-                          style={{
-                            background: spell.prepared ? 'var(--spell-indigo)' : 'transparent',
-                            border: spell.prepared ? '2px solid var(--spell-indigo)' : '2px solid var(--border-light)',
-                            color: spell.prepared ? 'white' : 'transparent',
-                            fontSize: '11px',
-                            boxShadow: spell.prepared ? '0 0 6px rgba(99,102,241,0.4)' : 'none',
-                          }}
-                          aria-label={`${spell.prepared ? 'Unprepare' : 'Prepare'} ${spell.name}`}
-                        >
-                          ✓
-                        </button>
+                        {isCantrip ? (
+                          <div
+                            className="w-6 h-6 rounded flex items-center justify-center shrink-0"
+                            style={{
+                              background: 'var(--spell-indigo)',
+                              border: '2px solid var(--spell-indigo)',
+                              color: 'white',
+                              fontSize: '11px',
+                              boxShadow: '0 0 6px rgba(99,102,241,0.4)',
+                            }}
+                            aria-label={`Cantrip ${spell.name} is always prepared`}
+                            title="Cantrips are always prepared"
+                          >
+                            ✓
+                          </div>
+                        ) : (
+                          <button
+                            onClick={(e) => { e.stopPropagation(); onUpdateSpell(spell.id, { prepared: !spell.prepared }); }}
+                            className="w-6 h-6 rounded flex items-center justify-center shrink-0 cursor-pointer"
+                            style={{
+                              background: isPrepared ? 'var(--spell-indigo)' : 'transparent',
+                              border: isPrepared ? '2px solid var(--spell-indigo)' : '2px solid var(--border-light)',
+                              color: isPrepared ? 'white' : 'transparent',
+                              fontSize: '11px',
+                              boxShadow: isPrepared ? '0 0 6px rgba(99,102,241,0.4)' : 'none',
+                            }}
+                            aria-label={`${isPrepared ? 'Unprepare' : 'Prepare'} ${spell.name}`}
+                          >
+                            ✓
+                          </button>
+                        )}
                         <span
                           className="flex-1 text-sm font-medium truncate"
-                          style={{ color: spell.prepared ? 'var(--text-h)' : 'var(--text)' }}
+                          style={{ color: isPrepared ? 'var(--text-h)' : 'var(--text)' }}
                         >
                           {spell.name}
                         </span>
@@ -423,7 +448,8 @@ export function SpellSlots({
                     </div>
                   )}
                 </div>
-              ))}
+              );
+              })}
 
               {levelSpells.length === 0 && !search && addingAtLevel !== level && (
                 <p className="text-sm m-0 italic" style={{ color: 'var(--text)' }}>
@@ -502,7 +528,7 @@ export function SpellSlots({
         <p className="text-center py-8" style={{ color: 'var(--text)' }}>
           {search
             ? `No spells matching "${search}"${filter === 'prepared' ? ' in prepared spells' : ''}`
-            : 'No spells prepared yet — toggle the checkbox on a spell to prepare it.'}
+            : 'No spells prepared yet — cantrips are always prepared; use the checkbox for leveled spells.'}
         </p>
       )}
     </div>

@@ -31,6 +31,21 @@ export function useCharacters(userId: string | undefined) {
   }, [userId, fetchKey]);
 
   const refresh = useCallback(() => setFetchKey((k) => k + 1), []);
+  const syncCharacter = useCallback(
+    (updatedCharacter: Character) => {
+      setCharacters((prevCharacters) => {
+        if (updatedCharacter.user_id !== userId) return prevCharacters;
+        let replaced = false;
+        const nextCharacters = prevCharacters.map((character) => {
+          if (character.id !== updatedCharacter.id) return character;
+          replaced = true;
+          return updatedCharacter;
+        });
+        return replaced ? nextCharacters : prevCharacters;
+      });
+    },
+    [userId],
+  );
 
   async function createCharacter(name: string, race: string, charClass: string) {
     if (!userId) return null;
@@ -77,5 +92,5 @@ export function useCharacters(userId: string | undefined) {
     else refresh();
   }
 
-  return { characters, loading, createCharacter, deleteCharacter };
+  return { characters, loading, createCharacter, deleteCharacter, syncCharacter };
 }
