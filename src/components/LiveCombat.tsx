@@ -1426,6 +1426,7 @@ export function LiveCombat({
         amount: result.amount,
         actionKind,
         actionName,
+        turnKey: `${currentRoundNumber}-${currentTurnIndex}`,
       });
     }
 

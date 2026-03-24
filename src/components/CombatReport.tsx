@@ -84,6 +84,27 @@ export function CombatReport({ summary, onLeave }: CombatReportProps) {
           </div>
         )}
 
+        {/* Best single turn */}
+        {summary.bestSingleTurn && summary.bestSingleTurn.damage > 0 && (
+          <div
+            className="rounded-xl p-3 mb-4 text-center"
+            style={{
+              background: 'rgba(239,68,68,0.06)',
+              border: '1px solid rgba(239,68,68,0.2)',
+            }}
+          >
+            <span
+              className="text-xs uppercase tracking-wider"
+              style={{ color: 'var(--hp-crimson)', fontFamily: 'var(--heading)', letterSpacing: '1.5px' }}
+            >
+              ⚔️ Best Single Turn — {summary.bestSingleTurn.name}
+            </span>
+            <div className="text-sm mt-1" style={{ color: 'var(--text)' }}>
+              {summary.bestSingleTurn.damage} damage in round {summary.bestSingleTurn.round}
+            </div>
+          </div>
+        )}
+
         {/* Section heading */}
         <div className="flex items-center gap-2 mb-3">
           <Shield size={14} style={{ color: 'var(--accent)' }} />

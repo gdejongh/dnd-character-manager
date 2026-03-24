@@ -13,6 +13,8 @@ export interface CombatEvent {
   amount: number;
   actionKind: 'spell' | 'weapon' | 'feature' | 'manual_hp';
   actionName: string;
+  /** Identifies the turn this event belongs to (e.g. "3-1" = round 3, turn index 1) */
+  turnKey?: string;
 }
 
 /* ── Report Types ────────────────────────────────────────────────────────── */
@@ -38,6 +40,8 @@ export interface CombatSummary {
   totalDamage: number;
   totalHealing: number;
   durationSeconds: number;
+  /** Highest damage dealt by a single combatant in one turn */
+  bestSingleTurn?: { name: string; damage: number; round: number };
 }
 
 /* ── Hook ────────────────────────────────────────────────────────────────── */
@@ -191,12 +195,34 @@ export function useCombatLog(sessionId: string, userId: string) {
       // Sort by damage dealt descending, then damage received descending
       allStats.sort((a, b) => b.damageDealt - a.damageDealt || b.damageReceived - a.damageReceived);
 
+      // Compute best single turn (most damage by one actor in one turn)
+      let bestSingleTurn: CombatSummary['bestSingleTurn'];
+      const turnDamageMap = new Map<string, { name: string; damage: number; round: number }>();
+      for (const event of events.current) {
+        if (!event.turnKey || !event.actorId || event.effectType !== 'damage' || event.actionKind === 'manual_hp') continue;
+        const key = `${event.actorId}|${event.turnKey}`;
+        const existing = turnDamageMap.get(key);
+        const dmg = event.amount * event.targetIds.length;
+        const round = parseInt(event.turnKey.split('-')[0], 10) || 1;
+        if (existing) {
+          existing.damage += dmg;
+        } else {
+          turnDamageMap.set(key, { name: event.actorName, damage: dmg, round });
+        }
+      }
+      for (const entry of turnDamageMap.values()) {
+        if (!bestSingleTurn || entry.damage > bestSingleTurn.damage) {
+          bestSingleTurn = entry;
+        }
+      }
+
       return {
         combatants: allStats,
         totalRounds,
         totalDamage,
         totalHealing,
         durationSeconds: Math.floor((Date.now() - startTime.current) / 1000),
+        bestSingleTurn,
       };
     },
     [],
