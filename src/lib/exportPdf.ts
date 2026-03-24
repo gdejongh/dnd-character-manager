@@ -2,7 +2,7 @@ import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import type {
   Character, AbilityScore, SpellSlot, Spell,
-  InventoryItem, Feature, CharacterNotes,
+  InventoryItem, Feature, CharacterNotes, Ability,
 } from '../types/database';
 import {
   ABILITIES,
@@ -11,6 +11,8 @@ import {
   getModifier,
   getProficiencyBonus,
   formatModifier,
+  getSpellSaveDC,
+  getSpellAttackBonus,
 } from '../constants/dnd';
 import { showToast } from './toast';
 
@@ -424,7 +426,7 @@ function drawHp(ctx: PageCtx, char: Character) {
   const { doc, t, margin, contentW } = ctx;
   const isColor = style(ctx) === 'color';
 
-  const boxH = 36;
+  const boxH = isColor ? 36 : 52;
 
   // Background box
   if (isColor) {
@@ -442,34 +444,53 @@ function drawHp(ctx: PageCtx, char: Character) {
   const innerX = margin + 10;
   const midY = ctx.y + boxH / 2;
 
-  // Current / Max HP
-  const hpRatio = char.current_hp / Math.max(1, char.max_hp);
-  const hpColor = hpRatio > 0.5 ? t.green : t.crimson;
+  if (isColor) {
+    // Current / Max HP
+    const hpRatio = char.current_hp / Math.max(1, char.max_hp);
+    const hpColor = hpRatio > 0.5 ? t.green : t.crimson;
 
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(18);
-  doc.setTextColor(...hpColor);
-  doc.text(String(char.current_hp), innerX, midY + 6);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(18);
+    doc.setTextColor(...hpColor);
+    doc.text(String(char.current_hp), innerX, midY + 6);
 
-  const curW = doc.getTextWidth(String(char.current_hp));
-  doc.setFontSize(12);
-  doc.setTextColor(...t.textMuted);
-  doc.text(` / ${char.max_hp}`, innerX + curW, midY + 6);
+    const curW = doc.getTextWidth(String(char.current_hp));
+    doc.setFontSize(12);
+    doc.setTextColor(...t.textMuted);
+    doc.text(` / ${char.max_hp}`, innerX + curW, midY + 6);
 
-  // Labels
-  doc.setFontSize(7);
-  doc.setTextColor(...t.textMuted);
-  doc.text('Current HP', innerX, midY - 8);
+    // Labels
+    doc.setFontSize(7);
+    doc.setTextColor(...t.textMuted);
+    doc.text('Current HP', innerX, midY - 8);
 
-  // Temp HP on right
-  if (char.temp_hp > 0) {
-    doc.setFontSize(10);
-    doc.setTextColor(...t.indigo);
-    doc.text(
-      `Temp HP: ${char.temp_hp}`,
-      margin + contentW - 10, midY + 4,
-      { align: 'right' },
-    );
+    // Temp HP on right
+    if (char.temp_hp > 0) {
+      doc.setFontSize(10);
+      doc.setTextColor(...t.indigo);
+      doc.text(
+        `Temp HP: ${char.temp_hp}`,
+        margin + contentW - 10, midY + 4,
+        { align: 'right' },
+      );
+    }
+  } else {
+    // Print-friendly: leave encounter-tracked HP fields blank for pencil updates
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9);
+    doc.setTextColor(...t.text);
+    doc.text(`Max HP: ${char.max_hp}`, innerX, ctx.y + 16);
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8);
+    doc.setTextColor(...t.textMuted);
+    doc.text('Current HP:', innerX, ctx.y + 34);
+    doc.text('Temp HP:', innerX + 182, ctx.y + 34);
+
+    doc.setDrawColor(...t.border);
+    doc.setLineWidth(0.75);
+    doc.line(innerX + 56, ctx.y + 31, innerX + 170, ctx.y + 31);
+    doc.line(innerX + 230, ctx.y + 31, margin + contentW - 12, ctx.y + 31);
   }
 
   ctx.y += boxH + 12;
@@ -481,18 +502,80 @@ function drawSpells(ctx: PageCtx, data: ExportData) {
   sectionHeading(ctx, 'SPELLS', 60);
   const { doc, t, margin, contentW } = ctx;
   const isColor = style(ctx) === 'color';
+  const isPrintFriendly = style(ctx) === 'bw';
 
-  // Slot summary
-  const activeSlots = data.slots.filter((s) => s.total > 0);
-  if (activeSlots.length > 0) {
+  const abilityScoreMap = Object.fromEntries(
+    ABILITIES.map((ability) => [ability, getScore(data.scores, ability)]),
+  ) as Record<Ability, number>;
+  const spellSaveDc = getSpellSaveDC(data.character.class, data.character.level, abilityScoreMap);
+  const spellAttackBonus = getSpellAttackBonus(
+    data.character.class,
+    data.character.level,
+    abilityScoreMap,
+  );
+
+  if (isPrintFriendly) {
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(8);
-    const parts = activeSlots.map(
-      (s) => `${ORD[s.level]}: ${s.total - s.used}/${s.total}`,
-    );
+    doc.setTextColor(...t.textMuted);
+    doc.text('Spell Save DC:', margin, ctx.y);
+    doc.text('Spell Attack Modifier:', margin + contentW / 2, ctx.y);
+    doc.setDrawColor(...t.border);
+    doc.setLineWidth(0.75);
+    doc.line(margin + 66, ctx.y - 2, margin + contentW / 2 - 10, ctx.y - 2);
+    doc.line(margin + contentW / 2 + 98, ctx.y - 2, margin + contentW - 6, ctx.y - 2);
+    ctx.y += 12;
+  } else if (spellSaveDc !== null || spellAttackBonus !== null) {
+    const saveDcLabel = `Spell Save DC: ${spellSaveDc ?? '-'}`;
+    const attackLabel = `Spell Attack: ${spellAttackBonus !== null ? formatModifier(spellAttackBonus) : '-'}`;
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8);
     doc.setTextColor(...t.indigo);
-    doc.text(`Spell Slots: ${parts.join('    ')}`, margin, ctx.y);
-    ctx.y += 14;
+    doc.text(`${saveDcLabel}    ${attackLabel}`, margin, ctx.y);
+    ctx.y += 12;
+  }
+
+  // Slot summary / tracker
+  const activeSlots = data.slots
+    .filter((s) => s.total > 0)
+    .sort((a, b) => a.level - b.level);
+  if (activeSlots.length > 0) {
+    if (isPrintFriendly) {
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(8);
+      doc.setTextColor(...t.text);
+      doc.text('Spell Slots (mark used):', margin, ctx.y);
+      ctx.y += 10;
+
+      for (const slot of activeSlots) {
+        needPage(ctx, 16);
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(8);
+        doc.setTextColor(...t.text);
+        doc.text(`${ORD[slot.level]}:`, margin + 2, ctx.y + 7);
+
+        const bubbleStartX = margin + 52;
+        const bubbleGap = 11;
+        for (let i = 0; i < slot.total; i++) {
+          const cx = bubbleStartX + i * bubbleGap;
+          doc.setDrawColor(...t.border);
+          doc.setLineWidth(0.75);
+          doc.circle(cx, ctx.y + 4, 3, 'S');
+        }
+
+        ctx.y += 14;
+      }
+      ctx.y += 4;
+    } else {
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(8);
+      const parts = activeSlots.map(
+        (s) => `${ORD[s.level]}: ${s.total - s.used}/${s.total}`,
+      );
+      doc.setTextColor(...t.indigo);
+      doc.text(`Spell Slots: ${parts.join('    ')}`, margin, ctx.y);
+      ctx.y += 14;
+    }
   }
 
   // Spells grouped by level
@@ -514,12 +597,11 @@ function drawSpells(ctx: PageCtx, data: ExportData) {
     doc.text(level === 0 ? 'Cantrips' : `${ORD[level]} Level`, margin, ctx.y + 8);
     ctx.y += 14;
 
-    const spellData = spells.map((s) => {
-      const desc = s.description.length > 120
-        ? s.description.substring(0, 117).replace(/\s+\S*$/, '') + '...'
-        : s.description;
-      return { prepared: s.prepared, name: s.name, desc };
-    });
+    const spellData = spells.map((s) => ({
+      prepared: s.prepared,
+      name: s.name,
+      desc: s.description.trim() || '-',
+    }));
     const body = spellData.map((s) => ['', s.name, s.desc]);
 
     autoTable(doc, {
@@ -551,10 +633,18 @@ function drawSpells(ctx: PageCtx, data: ExportData) {
       didDrawCell: (hook) => {
         if (hook.section !== 'body' || hook.column.index !== 0 || level === 0) return;
         const row = hook.row.index;
-        const isPrepared = spellData[row].prepared;
         const cx = hook.cell.x + hook.cell.width / 2;
         const cy = hook.cell.y + hook.cell.height / 2;
         const r = 3;
+
+        if (isPrintFriendly) {
+          doc.setDrawColor(...t.border);
+          doc.setLineWidth(0.5);
+          doc.circle(cx, cy, r, 'S');
+          return;
+        }
+
+        const isPrepared = spellData[row].prepared;
         if (isPrepared) {
           doc.setFillColor(...t.indigo);
           // Draw a diamond shape
@@ -574,7 +664,7 @@ function drawSpells(ctx: PageCtx, data: ExportData) {
 
   // Prepared summary
   const preparedCount = data.spells.filter((s) => s.prepared && s.level > 0).length;
-  if (preparedCount > 0) {
+  if (isColor && preparedCount > 0) {
     doc.setFont('helvetica', 'italic');
     doc.setFontSize(7);
     doc.setTextColor(...t.textMuted);
