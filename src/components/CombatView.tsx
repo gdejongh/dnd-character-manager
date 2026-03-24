@@ -28,7 +28,13 @@ interface CombatViewProps {
   onSetSlotUsed: (level: number, used: number) => void;
   onUpdateFeature: (id: string, updates: Partial<Pick<Feature, 'used_uses'>>) => void;
   /** When provided, Cast/Use/Attack buttons trigger this instead of internal animation handlers */
-  onActionInitiated?: (action: { spell?: Spell; feature?: Feature; weapon?: Weapon; actionType: ActionType }) => void;
+  onActionInitiated?: (action: {
+    spell?: Spell;
+    feature?: Feature;
+    weapon?: Weapon;
+    actionType: ActionType;
+    spellSlotLevel?: number;
+  }) => void;
   /** Action types already used this turn — shows warning badge on those buttons */
   usedActionTypes?: ReadonlySet<string>;
   /** When true, user is in a combat session but it's not their turn — only reactions allowed */
@@ -265,6 +271,7 @@ export function CombatView({
   const [castingSpell, setCastingSpell] = useState<string | null>(null);
   const [usingAbility, setUsingAbility] = useState<string | null>(null);
   const [attackingWeapon, setAttackingWeapon] = useState<string | null>(null);
+  const [upcastSelection, setUpcastSelection] = useState<{ spell: Spell; availableSlotLevels: number[] } | null>(null);
   const [customAmount, setCustomAmount] = useState('');
   const [actionFilter, setActionFilter] = useState<ActionTypeFilter>('all');
 
@@ -336,15 +343,35 @@ export function CombatView({
     setCustomAmount('');
   }
 
+  const getAvailableSlotLevels = useCallback((spellLevel: number) => {
+    return slots
+      .filter((s) => s.level >= spellLevel && s.used < s.total)
+      .map((s) => s.level)
+      .sort((a, b) => a - b);
+  }, [slots]);
+
   // Cast spell handler
-  const handleCastSpell = useCallback((spell: Spell) => {
+  const handleCastSpell = useCallback((spell: Spell, slotLevel?: number) => {
     if (spell.level > 0) {
-      const slot = slots.find((s) => s.level === spell.level);
+      const levelToUse = slotLevel ?? spell.level;
+      const slot = slots.find((s) => s.level === levelToUse);
       if (!slot || slot.used >= slot.total) return;
-      onSetSlotUsed(spell.level, slot.used + 1);
+      onSetSlotUsed(levelToUse, slot.used + 1);
     }
     setCastingSpell(spell.name);
   }, [slots, onSetSlotUsed]);
+
+  const castSpellAction = useCallback((spell: Spell, slotLevel?: number) => {
+    if (onActionInitiated) {
+      onActionInitiated({
+        spell,
+        actionType: spell.action_type ?? 'action',
+        spellSlotLevel: slotLevel,
+      });
+    } else {
+      handleCastSpell(spell, slotLevel);
+    }
+  }, [onActionInitiated, handleCastSpell]);
 
   const handleUseAbility = useCallback((feature: Feature) => {
     // Decrement usage if feature has limited uses
@@ -372,6 +399,62 @@ export function CombatView({
       {/* Explosion overlays */}
       {castingSpell && (
         <ArcaneExplosion spellName={castingSpell} onDone={() => setCastingSpell(null)} />
+      )}
+      {upcastSelection && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-6"
+          style={{ background: 'rgba(0,0,0,0.8)' }}
+        >
+          <div
+            className="w-full max-w-sm rounded-2xl p-5"
+            style={{ background: 'var(--bg-surface)', border: '1px solid var(--spell-border)' }}
+          >
+            <h3
+              className="text-sm font-bold mb-2"
+              style={{ color: 'var(--spell-indigo)', fontFamily: 'var(--heading)', letterSpacing: '1px' }}
+            >
+              CAST WITH WHICH SLOT?
+            </h3>
+            <p className="text-sm mb-3" style={{ color: 'var(--text)', lineHeight: '1.5' }}>
+              <strong style={{ color: 'var(--text-h)' }}>{upcastSelection.spell.name}</strong> is level {upcastSelection.spell.level}.
+              Choose a spell slot level to cast it.
+            </p>
+            <div className="flex flex-col gap-2 mb-3">
+              {upcastSelection.availableSlotLevels.map((slotLevel) => (
+                <button
+                  key={slotLevel}
+                  onClick={() => {
+                    castSpellAction(upcastSelection.spell, slotLevel);
+                    setUpcastSelection(null);
+                  }}
+                  className="w-full py-2.5 rounded-xl cursor-pointer"
+                  style={{
+                    background: 'var(--spell-bg)',
+                    color: 'var(--spell-indigo)',
+                    border: '1px solid var(--spell-border)',
+                    fontFamily: 'var(--heading)',
+                    letterSpacing: '0.5px',
+                  }}
+                >
+                  Use {ORD[slotLevel]} Level Slot
+                </button>
+              ))}
+            </div>
+            <button
+              onClick={() => setUpcastSelection(null)}
+              className="w-full py-2.5 rounded-xl cursor-pointer"
+              style={{
+                color: 'var(--text)',
+                background: 'transparent',
+                border: '1px solid var(--border)',
+                fontFamily: 'var(--heading)',
+                fontSize: '0.8rem',
+              }}
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
       )}
       {usingAbility && (
         <AbilityBurst name={usingAbility} onDone={() => setUsingAbility(null)} />
@@ -588,7 +671,10 @@ export function CombatView({
           {sortedLevels.map((level) => {
             const levelSpells = spellsByLevel.get(level)!;
             const slot = slots.find((s) => s.level === level);
-            const slotsAvailable = level === 0 ? Infinity : (slot ? slot.total - slot.used : 0);
+            const availableSlotLevels = level === 0 ? [] : getAvailableSlotLevels(level);
+            const slotsAvailable = level === 0 ? Infinity : availableSlotLevels.length;
+            const sameLevelAvailable = slot ? (slot.total - slot.used) : 0;
+            const hasOnlyHigherSlots = level > 0 && slotsAvailable > 0 && sameLevelAvailable <= 0;
 
             return (
               <div key={level} className="mb-3">
@@ -617,6 +703,11 @@ export function CombatView({
                         />
                       ))}
                     </div>
+                  )}
+                  {hasOnlyHigherSlots && (
+                    <span className="text-[10px]" style={{ color: 'var(--spell-indigo)', fontFamily: 'var(--heading)', letterSpacing: '0.5px' }}>
+                      Upcast available
+                    </span>
                   )}
                 </div>
 
@@ -684,15 +775,19 @@ export function CombatView({
                           onClick={(e) => {
                             e.stopPropagation();
                             if (canCast) {
-                              if (onActionInitiated) {
-                                onActionInitiated({ spell, actionType: spell.action_type ?? 'action' });
-                              } else {
-                                handleCastSpell(spell);
+                              if (level > 0 && availableSlotLevels.length > 1) {
+                                setUpcastSelection({ spell, availableSlotLevels });
+                                return;
                               }
+
+                              const chosenSlotLevel = level > 0
+                                ? (availableSlotLevels[0] ?? spell.level)
+                                : undefined;
+                              castSpellAction(spell, chosenSlotLevel);
                             }
                           }}
                         >
-                          {level === 0 ? 'Cast' : `Cast (${ORD[level]})`}
+                          {level === 0 ? 'Cast' : (hasOnlyHigherSlots ? 'Cast (Upcast)' : 'Cast')}
                         </button>
                       </div>
 

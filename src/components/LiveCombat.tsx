@@ -30,7 +30,16 @@ interface CompletedAction {
   feature?: Feature;
   weapon?: Weapon;
   actionType: ActionType;
+  spellSlotLevel?: number;
   result: TurnActionResult;
+}
+
+interface InitiatedAction {
+  spell?: Spell;
+  feature?: Feature;
+  weapon?: Weapon;
+  actionType: ActionType;
+  spellSlotLevel?: number;
 }
 
 interface LiveCombatProps {
@@ -44,6 +53,24 @@ interface LiveCombatProps {
 type ActiveView = 'initiative' | 'sheet';
 
 const darkBg = 'linear-gradient(180deg, #0a0910 0%, #0d0b14 50%, #0a0910 100%)';
+
+function formatOrdinal(level: number): string {
+  const mod100 = level % 100;
+  if (mod100 >= 11 && mod100 <= 13) return `${level}th`;
+  const mod10 = level % 10;
+  if (mod10 === 1) return `${level}st`;
+  if (mod10 === 2) return `${level}nd`;
+  if (mod10 === 3) return `${level}rd`;
+  return `${level}th`;
+}
+
+function formatSpellActionLabel(spell?: Spell, spellSlotLevel?: number): string | null {
+  if (!spell) return null;
+  if (spellSlotLevel && spellSlotLevel > spell.level) {
+    return `${spell.name} (${formatOrdinal(spellSlotLevel)} slot)`;
+  }
+  return spell.name;
+}
 
 /* ─── Active View Tab Bar ─── */
 function ActiveViewTabs({ active, onChange }: { active: ActiveView; onChange: (v: ActiveView) => void }) {
@@ -1011,7 +1038,7 @@ function DMActive({
             }}
           >
             <Undo2 size={14} />
-            Undo {undoStack[undoStack.length - 1].spell?.name ?? undoStack[undoStack.length - 1].feature?.title ?? undoStack[undoStack.length - 1].weapon?.name ?? 'Action'}
+            Undo {formatSpellActionLabel(undoStack[undoStack.length - 1].spell, undoStack[undoStack.length - 1].spellSlotLevel) ?? undoStack[undoStack.length - 1].feature?.title ?? undoStack[undoStack.length - 1].weapon?.name ?? 'Action'}
           </button>
         )}
         <div className="flex gap-3">
@@ -1259,8 +1286,8 @@ export function LiveCombat({
   const [turnState, setTurnState] = useState<{
     forTurnIndex: number | null;
     usedTypes: Set<string>;
-    action: { spell?: Spell; feature?: Feature; weapon?: Weapon; actionType: ActionType } | null;
-    warning: { spell?: Spell; feature?: Feature; weapon?: Weapon; actionType: ActionType } | null;
+    action: InitiatedAction | null;
+    warning: InitiatedAction | null;
     undoStack: CompletedAction[];
   }>({ forTurnIndex: null, usedTypes: new Set(), action: null, warning: null, undoStack: [] });
 
@@ -1304,7 +1331,7 @@ export function LiveCombat({
     : isMyTurnAsDm ? (activeCombatant?.id ?? null) : null;
 
   // Handle action initiated from combat sheet
-  const handleActionInitiated = useCallback((action: { spell?: Spell; feature?: Feature; weapon?: Weapon; actionType: ActionType }) => {
+  const handleActionInitiated = useCallback((action: InitiatedAction) => {
     if (usedActionTypes.has(action.actionType)) {
       setTurnState(prev => ({ ...prev, forTurnIndex: currentTurnIndex, warning: action }));
     } else {
@@ -1333,9 +1360,10 @@ export function LiveCombat({
       );
     }
 
-    // Consume spell slot for leveled spells
+    // Consume spell slot for leveled spells (supports upcasting)
     if (turnAction.spell && turnAction.spell.level > 0 && resourceConsumersRef.current) {
-      await resourceConsumersRef.current.consumeSpellSlot(turnAction.spell.level);
+      const slotLevelToConsume = turnAction.spellSlotLevel ?? turnAction.spell.level;
+      await resourceConsumersRef.current.consumeSpellSlot(slotLevelToConsume);
     }
 
     // Consume feature use for abilities with limited uses
@@ -1349,6 +1377,7 @@ export function LiveCombat({
       feature: turnAction.feature,
       weapon: turnAction.weapon,
       actionType: turnAction.actionType,
+      spellSlotLevel: turnAction.spellSlotLevel,
       result,
     };
     setTurnState(prev => ({
@@ -1373,9 +1402,10 @@ export function LiveCombat({
       );
     }
 
-    // Restore spell slot
+    // Restore spell slot (supports upcasting)
     if (last.spell && last.spell.level > 0 && resourceConsumersRef.current) {
-      await resourceConsumersRef.current.restoreSpellSlot(last.spell.level);
+      const slotLevelToRestore = last.spellSlotLevel ?? last.spell.level;
+      await resourceConsumersRef.current.restoreSpellSlot(slotLevelToRestore);
     }
 
     // Restore feature use
@@ -1518,7 +1548,7 @@ export function LiveCombat({
   const turnActionOverlay = turnAction && session ? (
     <div className="fixed inset-0 z-50">
       <TurnActionFlow
-        actionName={turnAction.spell?.name ?? turnAction.feature?.title ?? turnAction.weapon?.name ?? 'Action'}
+        actionName={formatSpellActionLabel(turnAction.spell, turnAction.spellSlotLevel) ?? turnAction.feature?.title ?? turnAction.weapon?.name ?? 'Action'}
         actionDescription={turnAction.spell?.description ?? turnAction.feature?.description}
         actionType={turnAction.actionType}
         combatants={combatants}
@@ -1561,9 +1591,9 @@ export function LiveCombat({
             letterSpacing: '1px',
             fontSize: '0.8rem',
           }}
-        >
-          <Undo2 size={14} />
-          Undo {undoStack[undoStack.length - 1].spell?.name ?? undoStack[undoStack.length - 1].feature?.title ?? undoStack[undoStack.length - 1].weapon?.name ?? 'Action'}
+          >
+            <Undo2 size={14} />
+          Undo {formatSpellActionLabel(undoStack[undoStack.length - 1].spell, undoStack[undoStack.length - 1].spellSlotLevel) ?? undoStack[undoStack.length - 1].feature?.title ?? undoStack[undoStack.length - 1].weapon?.name ?? 'Action'}
         </button>
       )}
       <button

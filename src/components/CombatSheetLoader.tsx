@@ -20,7 +20,13 @@ interface CombatSheetLoaderProps {
   /** Optional callback to sync HP changes to the combat session tables */
   onCombatHpSync?: (newHp: number) => void;
   /** When provided, Cast/Use/Attack buttons trigger this instead of internal animation handlers */
-  onActionInitiated?: (action: { spell?: Spell; feature?: Feature; weapon?: Weapon; actionType: ActionType }) => void;
+  onActionInitiated?: (action: {
+    spell?: Spell;
+    feature?: Feature;
+    weapon?: Weapon;
+    actionType: ActionType;
+    spellSlotLevel?: number;
+  }) => void;
   /** Action types already used this turn */
   usedActionTypes?: ReadonlySet<string>;
   /** Ref that receives resource consumption functions for the parent to call */
