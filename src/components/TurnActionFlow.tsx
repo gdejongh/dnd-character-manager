@@ -20,6 +20,7 @@ export interface TurnActionResult {
   targets: string[];
   effectType: 'damage' | 'healing' | 'none';
   amount: number;
+  targetAmounts?: Record<string, number>;
 }
 
 interface TurnActionFlowProps {
@@ -132,7 +133,7 @@ export function TurnActionFlow({
   const [phase, setPhase] = useState<'targeting' | 'effect'>('targeting');
   const [selectedTargets, setSelectedTargets] = useState<Set<string>>(new Set());
   const [effectType, setEffectType] = useState<EffectType>('damage');
-  const [amount, setAmount] = useState('');
+  const [targetAmounts, setTargetAmounts] = useState<Record<string, string>>({});
 
   // Separate combatants into groups
   const enemies = combatants.filter((c) => c.combatant_type === 'enemy');
@@ -164,6 +165,13 @@ export function TurnActionFlow({
 
   function handleContinue() {
     if (selectedTargets.size === 0) return;
+    setTargetAmounts((prev) => {
+      const next: Record<string, string> = {};
+      for (const targetId of selectedTargets) {
+        next[targetId] = prev[targetId] ?? '';
+      }
+      return next;
+    });
     setPhase('effect');
   }
 
@@ -172,9 +180,15 @@ export function TurnActionFlow({
       onComplete({ targets: Array.from(selectedTargets), effectType: 'none', amount: 0 });
       return;
     }
-    const parsed = parseInt(amount, 10);
-    if (isNaN(parsed) || parsed <= 0) return;
-    onComplete({ targets: Array.from(selectedTargets), effectType, amount: parsed });
+    const selectedIds = Array.from(selectedTargets);
+    const parsedAmounts: Record<string, number> = {};
+    for (const targetId of selectedIds) {
+      const parsed = parseInt(targetAmounts[targetId] ?? '', 10);
+      if (isNaN(parsed) || parsed <= 0) return;
+      parsedAmounts[targetId] = parsed;
+    }
+    const firstAmount = parsedAmounts[selectedIds[0]] ?? 0;
+    onComplete({ targets: selectedIds, effectType, amount: firstAmount, targetAmounts: parsedAmounts });
   }
 
   /* ── TARGETING PHASE ── */
@@ -433,39 +447,52 @@ export function TurnActionFlow({
         {effectType !== 'none' && (
           <div className="mb-5">
             <h3 className="text-xs font-bold mb-3" style={{ color: 'var(--text)', fontFamily: 'var(--heading)', letterSpacing: '1px' }}>
-              {effectType === 'damage' ? 'DAMAGE' : 'HEALING'} AMOUNT
+              {effectType === 'damage' ? 'DAMAGE' : 'HEALING'} BY TARGET
             </h3>
             <p className="text-xs mb-3" style={{ color: 'var(--text)', opacity: 0.7 }}>
-              Roll your dice, then enter the total {effectType === 'damage' ? 'damage' : 'healing'} here.
-              This will be applied to {selectedTargets.size > 1 ? 'each' : 'the'} target.
+              Enter the {effectType === 'damage' ? 'damage' : 'healing'} amount for each selected target.
             </p>
-            <div className="flex items-center justify-center">
-              <div className="w-40">
-                <input
-                  type="number"
-                  inputMode="numeric"
-                  pattern="[0-9]*"
-                  value={amount}
-                  onChange={(e) => setAmount(e.target.value)}
-                  placeholder="0"
-                  autoFocus
-                  className="outline-none"
-                  style={{
-                    width: '100%',
-                    padding: '1rem',
-                    textAlign: 'center',
-                    fontSize: '2rem',
-                    fontWeight: 'bold',
-                    background: 'var(--bg-surface)',
-                    color: effectType === 'damage' ? '#ef4444' : '#4ade80',
-                    border: effectType === 'damage'
-                      ? '2px solid rgba(185,28,28,0.4)'
-                      : '2px solid rgba(74,222,128,0.3)',
-                    borderRadius: '0.75rem',
-                    fontFamily: 'var(--mono)',
-                  }}
-                />
-              </div>
+            <div className="flex flex-col gap-2">
+              {selectedCombatants.map((c, idx) => {
+                const value = targetAmounts[c.id] ?? '';
+                return (
+                  <div
+                    key={c.id}
+                    className="flex items-center gap-2 px-3 py-2 rounded-lg"
+                    style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)' }}
+                  >
+                    <span className="text-xs flex-1 truncate" style={{ color: 'var(--text-h)', fontFamily: 'var(--heading)' }}>
+                      {c.id === myCombatantId ? `${c.name} (Self)` : c.name}
+                    </span>
+                    <input
+                      type="number"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                      value={value}
+                      onChange={(e) =>
+                        setTargetAmounts((prev) => ({ ...prev, [c.id]: e.target.value }))
+                      }
+                      placeholder="0"
+                      autoFocus={idx === 0}
+                      className="outline-none"
+                      style={{
+                        width: '5.5rem',
+                        padding: '0.45rem 0.5rem',
+                        textAlign: 'center',
+                        fontSize: '1rem',
+                        fontWeight: 'bold',
+                        background: 'var(--bg-raised)',
+                        color: effectType === 'damage' ? '#ef4444' : '#4ade80',
+                        border: effectType === 'damage'
+                          ? '1px solid rgba(185,28,28,0.4)'
+                          : '1px solid rgba(74,222,128,0.3)',
+                        borderRadius: '0.5rem',
+                        fontFamily: 'var(--mono)',
+                      }}
+                    />
+                  </div>
+                );
+              })}
             </div>
           </div>
         )}
@@ -475,7 +502,10 @@ export function TurnActionFlow({
       <div className="p-4" style={{ borderTop: '1px solid var(--border)', background: 'rgba(0,0,0,0.4)', paddingBottom: 'max(1rem, env(safe-area-inset-bottom))' }}>
         <button
           onClick={handleApply}
-          disabled={effectType !== 'none' && (!amount || parseInt(amount, 10) <= 0)}
+          disabled={effectType !== 'none' && selectedCombatants.some((c) => {
+            const parsed = parseInt(targetAmounts[c.id] ?? '', 10);
+            return isNaN(parsed) || parsed <= 0;
+          })}
           className="w-full py-3.5 rounded-xl font-bold cursor-pointer flex items-center justify-center gap-2 transition-opacity"
           style={{
             background: effectType === 'damage'
@@ -488,19 +518,22 @@ export function TurnActionFlow({
             fontFamily: 'var(--heading)',
             letterSpacing: '1.5px',
             fontSize: '0.9rem',
-            opacity: effectType === 'none' || (amount && parseInt(amount, 10) > 0) ? 1 : 0.5,
+            opacity: effectType === 'none' || !selectedCombatants.some((c) => {
+              const parsed = parseInt(targetAmounts[c.id] ?? '', 10);
+              return isNaN(parsed) || parsed <= 0;
+            }) ? 1 : 0.5,
           }}
         >
           {effectType === 'damage' && (
             <>
               <Swords size={18} />
-              Deal {amount || '0'} Damage
+              Apply Damage
             </>
           )}
           {effectType === 'healing' && (
             <>
               <Heart size={18} />
-              Heal {amount || '0'} HP
+              Apply Healing
             </>
           )}
           {effectType === 'none' && (

@@ -1365,9 +1365,31 @@ export function LiveCombat({
   // Handle action initiated from combat sheet
   const handleActionInitiated = useCallback((action: InitiatedAction) => {
     if (usedActionTypes.has(action.actionType)) {
-      setTurnState(prev => ({ ...prev, forTurnIndex: currentTurnIndex, forRoundNumber: currentRoundNumber, warning: action }));
+      setTurnState(prev => {
+        const sameTurn = prev.forTurnIndex === currentTurnIndex && prev.forRoundNumber === currentRoundNumber;
+        return {
+          ...prev,
+          forTurnIndex: currentTurnIndex,
+          forRoundNumber: currentRoundNumber,
+          usedTypes: sameTurn ? prev.usedTypes : new Set<string>(),
+          undoStack: sameTurn ? prev.undoStack : [],
+          action: null,
+          warning: action,
+        };
+      });
     } else {
-      setTurnState(prev => ({ ...prev, forTurnIndex: currentTurnIndex, forRoundNumber: currentRoundNumber, action }));
+      setTurnState(prev => {
+        const sameTurn = prev.forTurnIndex === currentTurnIndex && prev.forRoundNumber === currentRoundNumber;
+        return {
+          ...prev,
+          forTurnIndex: currentTurnIndex,
+          forRoundNumber: currentRoundNumber,
+          usedTypes: sameTurn ? prev.usedTypes : new Set<string>(),
+          undoStack: sameTurn ? prev.undoStack : [],
+          warning: null,
+          action,
+        };
+      });
       setActiveView('initiative'); // will show TurnActionFlow overlay
     }
   }, [usedActionTypes, currentTurnIndex, currentRoundNumber]);
@@ -1385,10 +1407,14 @@ export function LiveCombat({
     if (!turnAction) return;
 
     // Apply HP changes to targets
-    if (result.effectType !== 'none' && result.amount > 0) {
-      const delta = result.effectType === 'damage' ? -result.amount : result.amount;
+    if (result.effectType !== 'none') {
       await Promise.all(
-        result.targets.map((combatantId) => applyCombatantHpDelta(combatantId, delta)),
+        result.targets.map((combatantId) => {
+          const amountForTarget = result.targetAmounts?.[combatantId] ?? result.amount;
+          if (amountForTarget <= 0) return Promise.resolve();
+          const delta = result.effectType === 'damage' ? -amountForTarget : amountForTarget;
+          return applyCombatantHpDelta(combatantId, delta);
+        }),
       );
     }
 
@@ -1424,6 +1450,7 @@ export function LiveCombat({
         targetIds: result.targets,
         effectType: result.effectType,
         amount: result.amount,
+        targetAmounts: result.targetAmounts,
         actionKind,
         actionName,
         turnKey: `${currentRoundNumber}-${currentTurnIndex}`,
@@ -1449,10 +1476,14 @@ export function LiveCombat({
     const last = undoStack[undoStack.length - 1];
 
     // Reverse HP changes
-    if (last.result.effectType !== 'none' && last.result.amount > 0) {
-      const reverseDelta = last.result.effectType === 'damage' ? last.result.amount : -last.result.amount;
+    if (last.result.effectType !== 'none') {
       await Promise.all(
-        last.result.targets.map((combatantId) => applyCombatantHpDelta(combatantId, reverseDelta)),
+        last.result.targets.map((combatantId) => {
+          const amountForTarget = last.result.targetAmounts?.[combatantId] ?? last.result.amount;
+          if (amountForTarget <= 0) return Promise.resolve();
+          const reverseDelta = last.result.effectType === 'damage' ? amountForTarget : -amountForTarget;
+          return applyCombatantHpDelta(combatantId, reverseDelta);
+        }),
       );
     }
 

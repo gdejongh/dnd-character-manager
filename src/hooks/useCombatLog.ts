@@ -9,6 +9,7 @@ export interface CombatEvent {
   actorId: string;
   actorName: string;
   targetIds: string[];
+  targetAmounts?: Record<string, number>;
   effectType: 'damage' | 'healing' | 'none';
   amount: number;
   actionKind: 'spell' | 'weapon' | 'feature' | 'manual_hp';
@@ -162,27 +163,31 @@ export function useCombatLog(sessionId: string, userId: string) {
       for (const event of events.current) {
         // Actor stats (only for tracked actions, not manual adjustments)
         const actor = event.actorId ? statsMap.get(event.actorId) : null;
+        const totalEventAmount = event.targetIds.reduce(
+          (sum, targetId) => sum + (event.targetAmounts?.[targetId] ?? event.amount),
+          0,
+        );
         if (actor && event.actionKind !== 'manual_hp') {
           if (event.actionKind === 'spell') actor.spellsCast++;
           else if (event.actionKind === 'feature') actor.abilitiesUsed++;
           else if (event.actionKind === 'weapon') actor.weaponAttacks++;
 
-          // Each target receives the full amount
           if (event.effectType === 'damage') {
-            actor.damageDealt += event.amount * event.targetIds.length;
+            actor.damageDealt += totalEventAmount;
           } else if (event.effectType === 'healing') {
-            actor.healingDone += event.amount * event.targetIds.length;
+            actor.healingDone += totalEventAmount;
           }
         }
 
         // Target stats
         for (const targetId of event.targetIds) {
           const target = statsMap.get(targetId);
+          const amountForTarget = event.targetAmounts?.[targetId] ?? event.amount;
           if (target) {
             if (event.effectType === 'damage') {
-              target.damageReceived += event.amount;
+              target.damageReceived += amountForTarget;
             } else if (event.effectType === 'healing') {
-              target.healingReceived += event.amount;
+              target.healingReceived += amountForTarget;
             }
           }
         }
@@ -202,7 +207,10 @@ export function useCombatLog(sessionId: string, userId: string) {
         if (!event.turnKey || !event.actorId || event.effectType !== 'damage' || event.actionKind === 'manual_hp') continue;
         const key = `${event.actorId}|${event.turnKey}`;
         const existing = turnDamageMap.get(key);
-        const dmg = event.amount * event.targetIds.length;
+        const dmg = event.targetIds.reduce(
+          (sum, targetId) => sum + (event.targetAmounts?.[targetId] ?? event.amount),
+          0,
+        );
         const round = parseInt(event.turnKey.split('-')[0], 10) || 1;
         if (existing) {
           existing.damage += dmg;
