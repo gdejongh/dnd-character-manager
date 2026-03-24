@@ -613,18 +613,18 @@ export function CombatView({
             value={customAmount}
             onChange={(e) => setCustomAmount(e.target.value)}
             min={1}
-            className="flex-1 px-3 py-2 rounded-lg text-center text-sm outline-none"
+            className="flex-1 min-w-0 px-3 py-2 rounded-lg text-center text-sm outline-none"
             style={{ background: 'var(--code-bg)', color: 'var(--text-h)', border: '1px solid var(--border)' }}
           />
           <button
-            className="px-4 py-2 rounded-lg font-semibold text-sm text-white cursor-pointer active:scale-95 transition-transform"
+            className="shrink-0 px-3 py-2 rounded-lg font-semibold text-sm text-white cursor-pointer active:scale-95 transition-transform"
             style={{ background: 'linear-gradient(135deg, #991b1b, #b91c1c)', border: 'none' }}
             onClick={() => handleCustomAction(false)}
           >
-            Damage
+            Dmg
           </button>
           <button
-            className="px-4 py-2 rounded-lg font-semibold text-sm text-white cursor-pointer active:scale-95 transition-transform"
+            className="shrink-0 px-3 py-2 rounded-lg font-semibold text-sm text-white cursor-pointer active:scale-95 transition-transform"
             style={{ background: 'linear-gradient(135deg, #15803d, #22c55e)', border: 'none' }}
             onClick={() => handleCustomAction(true)}
           >
@@ -663,17 +663,6 @@ export function CombatView({
           value={formatModifier(profBonus)}
           color="var(--accent)"
         />
-        {spellSaveDC !== null && (
-          <StatBox label="Spell Save DC" value={String(spellSaveDC)} color="var(--spell-indigo)" />
-        )}
-        {spellAtkBonus !== null && (
-          <StatBox
-            label="Spell Atk"
-            value={formatModifier(spellAtkBonus)}
-            color="var(--spell-violet)"
-            subtitle={castingAbility ? ABILITY_NAMES[castingAbility] : undefined}
-          />
-        )}
         <StatBox
           label="AC"
           value={String(character.armor_class)}
@@ -685,6 +674,19 @@ export function CombatView({
           color="var(--spell-violet)"
         />
       </div>
+      {spellSaveDC !== null && (
+        <div className="grid grid-cols-2 gap-2">
+          <StatBox label="Spell Save DC" value={String(spellSaveDC)} color="var(--spell-indigo)" />
+          {spellAtkBonus !== null && (
+            <StatBox
+              label="Spell Atk"
+              value={formatModifier(spellAtkBonus)}
+              color="var(--spell-violet)"
+              subtitle={castingAbility ? ABILITY_NAMES[castingAbility] : undefined}
+            />
+          )}
+        </div>
+      )}
 
       {/* ── Ability Scores Quick Ref ───────────────────────────────────── */}
       <div className="grid grid-cols-6 gap-1.5">
