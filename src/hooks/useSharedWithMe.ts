@@ -130,5 +130,14 @@ export function useSharedWithMe(userId: string | undefined) {
     return data;
   }
 
-  return { pendingShares, acceptedShares, loading, acceptShare, declineShare, copyCharacter };
+  async function unfollowShare(shareId: string) {
+    const { error } = await supabase
+      .from('character_shares')
+      .update({ status: 'declined' })
+      .eq('id', shareId);
+    if (error) throw new Error(error.message);
+    setAcceptedShares((prev) => prev.filter((s) => s.share.id !== shareId));
+  }
+
+  return { pendingShares, acceptedShares, loading, acceptShare, declineShare, copyCharacter, unfollowShare };
 }

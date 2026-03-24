@@ -167,7 +167,7 @@ function App() {
   // Character sharing
   const { shareCharacter, revokeShare, getSharesForCharacter } =
     useCharacterShares(user?.id);
-  const { pendingShares, acceptedShares, acceptShare, declineShare, copyCharacter } =
+  const { pendingShares, acceptedShares, acceptShare, declineShare, copyCharacter, unfollowShare } =
     useSharedWithMe(user?.id);
 
   async function handleAuth(email: string, password: string, isSignUp: boolean, username?: string) {
@@ -270,6 +270,18 @@ function App() {
         acceptedShares={acceptedShares}
         onAcceptShare={acceptShare}
         onDeclineShare={declineShare}
+        onUnfollowShare={async (shareId) => {
+          try {
+            await unfollowShare(shareId);
+            if (sharedViewShareId === shareId) {
+              setSelectedCharacterId(null);
+              setSharedViewShareId(null);
+            }
+            showToast('Stopped following shared character.');
+          } catch (error: unknown) {
+            showToast(error instanceof Error ? error.message : 'Failed to unfollow shared character');
+          }
+        }}
         onSelectSharedCharacter={(characterId, shareId) => {
           setSelectedCharacterId(characterId);
           setSharedViewShareId(shareId);

@@ -3,7 +3,7 @@ import type { FormEvent } from 'react';
 import type { Character, CharacterShare } from '../types/database';
 import type { ActiveSessionInfo } from '../hooks/useCombatSession';
 import type { SharedCharacterInfo } from '../hooks/useSharedWithMe';
-import { LogOut, Trash2, Heart, Plus, Shield, Swords, Users, Settings, Share2, Check, X, Eye } from 'lucide-react';
+import { LogOut, Trash2, Heart, Plus, Shield, Swords, Users, Settings, Share2, Check, X, Eye, UserMinus } from 'lucide-react';
 import { lookupSession } from '../hooks/useCombatSession';
 import { AccountSettings } from './AccountSettings';
 import { ShareModal } from './ShareModal';
@@ -33,6 +33,7 @@ interface HomeScreenProps {
   acceptedShares: SharedCharacterInfo[];
   onAcceptShare: (shareId: string) => Promise<void>;
   onDeclineShare: (shareId: string) => Promise<void>;
+  onUnfollowShare: (shareId: string) => Promise<void>;
   onSelectSharedCharacter: (characterId: string, shareId: string) => void;
 }
 
@@ -59,6 +60,7 @@ export function HomeScreen({
   acceptedShares,
   onAcceptShare,
   onDeclineShare,
+  onUnfollowShare,
   onSelectSharedCharacter,
 }: HomeScreenProps) {
   const [showForm, setShowForm] = useState(false);
@@ -410,6 +412,22 @@ export function HomeScreen({
                             From {item.share.sender_username || item.share.sender_email}
                           </p>
                         </div>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onUnfollowShare(item.share.id);
+                          }}
+                          className="p-2 rounded-lg cursor-pointer shrink-0"
+                          style={{
+                            background: 'rgba(239,68,68,0.1)',
+                            color: '#f87171',
+                            border: '1px solid rgba(239,68,68,0.25)',
+                          }}
+                          aria-label={`Unfollow ${item.character.name}`}
+                          title="Stop following shared character"
+                        >
+                          <UserMinus size={13} />
+                        </button>
                       </div>
                       <div className="flex gap-3 mt-3">
                         <span
