@@ -1261,15 +1261,19 @@ export function LiveCombat({
     try {
       // DM leaving should end the entire session for everyone (lobby or active).
       if (isDm) {
+        const wasActive = session.status === 'active';
         await endSession();
+        // If combat was active, let session status change trigger the report screen.
+        // If still in lobby, leave immediately (no report to show).
+        if (!wasActive) onLeave();
       } else {
         const myParticipantId = participants.find((p) => p.user_id === userId)?.id;
         if (myParticipantId) {
           const { error } = await supabase.from('session_participants').delete().eq('id', myParticipantId);
           if (error) throw error;
         }
+        onLeave();
       }
-      onLeave();
     } catch (error) {
       console.error('Error leaving combat session:', error);
       showToast('Could not leave session. Please try again.');
@@ -1309,14 +1313,18 @@ export function LiveCombat({
   // Turn-based action flow state — consolidated to avoid useEffect setState
   const [turnState, setTurnState] = useState<{
     forTurnIndex: number | null;
+    forRoundNumber: number | null;
     usedTypes: Set<string>;
     action: InitiatedAction | null;
     warning: InitiatedAction | null;
     undoStack: CompletedAction[];
-  }>({ forTurnIndex: null, usedTypes: new Set(), action: null, warning: null, undoStack: [] });
+  }>({ forTurnIndex: null, forRoundNumber: null, usedTypes: new Set(), action: null, warning: null, undoStack: [] });
 
   const currentTurnIndex = session?.current_turn_index ?? null;
-  const isSameTurn = currentTurnIndex !== null && currentTurnIndex === turnState.forTurnIndex;
+  const currentRoundNumber = session?.round_number ?? null;
+  const isSameTurn = currentTurnIndex !== null
+    && currentTurnIndex === turnState.forTurnIndex
+    && currentRoundNumber === turnState.forRoundNumber;
 
   // Derived values — auto-reset when turn changes
   const usedActionTypes = useMemo(
@@ -1357,12 +1365,12 @@ export function LiveCombat({
   // Handle action initiated from combat sheet
   const handleActionInitiated = useCallback((action: InitiatedAction) => {
     if (usedActionTypes.has(action.actionType)) {
-      setTurnState(prev => ({ ...prev, forTurnIndex: currentTurnIndex, warning: action }));
+      setTurnState(prev => ({ ...prev, forTurnIndex: currentTurnIndex, forRoundNumber: currentRoundNumber, warning: action }));
     } else {
-      setTurnState(prev => ({ ...prev, forTurnIndex: currentTurnIndex, action }));
+      setTurnState(prev => ({ ...prev, forTurnIndex: currentTurnIndex, forRoundNumber: currentRoundNumber, action }));
       setActiveView('initiative'); // will show TurnActionFlow overlay
     }
-  }, [usedActionTypes, currentTurnIndex]);
+  }, [usedActionTypes, currentTurnIndex, currentRoundNumber]);
 
   // Handle confirming a duplicate action warning
   function confirmActionWarning() {
@@ -1421,14 +1429,18 @@ export function LiveCombat({
       });
     }
 
-    setTurnState(prev => ({
-      ...prev,
-      forTurnIndex: currentTurnIndex,
-      usedTypes: new Set([...(prev.forTurnIndex === currentTurnIndex ? prev.usedTypes : []), turnAction.actionType]),
-      action: null,
-      undoStack: [...(prev.forTurnIndex === currentTurnIndex ? prev.undoStack : []), completedAction],
-    }));
-  }, [turnAction, applyCombatantHpDelta, currentTurnIndex, actionFlowCombatantId, combatants, combatLog]);
+    setTurnState(prev => {
+      const sameTurn = prev.forTurnIndex === currentTurnIndex && prev.forRoundNumber === currentRoundNumber;
+      return {
+        ...prev,
+        forTurnIndex: currentTurnIndex,
+        forRoundNumber: currentRoundNumber,
+        usedTypes: new Set([...(sameTurn ? prev.usedTypes : []), turnAction.actionType]),
+        action: null,
+        undoStack: [...(sameTurn ? prev.undoStack : []), completedAction],
+      };
+    });
+  }, [turnAction, applyCombatantHpDelta, currentTurnIndex, currentRoundNumber, actionFlowCombatantId, combatants, combatLog]);
 
   // Undo the last completed action — reverse HP, restore resources, remove action type from used
   const handleUndo = useCallback(async () => {
@@ -1754,6 +1766,7 @@ export function LiveCombat({
                 {effectiveDmSheetCharId && (
                   <CombatSheetLoader
                     characterId={effectiveDmSheetCharId}
+                    combatantHp={combatants.find((c) => c.character_id === effectiveDmSheetCharId)?.current_hp}
                     onCombatHpSync={(newHp) => {
                       const combatant = combatants.find((c) => c.character_id === effectiveDmSheetCharId);
                       if (combatant) {
@@ -1811,6 +1824,7 @@ export function LiveCombat({
             <div className="flex-1 min-h-0 overflow-y-auto">
               <CombatSheetLoader
                 characterId={myCharacterId}
+                combatantHp={myCombatant?.current_hp}
                 onCombatHpSync={loggedUpdateMyHp}
                 onActionInitiated={isMyTurnAsPlayer ? handleActionInitiated : undefined}
                 usedActionTypes={isMyTurnAsPlayer ? usedActionTypes : undefined}

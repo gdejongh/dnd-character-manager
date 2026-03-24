@@ -19,6 +19,8 @@ interface CombatSheetLoaderProps {
   characterId: string;
   /** Optional callback to sync HP changes to the combat session tables */
   onCombatHpSync?: (newHp: number) => void;
+  /** Authoritative current HP from the combat session (realtime-synced) */
+  combatantHp?: number;
   /** When provided, Cast/Use/Attack buttons trigger this instead of internal animation handlers */
   onActionInitiated?: (action: {
     spell?: Spell;
@@ -35,7 +37,7 @@ interface CombatSheetLoaderProps {
   offTurn?: boolean;
 }
 
-export function CombatSheetLoader({ characterId, onCombatHpSync, onActionInitiated, usedActionTypes, resourceConsumersRef, offTurn }: CombatSheetLoaderProps) {
+export function CombatSheetLoader({ characterId, onCombatHpSync, combatantHp, onActionInitiated, usedActionTypes, resourceConsumersRef, offTurn }: CombatSheetLoaderProps) {
   const { character, loading: charLoading, updateCharacter } = useCharacter(characterId);
   const { scores, loading: scoresLoading } = useAbilityScores(characterId);
   const { slots, setSlotUsed } = useSpellSlots(characterId);
@@ -107,9 +109,14 @@ export function CombatSheetLoader({ characterId, onCombatHpSync, onActionInitiat
     );
   }
 
+  // Override character HP with authoritative combat HP when provided
+  const effectiveCharacter = combatantHp !== undefined
+    ? { ...character, current_hp: combatantHp }
+    : character;
+
   return (
     <CombatView
-      character={character}
+      character={effectiveCharacter}
       scores={scores}
       slots={slots}
       spells={spells}
