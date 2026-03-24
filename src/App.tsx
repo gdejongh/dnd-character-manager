@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import type { Tab } from './types/database';
 import { isSupabaseConfigured } from './lib/supabase';
-import { getPreparedSpellLimit } from './constants/dnd';
+import { getPreparedSpellLimit, isWarlock, getModifier } from './constants/dnd';
 import { showToast } from './lib/toast';
 import { useAuth } from './hooks/useAuth';
 import { useCharacters } from './hooks/useCharacters';
@@ -32,6 +32,7 @@ import { TabBar } from './components/TabBar';
 import { CombatTransition } from './components/CombatTransition';
 import { ToastContainer } from './components/Toast';
 import { LongRestButton } from './components/LongRestButton';
+import { ShortRestButton } from './components/ShortRestButton';
 import { LiveCombat } from './components/LiveCombat';
 import { ExportPdfButton } from './components/ExportPdf';
 import { exportCharacterPdf } from './lib/exportPdf';
@@ -153,7 +154,7 @@ function App() {
     useCharacter(selectedCharacterId, syncCharacter);
   const { scores, updateScore, toggleSavingThrow } =
     useAbilityScores(selectedCharacterId);
-  const { slots, updateTotal, setSlotUsed, resetAll } =
+  const { slots, updateTotal, setSlotUsed, resetAll, autoFillSlots } =
     useSpellSlots(selectedCharacterId);
   const { spells, addSpell, updateSpell, deleteSpell } =
     useSpells(selectedCharacterId);
@@ -249,14 +250,22 @@ function App() {
           onUpdatePassword={updatePassword}
           onDeleteAccount={deleteAccount}
           onStartCombat={async () => {
-            const sessionId = await createCombatSession(user.id);
-            setCombatRole('dm');
-            setCombatSessionId(sessionId);
+            try {
+              const sessionId = await createCombatSession(user.id);
+              setCombatRole('dm');
+              setCombatSessionId(sessionId);
+            } catch (err: unknown) {
+              showToast(err instanceof Error ? err.message : 'Failed to create combat session');
+            }
         }}
         onJoinCombat={async (sessionId, characterId, charName, charClass, hp, maxHp, imageUrl, imagePosition) => {
-          await joinCombatSession(sessionId, user.id, characterId, charName, charClass, hp, maxHp, imageUrl, imagePosition);
-          setCombatRole('player');
-          setCombatSessionId(sessionId);
+          try {
+            await joinCombatSession(sessionId, user.id, characterId, charName, charClass, hp, maxHp, imageUrl, imagePosition);
+            setCombatRole('player');
+            setCombatSessionId(sessionId);
+          } catch (err: unknown) {
+            showToast(err instanceof Error ? err.message : 'Failed to join combat session');
+          }
         }}
         activeSession={activeSession}
         onRejoinCombat={(sessionId, role) => {
@@ -324,6 +333,9 @@ function App() {
   const preparedLimit = character
     ? getPreparedSpellLimit(character.class, character.level, abilityScoreMap)
     : null;
+
+  const conModifier = getModifier(abilityScoreMap.CON);
+  const charIsWarlock = character ? isWarlock(character.class) : false;
 
   // Find the share info for the read-only banner
   const currentShareInfo = isReadOnly
@@ -469,15 +481,18 @@ function App() {
             />
           )}
           {activeTab === 'hp' && (
-            <HpTracker character={character} onUpdate={isReadOnly ? noOpUpdate : updateCharacter} />
+            <HpTracker character={character} conModifier={conModifier} onUpdate={isReadOnly ? noOpUpdate : updateCharacter} />
           )}
           {activeTab === 'spells' && (
             <SpellSlots
               slots={slots}
               spells={spells}
               preparedLimit={preparedLimit}
+              characterClass={character.class}
+              characterLevel={character.level}
               onUpdateTotal={isReadOnly ? noOpAsync : updateTotal}
               onSetSlotUsed={isReadOnly ? noOpAsync : setSlotUsed}
+              onAutoFillSlots={isReadOnly ? noOpAsync : autoFillSlots}
               onAddSpell={isReadOnly ? noOpAsync : addSpell}
               onUpdateSpell={isReadOnly ? noOpAsync : updateSpell}
               onDeleteSpell={isReadOnly ? noOpAsync : deleteSpell}
@@ -530,12 +545,24 @@ function App() {
       </main>
 
       {!isReadOnly && (
-        <LongRestButton
-          onRestoreSlots={resetAll}
-          onRestoreUses={resetAllUses}
-          onResetDeathSaves={() => updateCharacter({ death_save_successes: 0, death_save_failures: 0 })}
-          onClearConditions={() => updateCharacter({ conditions: [] })}
-        />
+        <>
+          <ShortRestButton
+            isWarlock={charIsWarlock}
+            onRestoreWarlockSlots={charIsWarlock ? resetAll : undefined}
+          />
+          <LongRestButton
+            onRestoreSlots={resetAll}
+            onRestoreUses={resetAllUses}
+            onResetDeathSaves={() => updateCharacter({ death_save_successes: 0, death_save_failures: 0 })}
+            onClearConditions={() => updateCharacter({ conditions: [] })}
+            onRecoverHitDice={() => {
+              const current = character.hit_dice_remaining ?? character.level;
+              const recovery = Math.max(1, Math.ceil(character.level / 2));
+              const newRemaining = Math.min(character.level, current + recovery);
+              return updateCharacter({ hit_dice_remaining: newRemaining });
+            }}
+          />
+        </>
       )}
       <TabBar activeTab={activeTab} onTabChange={handleTabChange} />
     </div>

@@ -19,6 +19,9 @@ create table characters (
   death_save_failures  integer not null default 0 check (death_save_failures between 0 and 3),
   conditions  text[] not null default '{}',
   skill_proficiencies text[] not null default '{}',
+  initiative_modifier integer,
+  passive_perception integer,
+  hit_dice_remaining integer,
   created_at  timestamptz not null default now(),
   updated_at  timestamptz not null default now()
 );
@@ -589,8 +592,8 @@ begin
     raise exception 'Share not found or not accepted';
   end if;
 
-  insert into characters (user_id, name, race, class, level, current_hp, max_hp, temp_hp, armor_class, skill_proficiencies, image_url, image_position)
-  select v_user_id, name || ' (Copy)', race, class, level, current_hp, max_hp, temp_hp, armor_class, skill_proficiencies, image_url, image_position
+  insert into characters (user_id, name, race, class, level, current_hp, max_hp, temp_hp, armor_class, skill_proficiencies, initiative_modifier, passive_perception, hit_dice_remaining, image_url, image_position)
+  select v_user_id, name || ' (Copy)', race, class, level, current_hp, max_hp, temp_hp, armor_class, skill_proficiencies, initiative_modifier, passive_perception, null, image_url, image_position
   from characters where id = v_source_char_id
   returning id into v_new_char_id;
 
@@ -638,4 +641,15 @@ grant execute on function public.copy_shared_character(uuid) to authenticated;
 --   ALTER TABLE characters ADD COLUMN IF NOT EXISTS death_save_successes integer NOT NULL DEFAULT 0 CHECK (death_save_successes BETWEEN 0 AND 3);
 --   ALTER TABLE characters ADD COLUMN IF NOT EXISTS death_save_failures integer NOT NULL DEFAULT 0 CHECK (death_save_failures BETWEEN 0 AND 3);
 --   ALTER TABLE characters ADD COLUMN IF NOT EXISTS conditions text[] NOT NULL DEFAULT '{}';
+--
+-- =================================================================
+--  MIGRATION: Initiative, Passive Perception, Hit Dice
+-- =================================================================
+-- Run these statements if upgrading an existing database:
+--
+--   ALTER TABLE characters ADD COLUMN IF NOT EXISTS initiative_modifier integer;
+--   ALTER TABLE characters ADD COLUMN IF NOT EXISTS passive_perception integer;
+--   ALTER TABLE characters ADD COLUMN IF NOT EXISTS hit_dice_remaining integer;
+--
+--   -- Update copy_shared_character function (re-run the CREATE OR REPLACE above)
 --

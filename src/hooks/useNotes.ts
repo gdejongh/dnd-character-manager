@@ -31,6 +31,7 @@ export function useNotes(characterId: string | null) {
 
   function updateContent(content: string) {
     if (!characterId || !notes) return;
+    const targetCharId = characterId;
     setNotes((prev) => (prev ? { ...prev, content } : prev));
 
     if (debounceRef.current) clearTimeout(debounceRef.current);
@@ -38,7 +39,7 @@ export function useNotes(characterId: string | null) {
       const { error } = await supabase
         .from('notes')
         .update({ content })
-        .eq('character_id', characterId);
+        .eq('character_id', targetCharId);
       if (error) console.error('Error saving notes:', error);
     }, 500);
   }
@@ -47,7 +48,7 @@ export function useNotes(characterId: string | null) {
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
-  }, []);
+  }, [characterId]);
 
   return { notes, loading, updateContent };
 }

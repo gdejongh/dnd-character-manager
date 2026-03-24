@@ -13,6 +13,9 @@ export interface Character {
   death_save_failures: number;
   conditions: string[];
   skill_proficiencies: string[];
+  initiative_modifier: number | null;
+  passive_perception: number | null;
+  hit_dice_remaining: number | null;
   image_url: string | null;
   image_position: number;
   created_at: string;

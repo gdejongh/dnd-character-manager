@@ -4,14 +4,18 @@ import type { SpellSlot, Spell, ActionType } from '../types/database';
 import { NumericInput } from './NumericInput';
 import { ActionTypePicker, ActionTypeBadge, ActionTypeFilterBar } from './ActionType';
 import type { ActionTypeFilter } from '../constants/actionTypes';
-import { Search, X } from 'lucide-react';
+import { Search, X, Wand2 } from 'lucide-react';
+import { getSpellSlotProgression, isWarlock, getWarlockPactInfo } from '../constants/dnd';
 
 interface SpellSlotsProps {
   slots: SpellSlot[];
   spells: Spell[];
   preparedLimit: number | null;
+  characterClass: string;
+  characterLevel: number;
   onUpdateTotal: (level: number, total: number) => void;
   onSetSlotUsed: (level: number, used: number) => void;
+  onAutoFillSlots: (slotTotals: Record<number, number>) => void;
   onAddSpell: (name: string, description: string, level: number, actionType: ActionType) => void;
   onUpdateSpell: (id: string, updates: Partial<Pick<Spell, 'name' | 'description' | 'level' | 'prepared' | 'action_type'>>) => void;
   onDeleteSpell: (id: string) => void;
@@ -40,8 +44,11 @@ export function SpellSlots({
   slots,
   spells,
   preparedLimit,
+  characterClass,
+  characterLevel,
   onUpdateTotal,
   onSetSlotUsed,
+  onAutoFillSlots,
   onAddSpell,
   onUpdateSpell,
   onDeleteSpell,
@@ -126,8 +133,51 @@ export function SpellSlots({
 
   const levels = [0, ...slots.map((s) => s.level)];
 
+  const warlockMode = isWarlock(characterClass);
+  const pactInfo = warlockMode ? getWarlockPactInfo(characterLevel) : null;
+  const suggestedSlots = getSpellSlotProgression(characterClass, characterLevel);
+  const hasSuggestedSlots = Object.keys(suggestedSlots).length > 0;
+
+  function handleAutoFill() {
+    onAutoFillSlots(suggestedSlots);
+  }
+
   return (
     <div className="flex flex-col gap-4 p-4 pb-24 animate-fade-in">
+      {/* Auto-fill & Pact Magic info */}
+      {hasSuggestedSlots && (
+        <div
+          className="flex items-center justify-between p-3 rounded-xl"
+          style={{
+            background: warlockMode ? 'rgba(139, 92, 246, 0.08)' : 'var(--bg-surface)',
+            border: `1px solid ${warlockMode ? 'var(--spell-border)' : 'var(--border)'}`,
+          }}
+        >
+          <div className="flex flex-col">
+            <span className="text-xs font-semibold" style={{ color: warlockMode ? 'var(--spell-violet)' : 'var(--text)', fontFamily: 'var(--heading)' }}>
+              {warlockMode ? 'Pact Magic' : 'Spell Slots'}
+            </span>
+            <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
+              {warlockMode && pactInfo
+                ? `${pactInfo.slotCount} slot${pactInfo.slotCount > 1 ? 's' : ''} at ${pactInfo.slotLevel}${pactInfo.slotLevel === 1 ? 'st' : pactInfo.slotLevel === 2 ? 'nd' : pactInfo.slotLevel === 3 ? 'rd' : 'th'} level · Short rest recovery`
+                : `${characterClass || 'Class'} level ${characterLevel}`}
+            </span>
+          </div>
+          <button
+            onClick={handleAutoFill}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer active:scale-95 transition-transform"
+            style={{
+              background: 'linear-gradient(135deg, var(--spell-indigo), var(--spell-violet))',
+              color: 'white',
+              border: 'none',
+              fontFamily: 'var(--heading)',
+              letterSpacing: '0.3px',
+            }}
+          >
+            <Wand2 size={12} /> Auto-fill
+          </button>
+        </div>
+      )}
       {/* Search bar */}
       <div className="relative">
         <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2" style={{ color: 'var(--spell-indigo)' }} />

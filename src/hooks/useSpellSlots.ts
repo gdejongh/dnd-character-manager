@@ -66,5 +66,32 @@ export function useSpellSlots(characterId: string | null) {
     else setSlots((prev) => prev.map((s) => ({ ...s, used: 0 })));
   }
 
-  return { slots, loading, updateTotal, setSlotUsed, resetAll };
+  async function autoFillSlots(slotTotals: Record<number, number>) {
+    if (!characterId) return;
+    const rows = [];
+    for (let level = 1; level <= 9; level++) {
+      rows.push({
+        character_id: characterId,
+        level,
+        total: slotTotals[level] ?? 0,
+        used: 0,
+      });
+    }
+    const { error } = await supabase
+      .from('spell_slots')
+      .upsert(rows, { onConflict: 'character_id,level' });
+
+    if (error) {
+      console.error('Error auto-filling spell slots:', error);
+      return;
+    }
+    const { data } = await supabase
+      .from('spell_slots')
+      .select('*')
+      .eq('character_id', characterId)
+      .order('level');
+    if (data) setSlots(data);
+  }
+
+  return { slots, loading, updateTotal, setSlotUsed, resetAll, autoFillSlots };
 }

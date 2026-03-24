@@ -25,7 +25,7 @@ interface CombatViewProps {
   spells: Spell[];
   weapons: Weapon[];
   features: Feature[];
-  onUpdateCharacter: (updates: Partial<Pick<Character, 'current_hp' | 'max_hp' | 'temp_hp' | 'armor_class' | 'death_save_successes' | 'death_save_failures' | 'conditions'>>) => void;
+  onUpdateCharacter: (updates: Partial<Pick<Character, 'current_hp' | 'max_hp' | 'temp_hp' | 'armor_class' | 'death_save_successes' | 'death_save_failures' | 'conditions' | 'initiative_modifier' | 'passive_perception' | 'hit_dice_remaining'>>) => void;
   onSetSlotUsed: (level: number, used: number) => void;
   onUpdateFeature: (id: string, updates: Partial<Pick<Feature, 'used_uses'>>) => void;
   /** When provided, Cast/Use/Attack buttons trigger this instead of internal animation handlers */
@@ -289,6 +289,8 @@ export function CombatView({
   const spellAtkBonus = getSpellAttackBonus(character.class, character.level, abilityScoreMap);
   const castingAbility = getSpellcastingAbility(character.class);
   const profBonus = getProficiencyBonus(character.level);
+  const dexMod = getModifier(abilityScoreMap.DEX);
+  const initiativeValue = character.initiative_modifier ?? dexMod;
 
   // Prepared spells grouped by level, with action filter applied
   const preparedSpells = spells.filter((s) => {
@@ -676,6 +678,11 @@ export function CombatView({
           label="AC"
           value={String(character.armor_class)}
           color="var(--accent)"
+        />
+        <StatBox
+          label="Initiative"
+          value={formatModifier(initiativeValue)}
+          color="var(--spell-violet)"
         />
       </div>
 

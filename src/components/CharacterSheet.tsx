@@ -7,15 +7,16 @@ import {
   getModifier,
   getProficiencyBonus,
   formatModifier,
+  getHitDie,
 } from '../constants/dnd';
 import { NumericInput } from './NumericInput';
-import { Camera, Trash2, Loader, Move, X, Pencil, Shield } from 'lucide-react';
+import { Camera, Trash2, Loader, Move, X, Pencil, Shield, Zap, Eye, RotateCcw } from 'lucide-react';
 
 interface CharacterSheetProps {
   character: Character;
   scores: AbilityScore[];
   onUpdateCharacter: (
-    updates: Partial<Pick<Character, 'name' | 'race' | 'class' | 'level' | 'armor_class' | 'skill_proficiencies' | 'image_url' | 'image_position'>>,
+    updates: Partial<Pick<Character, 'name' | 'race' | 'class' | 'level' | 'armor_class' | 'skill_proficiencies' | 'initiative_modifier' | 'passive_perception' | 'image_url' | 'image_position'>>,
   ) => void;
   onUpdateScore: (ability: string, score: number) => void;
   onToggleSavingThrow: (ability: string) => void;
@@ -498,7 +499,163 @@ export function CharacterSheet({
         </div>
       </div>
 
-      {/* Ability Scores — Shield shapes */}
+      {/* Initiative & Passive Perception */}
+      <div className="grid grid-cols-2 gap-3">
+        {/* Initiative */}
+        {(() => {
+          const dexMod = getModifier(getScore('DEX'));
+          const autoInit = dexMod;
+          const isOverride = character.initiative_modifier !== null && character.initiative_modifier !== undefined;
+          const value = isOverride ? character.initiative_modifier! : autoInit;
+          return (
+            <div
+              className="flex flex-col items-center gap-1 p-3 rounded-xl cursor-pointer relative"
+              style={{
+                background: 'var(--bg-surface)',
+                border: `1px solid ${isOverride ? 'var(--spell-indigo)' : 'var(--border)'}`,
+              }}
+              onClick={() => {
+                if (readOnly) return;
+                if (editingField === 'initiative') return;
+                setEditingField('initiative');
+              }}
+            >
+              <div className="flex items-center gap-1.5">
+                <Zap size={12} style={{ color: 'var(--accent)' }} />
+                <span className="text-[10px] uppercase tracking-wider font-semibold" style={{ color: 'var(--accent)', fontFamily: 'var(--heading)', letterSpacing: '1px' }}>
+                  Initiative
+                </span>
+                {isOverride && !readOnly && (
+                  <button
+                    onClick={(e) => { e.stopPropagation(); onUpdateCharacter({ initiative_modifier: null }); setEditingField(null); }}
+                    className="p-0.5 rounded cursor-pointer bg-transparent"
+                    style={{ color: 'var(--text-muted)', border: 'none' }}
+                    title="Reset to auto (DEX mod)"
+                  >
+                    <RotateCcw size={10} />
+                  </button>
+                )}
+              </div>
+              {editingField === 'initiative' ? (
+                <div className="flex items-center gap-2">
+                  <NumericInput
+                    min={-10}
+                    max={20}
+                    value={value}
+                    onChange={(val) => onUpdateCharacter({ initiative_modifier: val })}
+                    className="w-16 px-2 py-1 rounded-lg text-center text-lg font-bold outline-none"
+                    style={{ background: 'var(--code-bg)', color: 'var(--text-h)', border: '1px solid var(--border)', fontFamily: 'var(--mono)' }}
+                    autoFocus
+                  />
+                  <button
+                    className="px-2 py-1 rounded-lg text-[10px] cursor-pointer font-semibold"
+                    style={{ background: 'var(--accent)', color: '#0f0e13', border: 'none' }}
+                    onClick={(e) => { e.stopPropagation(); setEditingField(null); }}
+                  >
+                    OK
+                  </button>
+                </div>
+              ) : (
+                <span className="text-xl font-bold" style={{ color: 'var(--text-h)', fontFamily: 'var(--mono)' }}>
+                  {formatModifier(value)}
+                </span>
+              )}
+              <span className="text-[9px]" style={{ color: isOverride ? 'var(--spell-indigo)' : 'var(--text-muted)' }}>
+                {isOverride ? 'Override' : 'DEX mod'}
+              </span>
+            </div>
+          );
+        })()}
+
+        {/* Passive Perception */}
+        {(() => {
+          const wisMod = getModifier(getScore('WIS'));
+          const perceptionProf = (character.skill_proficiencies ?? []).includes('Perception');
+          const autoPassive = 10 + wisMod + (perceptionProf ? profBonus : 0);
+          const isOverride = character.passive_perception !== null && character.passive_perception !== undefined;
+          const value = isOverride ? character.passive_perception! : autoPassive;
+          return (
+            <div
+              className="flex flex-col items-center gap-1 p-3 rounded-xl cursor-pointer relative"
+              style={{
+                background: 'var(--bg-surface)',
+                border: `1px solid ${isOverride ? 'var(--spell-indigo)' : 'var(--border)'}`,
+              }}
+              onClick={() => {
+                if (readOnly) return;
+                if (editingField === 'passive') return;
+                setEditingField('passive');
+              }}
+            >
+              <div className="flex items-center gap-1.5">
+                <Eye size={12} style={{ color: 'var(--accent)' }} />
+                <span className="text-[10px] uppercase tracking-wider font-semibold" style={{ color: 'var(--accent)', fontFamily: 'var(--heading)', letterSpacing: '1px' }}>
+                  Passive Perc.
+                </span>
+                {isOverride && !readOnly && (
+                  <button
+                    onClick={(e) => { e.stopPropagation(); onUpdateCharacter({ passive_perception: null }); setEditingField(null); }}
+                    className="p-0.5 rounded cursor-pointer bg-transparent"
+                    style={{ color: 'var(--text-muted)', border: 'none' }}
+                    title="Reset to auto-calculated"
+                  >
+                    <RotateCcw size={10} />
+                  </button>
+                )}
+              </div>
+              {editingField === 'passive' ? (
+                <div className="flex items-center gap-2">
+                  <NumericInput
+                    min={1}
+                    max={30}
+                    value={value}
+                    onChange={(val) => onUpdateCharacter({ passive_perception: val })}
+                    className="w-16 px-2 py-1 rounded-lg text-center text-lg font-bold outline-none"
+                    style={{ background: 'var(--code-bg)', color: 'var(--text-h)', border: '1px solid var(--border)', fontFamily: 'var(--mono)' }}
+                    autoFocus
+                  />
+                  <button
+                    className="px-2 py-1 rounded-lg text-[10px] cursor-pointer font-semibold"
+                    style={{ background: 'var(--accent)', color: '#0f0e13', border: 'none' }}
+                    onClick={(e) => { e.stopPropagation(); setEditingField(null); }}
+                  >
+                    OK
+                  </button>
+                </div>
+              ) : (
+                <span className="text-xl font-bold" style={{ color: 'var(--text-h)', fontFamily: 'var(--mono)' }}>
+                  {value}
+                </span>
+              )}
+              <span className="text-[9px]" style={{ color: isOverride ? 'var(--spell-indigo)' : 'var(--text-muted)' }}>
+                {isOverride ? 'Override' : `10 + WIS${perceptionProf ? ' + Prof' : ''}`}
+              </span>
+            </div>
+          );
+        })()}
+      </div>
+
+      {/* Hit Dice */}
+      {(() => {
+        const hitDie = getHitDie(character.class);
+        const remaining = character.hit_dice_remaining ?? character.level;
+        return (
+          <div
+            className="flex items-center justify-between p-3 rounded-xl"
+            style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)' }}
+          >
+            <div className="flex items-center gap-2">
+              <span className="text-sm" style={{ fontSize: '16px' }}>🎲</span>
+              <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--accent)', fontFamily: 'var(--heading)', letterSpacing: '1px' }}>
+                Hit Dice
+              </span>
+            </div>
+            <span className="text-sm font-bold" style={{ color: 'var(--text-h)', fontFamily: 'var(--mono)' }}>
+              {remaining}/{character.level} d{hitDie}
+            </span>
+          </div>
+        );
+      })()}
       <section>
         <h3
           className="text-xs uppercase tracking-widest mb-3"

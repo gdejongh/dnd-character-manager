@@ -1,34 +1,31 @@
 import { useState } from 'react';
-import { Moon } from 'lucide-react';
+import { Coffee } from 'lucide-react';
 import { showToast } from '../lib/toast';
 
-interface LongRestButtonProps {
-  onRestoreSlots: () => Promise<void> | void;
-  onRestoreUses: () => Promise<void> | void;
-  onResetDeathSaves?: () => Promise<void> | void;
-  onClearConditions?: () => Promise<void> | void;
-  onRecoverHitDice?: () => Promise<void> | void;
+interface ShortRestButtonProps {
+  isWarlock: boolean;
+  onRestoreWarlockSlots?: () => Promise<void> | void;
 }
 
-export function LongRestButton({ onRestoreSlots, onRestoreUses, onResetDeathSaves, onClearConditions, onRecoverHitDice }: LongRestButtonProps) {
+export function ShortRestButton({ isWarlock, onRestoreWarlockSlots }: ShortRestButtonProps) {
   const [confirming, setConfirming] = useState(false);
   const [resting, setResting] = useState(false);
 
-  async function handleLongRest() {
+  async function handleShortRest() {
     if (!confirming) {
       setConfirming(true);
       return;
     }
     setResting(true);
     try {
-      await Promise.all([
-        onRestoreSlots(),
-        onRestoreUses(),
-        onResetDeathSaves?.(),
-        onClearConditions?.(),
-        onRecoverHitDice?.(),
-      ]);
-      showToast('Long Rest complete — slots, uses & hit dice restored ✓');
+      if (isWarlock && onRestoreWarlockSlots) {
+        await onRestoreWarlockSlots();
+      }
+      showToast(
+        isWarlock
+          ? 'Short Rest complete — pact slots restored ✓'
+          : 'Short Rest complete ✓',
+      );
     } finally {
       setResting(false);
       setConfirming(false);
@@ -40,7 +37,7 @@ export function LongRestButton({ onRestoreSlots, onRestoreUses, onResetDeathSave
   }
 
   return (
-    <div className="fixed right-4 z-40" style={{ bottom: '5.5rem' }}>
+    <div className="fixed right-4 z-40" style={{ bottom: '9rem' }}>
       {confirming && (
         <button
           onClick={handleCancel}
@@ -59,32 +56,32 @@ export function LongRestButton({ onRestoreSlots, onRestoreUses, onResetDeathSave
       )}
 
       <button
-        onClick={handleLongRest}
+        onClick={handleShortRest}
         disabled={resting}
         className="flex items-center gap-2 rounded-full shadow-lg cursor-pointer transition-all duration-200"
         style={{
           background: confirming
-            ? 'linear-gradient(135deg, #1e3a5f, #0d1b2a)'
-            : 'linear-gradient(135deg, #1a2744, #0f1923)',
-          color: confirming ? '#7ec8e3' : '#c9a84c',
-          border: confirming ? '2px solid #7ec8e3' : '2px solid var(--accent-border)',
+            ? 'linear-gradient(135deg, #5b3a1a, #3d2510)'
+            : 'linear-gradient(135deg, #2a1f0e, #1a1508)',
+          color: confirming ? '#f5c542' : '#c9a84c',
+          border: confirming ? '2px solid #f5c542' : '2px solid var(--accent-border)',
           padding: confirming ? '0.75rem 1.25rem' : '0.875rem',
           fontFamily: 'var(--heading)',
           letterSpacing: '0.5px',
           fontSize: '0.8rem',
           animation: resting ? 'glowPulse 1s ease-in-out infinite' : undefined,
           boxShadow: confirming
-            ? '0 0 20px rgba(126, 200, 227, 0.3)'
+            ? '0 0 20px rgba(245, 197, 66, 0.3)'
             : '0 4px 15px rgba(0,0,0,0.4)',
         }}
       >
-        <Moon
-          size={20}
+        <Coffee
+          size={18}
           style={{
             animation: resting ? 'diceRoll 1.5s linear infinite' : undefined,
           }}
         />
-        {confirming ? 'Confirm Long Rest?' : ''}
+        {confirming ? 'Confirm Short Rest?' : ''}
       </button>
     </div>
   );

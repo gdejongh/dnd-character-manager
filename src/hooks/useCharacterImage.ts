@@ -84,6 +84,12 @@ export function useCharacterImage(
       .from('character-images')
       .getPublicUrl(storagePath);
 
+    if (!urlData?.publicUrl) {
+      setError('Could not retrieve image URL.');
+      setUploading(false);
+      return null;
+    }
+
     const publicUrl = `${urlData.publicUrl}?t=${Date.now()}`;
 
     // Persist URL to the character row

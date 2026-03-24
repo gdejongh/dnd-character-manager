@@ -36,7 +36,7 @@ export function useCharacter(
 
   async function updateCharacter(
     updates: Partial<
-      Pick<Character, 'name' | 'race' | 'class' | 'level' | 'current_hp' | 'max_hp' | 'temp_hp' | 'armor_class' | 'death_save_successes' | 'death_save_failures' | 'conditions' | 'skill_proficiencies' | 'image_url' | 'image_position'>
+      Pick<Character, 'name' | 'race' | 'class' | 'level' | 'current_hp' | 'max_hp' | 'temp_hp' | 'armor_class' | 'death_save_successes' | 'death_save_failures' | 'conditions' | 'skill_proficiencies' | 'initiative_modifier' | 'passive_perception' | 'hit_dice_remaining' | 'image_url' | 'image_position'>
     >,
   ) {
     if (!characterId) return;

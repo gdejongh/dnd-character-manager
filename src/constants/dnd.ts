@@ -145,6 +145,89 @@ export function formatWeaponDamage(
   return `${damageDice}${modStr} ${damageType}`;
 }
 
+/* ── Hit Die per Class ── */
+
+const HIT_DIE: Record<string, number> = {
+  barbarian: 12,
+  fighter: 10, paladin: 10, ranger: 10,
+  bard: 8, cleric: 8, druid: 8, monk: 8, rogue: 8, warlock: 8, artificer: 8,
+  sorcerer: 6, wizard: 6,
+};
+
+export function getHitDie(className: string): number {
+  return HIT_DIE[resolveClassKey(className)] ?? 8;
+}
+
+/* ── Spell Slot Progression Tables (5e) ── */
+
+// Index = level - 1; sub-array = [1st, 2nd, ..., 9th] slot totals
+const FULL_CASTER_SLOTS: number[][] = [
+  [2], [3], [4,2], [4,3], [4,3,2], [4,3,3], [4,3,3,1], [4,3,3,2],
+  [4,3,3,3,1], [4,3,3,3,2], [4,3,3,3,2,1], [4,3,3,3,2,1],
+  [4,3,3,3,2,1,1], [4,3,3,3,2,1,1], [4,3,3,3,2,1,1,1], [4,3,3,3,2,1,1,1],
+  [4,3,3,3,2,1,1,1,1], [4,3,3,3,3,1,1,1,1], [4,3,3,3,3,2,1,1,1], [4,3,3,3,3,2,2,1,1],
+];
+
+// Half casters: Paladin, Ranger (no slots at level 1)
+const HALF_CASTER_SLOTS: number[][] = [
+  [], [2], [3], [3], [4,2], [4,2], [4,3], [4,3],
+  [4,3,2], [4,3,2], [4,3,3], [4,3,3],
+  [4,3,3,1], [4,3,3,1], [4,3,3,2], [4,3,3,2],
+  [4,3,3,3,1], [4,3,3,3,1], [4,3,3,3,2], [4,3,3,3,2],
+];
+
+// Artificer: half-caster but gets 2 first-level slots at level 1
+const ARTIFICER_SLOTS: number[][] = [
+  [2], [2], [3], [3], [4,2], [4,2], [4,3], [4,3],
+  [4,3,2], [4,3,2], [4,3,3], [4,3,3],
+  [4,3,3,1], [4,3,3,1], [4,3,3,2], [4,3,3,2],
+  [4,3,3,3,1], [4,3,3,3,1], [4,3,3,3,2], [4,3,3,3,2],
+];
+
+// Warlock pact magic: [slot count, slot level] per character level
+const WARLOCK_PACT: [number, number][] = [
+  [1,1], [2,1], [2,2], [2,2], [2,3], [2,3], [2,4], [2,4],
+  [2,5], [2,5], [3,5], [3,5], [3,5], [3,5], [3,5], [3,5],
+  [4,5], [4,5], [4,5], [4,5],
+];
+
+const FULL_CASTERS = ['wizard', 'cleric', 'druid', 'bard', 'sorcerer'];
+const HALF_CASTERS = ['paladin', 'ranger'];
+
+export function isWarlock(className: string): boolean {
+  return resolveClassKey(className) === 'warlock';
+}
+
+/** Returns Warlock pact magic info for a given level */
+export function getWarlockPactInfo(level: number): { slotCount: number; slotLevel: number } {
+  const idx = Math.max(0, Math.min(19, level - 1));
+  const [slotCount, slotLevel] = WARLOCK_PACT[idx];
+  return { slotCount, slotLevel };
+}
+
+/** Returns spell slot totals by level (1–9) for a class at a given character level */
+export function getSpellSlotProgression(className: string, level: number): Record<number, number> {
+  const key = resolveClassKey(className);
+  const idx = Math.max(0, Math.min(19, level - 1));
+
+  if (key === 'warlock') {
+    const [count, slotLevel] = WARLOCK_PACT[idx];
+    return { [slotLevel]: count };
+  }
+
+  let table: number[];
+  if (FULL_CASTERS.includes(key)) table = FULL_CASTER_SLOTS[idx];
+  else if (HALF_CASTERS.includes(key)) table = HALF_CASTER_SLOTS[idx];
+  else if (key === 'artificer') table = ARTIFICER_SLOTS[idx];
+  else return {};
+
+  const result: Record<number, number> = {};
+  for (let i = 0; i < table.length; i++) {
+    result[i + 1] = table[i];
+  }
+  return result;
+}
+
 /* ── Standard 5e Conditions ── */
 
 export interface ConditionInfo {
