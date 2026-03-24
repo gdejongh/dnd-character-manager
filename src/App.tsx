@@ -565,6 +565,12 @@ function App() {
         <>
           <ShortRestButton
             isWarlock={charIsWarlock}
+            currentHp={character.current_hp}
+            maxHp={character.max_hp}
+            onRestoreHp={(amount: number) => {
+              const nextHp = Math.min(character.max_hp, character.current_hp + amount);
+              return updateCharacter({ current_hp: nextHp });
+            }}
             onRestoreWarlockSlots={charIsWarlock ? resetAll : undefined}
           />
           <LongRestButton
