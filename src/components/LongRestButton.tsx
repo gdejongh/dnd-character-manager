@@ -7,11 +7,10 @@ interface LongRestButtonProps {
   onRestoreUses: () => Promise<void> | void;
   onResetDeathSaves?: () => Promise<void> | void;
   onClearConditions?: () => Promise<void> | void;
-  onRecoverHitDice?: () => Promise<void> | void;
   onDropConcentration?: () => Promise<void> | void;
 }
 
-export function LongRestButton({ onRestoreSlots, onRestoreUses, onResetDeathSaves, onClearConditions, onRecoverHitDice, onDropConcentration }: LongRestButtonProps) {
+export function LongRestButton({ onRestoreSlots, onRestoreUses, onResetDeathSaves, onClearConditions, onDropConcentration }: LongRestButtonProps) {
   const [confirming, setConfirming] = useState(false);
   const [resting, setResting] = useState(false);
 
@@ -27,10 +26,9 @@ export function LongRestButton({ onRestoreSlots, onRestoreUses, onResetDeathSave
         onRestoreUses(),
         onResetDeathSaves?.(),
         onClearConditions?.(),
-        onRecoverHitDice?.(),
         onDropConcentration?.(),
       ]);
-      showToast('Long Rest complete — slots, uses & hit dice restored ✓');
+      showToast('Long Rest complete — slots & uses restored ✓');
     } finally {
       setResting(false);
       setConfirming(false);

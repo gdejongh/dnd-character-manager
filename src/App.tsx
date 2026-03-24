@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import type { Tab } from './types/database';
 import { isSupabaseConfigured } from './lib/supabase';
-import { getPreparedSpellLimit, isWarlock, getModifier } from './constants/dnd';
+import { getPreparedSpellLimit, isWarlock } from './constants/dnd';
 import { showToast } from './lib/toast';
 import { useAuth } from './hooks/useAuth';
 import { useCharacters } from './hooks/useCharacters';
@@ -334,7 +334,7 @@ function App() {
     ? getPreparedSpellLimit(character.class, character.level, abilityScoreMap)
     : null;
 
-  const conModifier = getModifier(abilityScoreMap.CON);
+
   const charIsWarlock = character ? isWarlock(character.class) : false;
 
   // Find the share info for the read-only banner
@@ -496,7 +496,7 @@ function App() {
             />
           )}
           {activeTab === 'hp' && (
-            <HpTracker character={character} conModifier={conModifier} onUpdate={isReadOnly ? noOpUpdate : updateCharacter} />
+            <HpTracker character={character} onUpdate={isReadOnly ? noOpUpdate : updateCharacter} />
           )}
           {activeTab === 'spells' && (
             <SpellSlots
@@ -572,12 +572,6 @@ function App() {
             onRestoreUses={resetAllUses}
             onResetDeathSaves={() => updateCharacter({ death_save_successes: 0, death_save_failures: 0 })}
             onClearConditions={() => updateCharacter({ conditions: [] })}
-            onRecoverHitDice={() => {
-              const current = character.hit_dice_remaining ?? character.level;
-              const recovery = Math.max(1, Math.ceil(character.level / 2));
-              const newRemaining = Math.min(character.level, current + recovery);
-              return updateCharacter({ hit_dice_remaining: newRemaining });
-            }}
             onDropConcentration={() => updateCharacter({ concentration_spell_id: null })}
           />
         </>

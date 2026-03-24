@@ -1,14 +1,13 @@
 import { useState, useEffect, useRef } from 'react';
 import type { Character } from '../types/database';
 import { NumericInput } from './NumericInput';
-import { Heart, Shield, Dices } from 'lucide-react';
-import { CONDITIONS, getHitDie } from '../constants/dnd';
+import { Heart, Shield } from 'lucide-react';
+import { CONDITIONS } from '../constants/dnd';
 
 interface HpTrackerProps {
   character: Character;
-  conModifier: number;
   onUpdate: (
-    updates: Partial<Pick<Character, 'current_hp' | 'max_hp' | 'temp_hp' | 'armor_class' | 'death_save_successes' | 'death_save_failures' | 'conditions' | 'hit_dice_remaining'>>,
+    updates: Partial<Pick<Character, 'current_hp' | 'max_hp' | 'temp_hp' | 'armor_class' | 'death_save_successes' | 'death_save_failures' | 'conditions'>>,
   ) => void;
 }
 
@@ -44,13 +43,13 @@ function useAnimatedNumber(target: number, duration = 300) {
   return { display, pulsing };
 }
 
-export function HpTracker({ character, conModifier, onUpdate }: HpTrackerProps) {
+export function HpTracker({ character, onUpdate }: HpTrackerProps) {
   const [customAmount, setCustomAmount] = useState('');
   const [editingMax, setEditingMax] = useState(false);
   const [editingTemp, setEditingTemp] = useState(false);
   const [editingAc, setEditingAc] = useState(false);
   const [expandedCondition, setExpandedCondition] = useState<string | null>(null);
-  const [lastHitDieRoll, setLastHitDieRoll] = useState<number | null>(null);
+
   const { display: animatedHp, pulsing } = useAnimatedNumber(character.current_hp);
 
   const wasDown = useRef(character.current_hp <= 0);
@@ -158,7 +157,7 @@ export function HpTracker({ character, conModifier, onUpdate }: HpTrackerProps) 
         {/* AC Shield Display */}
         <div className="flex flex-col items-center gap-1 pt-1">
           <div
-            className="relative flex flex-col items-center justify-center cursor-pointer"
+            className="relative cursor-pointer"
             onClick={() => !editingAc && setEditingAc(true)}
             style={{
               width: '72px',
@@ -177,41 +176,45 @@ export function HpTracker({ character, conModifier, onUpdate }: HpTrackerProps) 
               }}
               fill="var(--bg-surface)"
             />
-            <div className="relative z-10 flex flex-col items-center" style={{ marginTop: '-2px' }}>
-              <span
-                className="text-[10px] uppercase tracking-wider font-semibold"
-                style={{ color: 'var(--accent)', fontFamily: 'var(--heading)', letterSpacing: '1px', opacity: 0.8 }}
-              >
-                AC
-              </span>
-              {editingAc ? (
-                <div className="flex flex-col items-center gap-1">
-                  <NumericInput
-                    min={0}
-                    max={30}
-                    value={character.armor_class}
-                    onChange={(val) => onUpdate({ armor_class: val })}
-                    className="w-12 px-1 py-0.5 rounded text-center outline-none text-lg font-bold"
-                    style={{ background: 'var(--code-bg)', color: 'var(--accent)', border: '1px solid var(--accent)', fontFamily: 'var(--mono)' }}
-                    autoFocus
-                  />
-                  <button
-                    className="text-[9px] px-2 py-0.5 rounded cursor-pointer font-semibold"
-                    style={{ background: 'var(--accent)', color: '#0f0e13', border: 'none' }}
-                    onClick={(e) => { e.stopPropagation(); setEditingAc(false); }}
-                  >
-                    OK
-                  </button>
-                </div>
-              ) : (
-                <span
-                  className="text-2xl font-bold"
-                  style={{ color: 'var(--accent)', fontFamily: 'var(--mono)', textShadow: '0 0 10px rgba(212, 175, 55, 0.25)' }}
+
+            <span
+              className="absolute top-2 left-1/2 -translate-x-1/2 z-10 text-[10px] uppercase tracking-wider font-semibold"
+              style={{ color: 'var(--accent)', fontFamily: 'var(--heading)', letterSpacing: '1px', opacity: 0.8 }}
+            >
+              AC
+            </span>
+
+            {editingAc ? (
+              <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-1 pt-2">
+                <NumericInput
+                  min={0}
+                  max={30}
+                  value={character.armor_class}
+                  onChange={(val) => onUpdate({ armor_class: val })}
+                  className="w-12 px-1 py-0.5 rounded text-center outline-none text-lg font-bold"
+                  style={{ background: 'var(--code-bg)', color: 'var(--accent)', border: '1px solid var(--accent)', fontFamily: 'var(--mono)' }}
+                  autoFocus
+                />
+                <button
+                  className="text-[9px] px-2 py-0.5 rounded cursor-pointer font-semibold"
+                  style={{ background: 'var(--accent)', color: '#0f0e13', border: 'none' }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
+                    setTimeout(() => setEditingAc(false), 0);
+                  }}
                 >
-                  {character.armor_class}
-                </span>
-              )}
-            </div>
+                  OK
+                </button>
+              </div>
+            ) : (
+              <span
+                className="absolute inset-0 z-10 flex items-center justify-center text-2xl font-bold leading-none"
+                style={{ color: 'var(--accent)', fontFamily: 'var(--mono)', textShadow: '0 0 10px rgba(212, 175, 55, 0.25)' }}
+              >
+                {character.armor_class}
+              </span>
+            )}
           </div>
         </div>
       </div>
@@ -488,119 +491,6 @@ export function HpTracker({ character, conModifier, onUpdate }: HpTrackerProps) 
           )}
         </div>
       </div>
-
-      {/* Hit Dice */}
-      {(() => {
-        const hitDie = getHitDie(character.class);
-        const remaining = character.hit_dice_remaining ?? character.level;
-        const canSpend = remaining > 0 && character.current_hp < character.max_hp && character.current_hp > 0;
-
-        function spendHitDie() {
-          if (!canSpend) return;
-          const roll = Math.floor(Math.random() * hitDie) + 1;
-          const healing = Math.max(1, roll + conModifier);
-          const newHp = Math.min(character.max_hp, character.current_hp + healing);
-          setLastHitDieRoll(healing);
-          setTimeout(() => setLastHitDieRoll(null), 2000);
-          onUpdate({
-            current_hp: newHp,
-            hit_dice_remaining: remaining - 1,
-          });
-        }
-
-        const usedDice = character.level - remaining;
-        const diceBarPercent = character.level > 0 ? (remaining / character.level) * 100 : 0;
-
-        return (
-          <div
-            className="w-full p-4 rounded-xl"
-            style={{ border: '1px solid var(--border)', background: 'var(--bg-surface)' }}
-          >
-            <div className="flex items-center justify-between mb-2">
-              <div className="flex items-center gap-2">
-                <Dices size={14} style={{ color: 'var(--accent)' }} />
-                <span className="text-sm font-semibold" style={{ color: 'var(--text)', fontFamily: 'var(--heading)' }}>
-                  Hit Dice
-                </span>
-              </div>
-              <span className="text-sm font-bold" style={{ color: 'var(--text-h)', fontFamily: 'var(--mono)' }}>
-                {remaining}/{character.level} d{hitDie}
-              </span>
-            </div>
-
-            {/* Hit dice bar */}
-            <div
-              className="w-full h-2 rounded-full overflow-hidden mb-3"
-              style={{ background: 'var(--bg-raised)', border: '1px solid var(--border)' }}
-            >
-              <div
-                className="h-full rounded-full transition-all duration-500"
-                style={{
-                  width: `${Math.min(100, diceBarPercent)}%`,
-                  background: diceBarPercent > 50
-                    ? 'linear-gradient(90deg, var(--accent), var(--accent-bright))'
-                    : diceBarPercent > 25
-                      ? 'linear-gradient(90deg, #f59e0b, #fbbf24)'
-                      : 'linear-gradient(90deg, #991b1b, #dc2626)',
-                }}
-              />
-            </div>
-
-            {/* Visual dice */}
-            <div className="flex flex-wrap gap-1.5 mb-3">
-              {Array.from({ length: character.level }, (_, i) => {
-                const isUsed = i >= remaining;
-                return (
-                  <div
-                    key={i}
-                    className="w-7 h-7 rounded-lg flex items-center justify-center text-[10px] font-bold"
-                    style={{
-                      background: isUsed ? 'var(--bg-raised)' : 'linear-gradient(135deg, var(--accent), var(--accent-bright))',
-                      border: `1px solid ${isUsed ? 'var(--border)' : 'var(--accent)'}`,
-                      color: isUsed ? 'var(--border-light)' : '#0f0e13',
-                      opacity: isUsed ? 0.4 : 1,
-                    }}
-                  >
-                    d{hitDie}
-                  </div>
-                );
-              })}
-            </div>
-
-            {/* Spend button */}
-            <button
-              onClick={spendHitDie}
-              disabled={!canSpend}
-              className="w-full py-2.5 rounded-lg text-sm font-semibold cursor-pointer active:scale-[0.98] transition-all"
-              style={{
-                background: canSpend
-                  ? 'linear-gradient(135deg, #166534, #15803d)'
-                  : 'var(--bg-raised)',
-                color: canSpend ? 'white' : 'var(--text-muted)',
-                border: canSpend ? 'none' : '1px solid var(--border)',
-                fontFamily: 'var(--heading)',
-                letterSpacing: '0.5px',
-                opacity: canSpend ? 1 : 0.5,
-              }}
-            >
-              {lastHitDieRoll !== null
-                ? `Healed ${lastHitDieRoll} HP! 🎲`
-                : canSpend
-                  ? `Spend Hit Die (1d${hitDie} + ${conModifier >= 0 ? conModifier : conModifier})`
-                  : remaining <= 0
-                    ? 'No Hit Dice Remaining'
-                    : character.current_hp >= character.max_hp
-                      ? 'HP Already Full'
-                      : 'Stabilize First'}
-            </button>
-            {usedDice > 0 && (
-              <p className="text-[10px] mt-2 text-center" style={{ color: 'var(--text-muted)' }}>
-                Long rest recovers {Math.max(1, Math.ceil(character.level / 2))} hit dice
-              </p>
-            )}
-          </div>
-        );
-      })()}
     </div>
   );
 }

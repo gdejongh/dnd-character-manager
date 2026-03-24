@@ -7,7 +7,6 @@ import {
   getModifier,
   getProficiencyBonus,
   formatModifier,
-  getHitDie,
 } from '../constants/dnd';
 import { NumericInput } from './NumericInput';
 import { Camera, Trash2, Loader, Move, X, Pencil, Shield, Zap, Eye, RotateCcw } from 'lucide-react';
@@ -452,7 +451,10 @@ export function CharacterSheet({
                 color: '#0f0e13',
                 border: 'none',
               }}
-              onClick={() => setEditingField(null)}
+              onClick={() => {
+                if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
+                setTimeout(() => setEditingField(null), 0);
+              }}
             >
               Done
             </button>
@@ -664,7 +666,12 @@ export function CharacterSheet({
               <button
                 className="px-2 py-1 rounded-lg text-[10px] cursor-pointer font-semibold"
                 style={{ background: 'var(--accent)', color: '#0f0e13', border: 'none' }}
-                onClick={(e) => { e.stopPropagation(); setEditingField(null); }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  // Blur the input first to trigger NumericInput's onBlur save
+                  if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
+                  setTimeout(() => setEditingField(null), 0);
+                }}
               >
                 OK
               </button>
@@ -679,26 +686,6 @@ export function CharacterSheet({
           </span>
         </div>
       </div>
-      {(() => {
-        const hitDie = getHitDie(character.class);
-        const remaining = character.hit_dice_remaining ?? character.level;
-        return (
-          <div
-            className="flex items-center justify-between p-3 rounded-xl"
-            style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)' }}
-          >
-            <div className="flex items-center gap-2">
-              <span className="text-sm" style={{ fontSize: '16px' }}>🎲</span>
-              <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--accent)', fontFamily: 'var(--heading)', letterSpacing: '1px' }}>
-                Hit Dice
-              </span>
-            </div>
-            <span className="text-sm font-bold" style={{ color: 'var(--text-h)', fontFamily: 'var(--mono)' }}>
-              {remaining}/{character.level} d{hitDie}
-            </span>
-          </div>
-        );
-      })()}
       <section>
         <h3
           className="text-xs uppercase tracking-widest mb-3"

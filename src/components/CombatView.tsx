@@ -25,7 +25,7 @@ interface CombatViewProps {
   spells: Spell[];
   weapons: Weapon[];
   features: Feature[];
-  onUpdateCharacter: (updates: Partial<Pick<Character, 'current_hp' | 'max_hp' | 'temp_hp' | 'armor_class' | 'death_save_successes' | 'death_save_failures' | 'conditions' | 'initiative_modifier' | 'passive_perception' | 'hit_dice_remaining' | 'concentration_spell_id'>>) => void;
+  onUpdateCharacter: (updates: Partial<Pick<Character, 'current_hp' | 'max_hp' | 'temp_hp' | 'armor_class' | 'death_save_successes' | 'death_save_failures' | 'conditions' | 'initiative_modifier' | 'passive_perception' | 'concentration_spell_id'>>) => void;
   onSetSlotUsed: (level: number, used: number) => void;
   onUpdateFeature: (id: string, updates: Partial<Pick<Feature, 'used_uses'>>) => void;
   /** When provided, Cast/Use/Attack buttons trigger this instead of internal animation handlers */
