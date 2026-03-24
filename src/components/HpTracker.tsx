@@ -2,11 +2,12 @@ import { useState, useEffect, useRef } from 'react';
 import type { Character } from '../types/database';
 import { NumericInput } from './NumericInput';
 import { Heart, Shield } from 'lucide-react';
+import { CONDITIONS } from '../constants/dnd';
 
 interface HpTrackerProps {
   character: Character;
   onUpdate: (
-    updates: Partial<Pick<Character, 'current_hp' | 'max_hp' | 'temp_hp'>>,
+    updates: Partial<Pick<Character, 'current_hp' | 'max_hp' | 'temp_hp' | 'armor_class' | 'death_save_successes' | 'death_save_failures' | 'conditions'>>,
   ) => void;
 }
 
@@ -46,7 +47,14 @@ export function HpTracker({ character, onUpdate }: HpTrackerProps) {
   const [customAmount, setCustomAmount] = useState('');
   const [editingMax, setEditingMax] = useState(false);
   const [editingTemp, setEditingTemp] = useState(false);
+  const [editingAc, setEditingAc] = useState(false);
+  const [expandedCondition, setExpandedCondition] = useState<string | null>(null);
   const { display: animatedHp, pulsing } = useAnimatedNumber(character.current_hp);
+
+  const wasDown = useRef(character.current_hp <= 0);
+  useEffect(() => {
+    wasDown.current = character.current_hp <= 0;
+  }, [character.current_hp]);
 
   function adjustHp(amount: number) {
     if (amount < 0) {
@@ -61,7 +69,11 @@ export function HpTracker({ character, onUpdate }: HpTrackerProps) {
       onUpdate({ current_hp: newCurrent, temp_hp: newTemp });
     } else {
       const newHp = Math.min(character.max_hp, character.current_hp + amount);
-      onUpdate({ current_hp: newHp });
+      if (character.current_hp <= 0 && newHp > 0) {
+        onUpdate({ current_hp: newHp, death_save_successes: 0, death_save_failures: 0 });
+      } else {
+        onUpdate({ current_hp: newHp });
+      }
     }
   }
 
@@ -72,6 +84,25 @@ export function HpTracker({ character, onUpdate }: HpTrackerProps) {
     setCustomAmount('');
   }
 
+  function toggleDeathSave(type: 'successes' | 'failures', index: number) {
+    const key = type === 'successes' ? 'death_save_successes' : 'death_save_failures';
+    const current = type === 'successes' ? character.death_save_successes : character.death_save_failures;
+    const newVal = current === index + 1 ? index : index + 1;
+    onUpdate({ [key]: Math.min(3, Math.max(0, newVal)) });
+  }
+
+  function toggleCondition(conditionName: string) {
+    const active = character.conditions ?? [];
+    const isActive = active.includes(conditionName);
+    if (isActive) {
+      onUpdate({ conditions: active.filter(c => c !== conditionName) });
+      if (expandedCondition === conditionName) setExpandedCondition(null);
+    } else {
+      onUpdate({ conditions: [...active, conditionName] });
+      setExpandedCondition(conditionName);
+    }
+  }
+
   const hpPercent = character.max_hp > 0 ? (character.current_hp / character.max_hp) * 100 : 0;
   const hpColor = hpPercent > 50 ? 'var(--hp-green)' : hpPercent > 25 ? 'var(--hp-yellow)' : 'var(--hp-crimson)';
   const barGradient = hpPercent > 50
@@ -80,54 +111,192 @@ export function HpTracker({ character, onUpdate }: HpTrackerProps) {
       ? 'linear-gradient(90deg, #f59e0b, #fbbf24)'
       : 'linear-gradient(90deg, #991b1b, #dc2626)';
 
+  const activeConditions = character.conditions ?? [];
+
   return (
     <div className="flex flex-col items-center gap-5 p-4 pb-24 animate-fade-in">
-      {/* HP Display */}
-      <div className="flex flex-col items-center gap-3 w-full">
-        <div className="flex items-center gap-2">
-          <Heart size={16} style={{ color: 'var(--hp-crimson)' }} fill="var(--hp-crimson)" />
-          <span
-            className="text-xs uppercase tracking-widest"
-            style={{ color: 'var(--hp-crimson)', fontFamily: 'var(--heading)', letterSpacing: '2px' }}
-          >
-            Hit Points
-          </span>
-        </div>
-        <div className="flex items-baseline gap-2">
-          <span
-            className="font-bold"
-            style={{
-              color: hpColor,
-              fontFamily: 'var(--mono)',
-              fontSize: '72px',
-              lineHeight: 1,
-              transition: 'color 0.3s',
-              animation: pulsing ? 'hpPulse 0.3s ease-out' : 'none',
-              textShadow: `0 0 20px ${hpColor}40`,
-            }}
-          >
-            {animatedHp}
-          </span>
-          <span className="text-2xl" style={{ color: 'var(--border-light)' }}>/</span>
-          <span
-            className="text-2xl font-bold"
-            style={{ color: 'var(--text-h)', fontFamily: 'var(--mono)' }}
-          >
-            {character.max_hp}
-          </span>
+      {/* HP + AC Header */}
+      <div className="flex items-start gap-4 w-full">
+        {/* HP Display */}
+        <div className="flex flex-col items-center gap-3 flex-1">
+          <div className="flex items-center gap-2">
+            <Heart size={16} style={{ color: 'var(--hp-crimson)' }} fill="var(--hp-crimson)" />
+            <span
+              className="text-xs uppercase tracking-widest"
+              style={{ color: 'var(--hp-crimson)', fontFamily: 'var(--heading)', letterSpacing: '2px' }}
+            >
+              Hit Points
+            </span>
+          </div>
+          <div className="flex items-baseline gap-2">
+            <span
+              className="font-bold"
+              style={{
+                color: hpColor,
+                fontFamily: 'var(--mono)',
+                fontSize: '72px',
+                lineHeight: 1,
+                transition: 'color 0.3s',
+                animation: pulsing ? 'hpPulse 0.3s ease-out' : 'none',
+                textShadow: `0 0 20px ${hpColor}40`,
+              }}
+            >
+              {animatedHp}
+            </span>
+            <span className="text-2xl" style={{ color: 'var(--border-light)' }}>/</span>
+            <span
+              className="text-2xl font-bold"
+              style={{ color: 'var(--text-h)', fontFamily: 'var(--mono)' }}
+            >
+              {character.max_hp}
+            </span>
+          </div>
         </div>
 
-        {/* HP Bar */}
-        <div
-          className="w-full h-3 rounded-full overflow-hidden"
-          style={{ background: 'var(--bg-raised)', border: '1px solid var(--border)' }}
-        >
+        {/* AC Shield Display */}
+        <div className="flex flex-col items-center gap-1 pt-1">
           <div
-            className="h-full rounded-full transition-all duration-500"
-            style={{ width: `${Math.min(100, hpPercent)}%`, background: barGradient }}
-          />
+            className="relative flex flex-col items-center justify-center cursor-pointer"
+            onClick={() => !editingAc && setEditingAc(true)}
+            style={{
+              width: '72px',
+              height: '84px',
+            }}
+          >
+            <Shield
+              size={72}
+              strokeWidth={1.5}
+              style={{
+                color: 'var(--accent)',
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                filter: 'drop-shadow(0 0 8px rgba(212, 175, 55, 0.3))',
+              }}
+              fill="var(--bg-surface)"
+            />
+            <div className="relative z-10 flex flex-col items-center" style={{ marginTop: '-2px' }}>
+              <span
+                className="text-[10px] uppercase tracking-wider font-semibold"
+                style={{ color: 'var(--accent)', fontFamily: 'var(--heading)', letterSpacing: '1px', opacity: 0.8 }}
+              >
+                AC
+              </span>
+              {editingAc ? (
+                <div className="flex flex-col items-center gap-1">
+                  <NumericInput
+                    min={0}
+                    max={30}
+                    value={character.armor_class}
+                    onChange={(val) => onUpdate({ armor_class: val })}
+                    className="w-12 px-1 py-0.5 rounded text-center outline-none text-lg font-bold"
+                    style={{ background: 'var(--code-bg)', color: 'var(--accent)', border: '1px solid var(--accent)', fontFamily: 'var(--mono)' }}
+                    autoFocus
+                  />
+                  <button
+                    className="text-[9px] px-2 py-0.5 rounded cursor-pointer font-semibold"
+                    style={{ background: 'var(--accent)', color: '#0f0e13', border: 'none' }}
+                    onClick={(e) => { e.stopPropagation(); setEditingAc(false); }}
+                  >
+                    OK
+                  </button>
+                </div>
+              ) : (
+                <span
+                  className="text-2xl font-bold"
+                  style={{ color: 'var(--accent)', fontFamily: 'var(--mono)', textShadow: '0 0 10px rgba(212, 175, 55, 0.25)' }}
+                >
+                  {character.armor_class}
+                </span>
+              )}
+            </div>
+          </div>
         </div>
       </div>
+
+      {/* HP Bar */}
+      <div
+        className="w-full h-3 rounded-full overflow-hidden"
+        style={{ background: 'var(--bg-raised)', border: '1px solid var(--border)' }}
+      >
+        <div
+          className="h-full rounded-full transition-all duration-500"
+          style={{ width: `${Math.min(100, hpPercent)}%`, background: barGradient }}
+        />
+      </div>
+
+      {/* Death Saves — only when at 0 HP */}
+      {character.current_hp <= 0 && (
+        <div
+          className="w-full p-4 rounded-xl animate-fade-in"
+          style={{
+            border: '1px solid var(--border)',
+            background: 'linear-gradient(135deg, var(--bg-surface), rgba(220, 38, 38, 0.05))',
+          }}
+        >
+          <div className="flex items-center justify-center gap-2 mb-3">
+            <span className="text-xs uppercase tracking-widest font-semibold" style={{ color: 'var(--hp-crimson)', fontFamily: 'var(--heading)', letterSpacing: '2px' }}>
+              ☠ Death Saves
+            </span>
+          </div>
+          <div className="flex justify-center gap-8">
+            {/* Successes */}
+            <div className="flex flex-col items-center gap-2">
+              <span className="text-[10px] uppercase tracking-wider font-semibold" style={{ color: '#4ade80', fontFamily: 'var(--heading)' }}>
+                Successes
+              </span>
+              <div className="flex gap-2">
+                {[0, 1, 2].map((i) => {
+                  const filled = i < character.death_save_successes;
+                  return (
+                    <button
+                      key={`s-${i}`}
+                      onClick={() => toggleDeathSave('successes', i)}
+                      className="cursor-pointer active:scale-90 transition-all"
+                      style={{
+                        width: '28px',
+                        height: '28px',
+                        borderRadius: '50%',
+                        border: `2px solid ${filled ? '#22c55e' : 'var(--border)'}`,
+                        background: filled ? 'linear-gradient(135deg, #22c55e, #4ade80)' : 'var(--bg-raised)',
+                        boxShadow: filled ? '0 0 12px rgba(34, 197, 94, 0.4)' : 'none',
+                        transition: 'all 0.2s ease',
+                      }}
+                    />
+                  );
+                })}
+              </div>
+            </div>
+            {/* Failures */}
+            <div className="flex flex-col items-center gap-2">
+              <span className="text-[10px] uppercase tracking-wider font-semibold" style={{ color: '#f87171', fontFamily: 'var(--heading)' }}>
+                Failures
+              </span>
+              <div className="flex gap-2">
+                {[0, 1, 2].map((i) => {
+                  const filled = i < character.death_save_failures;
+                  return (
+                    <button
+                      key={`f-${i}`}
+                      onClick={() => toggleDeathSave('failures', i)}
+                      className="cursor-pointer active:scale-90 transition-all"
+                      style={{
+                        width: '28px',
+                        height: '28px',
+                        borderRadius: '50%',
+                        border: `2px solid ${filled ? '#dc2626' : 'var(--border)'}`,
+                        background: filled ? 'linear-gradient(135deg, #991b1b, #dc2626)' : 'var(--bg-raised)',
+                        boxShadow: filled ? '0 0 12px rgba(220, 38, 38, 0.4)' : 'none',
+                        transition: 'all 0.2s ease',
+                      }}
+                    />
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Quick ± Buttons */}
       <div className="grid grid-cols-4 gap-3 w-full">
@@ -219,6 +388,64 @@ export function HpTracker({ character, onUpdate }: HpTrackerProps) {
             </button>
           )}
         </div>
+      </div>
+
+      {/* Conditions */}
+      <div
+        className="w-full p-4 rounded-xl"
+        style={{ border: '1px solid var(--border)', background: 'var(--bg-surface)' }}
+      >
+        <span
+          className="text-xs uppercase tracking-widest font-semibold block mb-3"
+          style={{ color: 'var(--text)', fontFamily: 'var(--heading)', letterSpacing: '2px' }}
+        >
+          Conditions
+        </span>
+        <div className="flex flex-wrap gap-2">
+          {CONDITIONS.map((cond) => {
+            const isActive = activeConditions.includes(cond.name);
+            const isExpanded = expandedCondition === cond.name;
+            return (
+              <div key={cond.name} className="flex flex-col">
+                <button
+                  onClick={() => toggleCondition(cond.name)}
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold cursor-pointer active:scale-95 transition-all"
+                  style={{
+                    background: isActive ? `${cond.color}20` : 'var(--bg-raised)',
+                    border: `1px solid ${isActive ? cond.color : 'var(--border)'}`,
+                    color: isActive ? cond.color : 'var(--text-muted)',
+                    opacity: isActive ? 1 : 0.6,
+                    boxShadow: isActive ? `0 0 8px ${cond.color}25` : 'none',
+                  }}
+                  title={cond.description}
+                >
+                  <span style={{ fontSize: '13px' }}>{cond.icon}</span>
+                  {cond.name}
+                </button>
+                {isActive && isExpanded && (
+                  <div
+                    className="mt-1 px-2 py-1.5 rounded-lg text-[11px] leading-snug animate-fade-in"
+                    style={{
+                      background: `${cond.color}10`,
+                      border: `1px solid ${cond.color}30`,
+                      color: 'var(--text)',
+                      maxWidth: '200px',
+                    }}
+                  >
+                    {cond.description}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+        {activeConditions.length > 0 && (
+          <div className="mt-2 pt-2" style={{ borderTop: '1px solid var(--border)' }}>
+            <span className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>
+              Active: {activeConditions.join(', ')}
+            </span>
+          </div>
+        )}
       </div>
 
       {/* Max HP */}

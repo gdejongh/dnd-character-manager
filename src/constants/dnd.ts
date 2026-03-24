@@ -144,3 +144,30 @@ export function formatWeaponDamage(
   const modStr = mod !== 0 ? ` ${formatModifier(mod)}` : '';
   return `${damageDice}${modStr} ${damageType}`;
 }
+
+/* ── Standard 5e Conditions ── */
+
+export interface ConditionInfo {
+  name: string;
+  icon: string;
+  color: string;
+  description: string;
+}
+
+export const CONDITIONS: ConditionInfo[] = [
+  { name: 'Blinded', icon: '🙈', color: '#6b7280', description: 'Can\'t see. Auto-fail sight checks. Attacks have disadvantage; attacks against have advantage.' },
+  { name: 'Charmed', icon: '💖', color: '#ec4899', description: 'Can\'t attack the charmer. Charmer has advantage on social checks.' },
+  { name: 'Deafened', icon: '🔇', color: '#6b7280', description: 'Can\'t hear. Auto-fail hearing checks.' },
+  { name: 'Exhaustion', icon: '😩', color: '#f59e0b', description: 'Cumulative penalties. Level 6 = death.' },
+  { name: 'Frightened', icon: '😨', color: '#a855f7', description: 'Disadvantage on checks/attacks while source is in sight. Can\'t willingly move closer.' },
+  { name: 'Grappled', icon: '🤼', color: '#f97316', description: 'Speed becomes 0. Ends if grappler is incapacitated or effect removes you.' },
+  { name: 'Incapacitated', icon: '💫', color: '#ef4444', description: 'Can\'t take actions or reactions.' },
+  { name: 'Invisible', icon: '👻', color: '#818cf8', description: 'Can\'t be seen without magic. Attacks have advantage; attacks against have disadvantage.' },
+  { name: 'Paralyzed', icon: '⚡', color: '#eab308', description: 'Incapacitated. Can\'t move or speak. Auto-fail STR/DEX saves. Attacks have advantage; melee hits are crits.' },
+  { name: 'Petrified', icon: '🪨', color: '#78716c', description: 'Turned to stone. Weight ×10. Resistant to all damage. Immune to poison/disease.' },
+  { name: 'Poisoned', icon: '☠️', color: '#22c55e', description: 'Disadvantage on attack rolls and ability checks.' },
+  { name: 'Prone', icon: '🛌', color: '#a3a3a3', description: 'Disadvantage on attacks. Melee attacks against have advantage; ranged have disadvantage.' },
+  { name: 'Restrained', icon: '⛓️', color: '#f97316', description: 'Speed 0. Attacks have disadvantage. DEX saves have disadvantage. Attacks against have advantage.' },
+  { name: 'Stunned', icon: '💥', color: '#facc15', description: 'Incapacitated. Can\'t move. Can speak only falteringly. Auto-fail STR/DEX saves.' },
+  { name: 'Unconscious', icon: '💤', color: '#dc2626', description: 'Incapacitated. Can\'t move or speak. Unaware. Drop held items. Prone. Auto-fail STR/DEX saves.' },
+];

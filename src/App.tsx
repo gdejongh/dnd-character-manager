@@ -529,7 +529,14 @@ function App() {
         </div>
       </main>
 
-      {!isReadOnly && <LongRestButton onRestoreSlots={resetAll} onRestoreUses={resetAllUses} />}
+      {!isReadOnly && (
+        <LongRestButton
+          onRestoreSlots={resetAll}
+          onRestoreUses={resetAllUses}
+          onResetDeathSaves={() => updateCharacter({ death_save_successes: 0, death_save_failures: 0 })}
+          onClearConditions={() => updateCharacter({ conditions: [] })}
+        />
+      )}
       <TabBar activeTab={activeTab} onTabChange={handleTabChange} />
     </div>
   );

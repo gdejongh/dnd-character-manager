@@ -5,9 +5,11 @@ import { showToast } from '../lib/toast';
 interface LongRestButtonProps {
   onRestoreSlots: () => Promise<void> | void;
   onRestoreUses: () => Promise<void> | void;
+  onResetDeathSaves?: () => Promise<void> | void;
+  onClearConditions?: () => Promise<void> | void;
 }
 
-export function LongRestButton({ onRestoreSlots, onRestoreUses }: LongRestButtonProps) {
+export function LongRestButton({ onRestoreSlots, onRestoreUses, onResetDeathSaves, onClearConditions }: LongRestButtonProps) {
   const [confirming, setConfirming] = useState(false);
   const [resting, setResting] = useState(false);
 
@@ -18,7 +20,12 @@ export function LongRestButton({ onRestoreSlots, onRestoreUses }: LongRestButton
     }
     setResting(true);
     try {
-      await Promise.all([onRestoreSlots(), onRestoreUses()]);
+      await Promise.all([
+        onRestoreSlots(),
+        onRestoreUses(),
+        onResetDeathSaves?.(),
+        onClearConditions?.(),
+      ]);
       showToast('Long Rest complete — slots & uses restored ✓');
     } finally {
       setResting(false);

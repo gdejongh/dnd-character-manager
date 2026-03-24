@@ -10,6 +10,7 @@ import {
   getWeaponAttackBonus,
   formatWeaponDamage,
   ABILITY_NAMES,
+  CONDITIONS,
 } from '../constants/dnd';
 import { ActionTypeBadge, ActionTypeFilterBar } from './ActionType';
 import type { ActionTypeFilter } from '../constants/actionTypes';
@@ -24,7 +25,7 @@ interface CombatViewProps {
   spells: Spell[];
   weapons: Weapon[];
   features: Feature[];
-  onUpdateCharacter: (updates: Partial<Pick<Character, 'current_hp' | 'max_hp' | 'temp_hp'>>) => void;
+  onUpdateCharacter: (updates: Partial<Pick<Character, 'current_hp' | 'max_hp' | 'temp_hp' | 'armor_class' | 'death_save_successes' | 'death_save_failures' | 'conditions'>>) => void;
   onSetSlotUsed: (level: number, used: number) => void;
   onUpdateFeature: (id: string, updates: Partial<Pick<Feature, 'used_uses'>>) => void;
   /** When provided, Cast/Use/Attack buttons trigger this instead of internal animation handlers */
@@ -332,7 +333,12 @@ export function CombatView({
       onUpdateCharacter({ current_hp: newCurrent, temp_hp: newTemp });
     } else {
       const newHp = Math.min(character.max_hp, character.current_hp + amount);
-      onUpdateCharacter({ current_hp: newHp });
+      const updates: Parameters<typeof onUpdateCharacter>[0] = { current_hp: newHp };
+      if (character.current_hp <= 0 && newHp > 0) {
+        updates.death_save_successes = 0;
+        updates.death_save_failures = 0;
+      }
+      onUpdateCharacter(updates);
     }
   }
 
@@ -534,6 +540,50 @@ export function CombatView({
           />
         </div>
 
+        {/* Death Saves */}
+        {character.current_hp <= 0 && (
+          <div
+            className="rounded-lg px-3 py-2 mb-3 flex items-center justify-between"
+            style={{ background: 'rgba(220,38,38,0.1)', border: '1px solid rgba(220,38,38,0.3)' }}
+          >
+            <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--hp-crimson)', fontFamily: 'var(--heading)' }}>
+              💀 Death Saves
+            </span>
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-1">
+                <span className="text-[10px] uppercase" style={{ color: '#22c55e' }}>✓</span>
+                {[1, 2, 3].map((n) => (
+                  <button
+                    key={`s${n}`}
+                    onClick={() => onUpdateCharacter({ death_save_successes: character.death_save_successes >= n ? n - 1 : n })}
+                    className="w-4 h-4 rounded-full border-2 cursor-pointer transition-all"
+                    style={{
+                      borderColor: '#22c55e',
+                      background: character.death_save_successes >= n ? '#22c55e' : 'transparent',
+                      boxShadow: character.death_save_successes >= n ? '0 0 6px #22c55e80' : 'none',
+                    }}
+                  />
+                ))}
+              </div>
+              <div className="flex items-center gap-1">
+                <span className="text-[10px] uppercase" style={{ color: '#ef4444' }}>✗</span>
+                {[1, 2, 3].map((n) => (
+                  <button
+                    key={`f${n}`}
+                    onClick={() => onUpdateCharacter({ death_save_failures: character.death_save_failures >= n ? n - 1 : n })}
+                    className="w-4 h-4 rounded-full border-2 cursor-pointer transition-all"
+                    style={{
+                      borderColor: '#ef4444',
+                      background: character.death_save_failures >= n ? '#ef4444' : 'transparent',
+                      boxShadow: character.death_save_failures >= n ? '0 0 6px #ef444480' : 'none',
+                    }}
+                  />
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Quick buttons */}
         <div className="grid grid-cols-4 gap-2">
           {[
@@ -581,6 +631,29 @@ export function CombatView({
         </div>
       </div>
 
+      {/* ── Active Conditions ──────────────────────────────────────────── */}
+      {(character.conditions?.length > 0) && (
+        <div className="flex flex-wrap gap-1.5">
+          {character.conditions.map((name) => {
+            const info = CONDITIONS.find((c) => c.name === name);
+            if (!info) return null;
+            return (
+              <span
+                key={name}
+                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold"
+                style={{
+                  color: info.color,
+                  background: `${info.color}18`,
+                  border: `1px solid ${info.color}40`,
+                }}
+              >
+                {info.icon} {info.name}
+              </span>
+            );
+          })}
+        </div>
+      )}
+
       {/* ── Combat Stats ───────────────────────────────────────────────── */}
       <div className="grid grid-cols-3 gap-2">
         <StatBox
@@ -599,14 +672,11 @@ export function CombatView({
             subtitle={castingAbility ? ABILITY_NAMES[castingAbility] : undefined}
           />
         )}
-        {spellSaveDC === null && (
-          <StatBox
-            label="AC"
-            value={String(10 + getModifier(abilityScoreMap.DEX))}
-            color="var(--accent)"
-            subtitle="Base"
-          />
-        )}
+        <StatBox
+          label="AC"
+          value={String(character.armor_class)}
+          color="var(--accent)"
+        />
       </div>
 
       {/* ── Ability Scores Quick Ref ───────────────────────────────────── */}

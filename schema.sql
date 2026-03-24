@@ -14,6 +14,10 @@ create table characters (
   current_hp  integer not null default 10,
   max_hp      integer not null default 10,
   temp_hp     integer not null default 0,
+  armor_class integer not null default 10,
+  death_save_successes integer not null default 0 check (death_save_successes between 0 and 3),
+  death_save_failures  integer not null default 0 check (death_save_failures between 0 and 3),
+  conditions  text[] not null default '{}',
   skill_proficiencies text[] not null default '{}',
   created_at  timestamptz not null default now(),
   updated_at  timestamptz not null default now()
@@ -585,8 +589,8 @@ begin
     raise exception 'Share not found or not accepted';
   end if;
 
-  insert into characters (user_id, name, race, class, level, current_hp, max_hp, temp_hp, skill_proficiencies, image_url, image_position)
-  select v_user_id, name || ' (Copy)', race, class, level, current_hp, max_hp, temp_hp, skill_proficiencies, image_url, image_position
+  insert into characters (user_id, name, race, class, level, current_hp, max_hp, temp_hp, armor_class, skill_proficiencies, image_url, image_position)
+  select v_user_id, name || ' (Copy)', race, class, level, current_hp, max_hp, temp_hp, armor_class, skill_proficiencies, image_url, image_position
   from characters where id = v_source_char_id
   returning id into v_new_char_id;
 
@@ -624,3 +628,14 @@ $$;
 
 revoke all on function public.copy_shared_character(uuid) from public;
 grant execute on function public.copy_shared_character(uuid) to authenticated;
+
+-- =================================================================
+--  MIGRATION: AC, Death Saves, Conditions
+-- =================================================================
+-- Run these statements if upgrading an existing database:
+--
+--   ALTER TABLE characters ADD COLUMN IF NOT EXISTS armor_class integer NOT NULL DEFAULT 10;
+--   ALTER TABLE characters ADD COLUMN IF NOT EXISTS death_save_successes integer NOT NULL DEFAULT 0 CHECK (death_save_successes BETWEEN 0 AND 3);
+--   ALTER TABLE characters ADD COLUMN IF NOT EXISTS death_save_failures integer NOT NULL DEFAULT 0 CHECK (death_save_failures BETWEEN 0 AND 3);
+--   ALTER TABLE characters ADD COLUMN IF NOT EXISTS conditions text[] NOT NULL DEFAULT '{}';
+--

@@ -15,7 +15,7 @@ interface CharacterSheetProps {
   character: Character;
   scores: AbilityScore[];
   onUpdateCharacter: (
-    updates: Partial<Pick<Character, 'name' | 'race' | 'class' | 'level' | 'skill_proficiencies' | 'image_url' | 'image_position'>>,
+    updates: Partial<Pick<Character, 'name' | 'race' | 'class' | 'level' | 'armor_class' | 'skill_proficiencies' | 'image_url' | 'image_position'>>,
   ) => void;
   onUpdateScore: (ability: string, score: number) => void;
   onToggleSavingThrow: (ability: string) => void;
@@ -436,6 +436,14 @@ export function CharacterSheet({
               value={character.level}
               onChange={(val) => onUpdateCharacter({ level: val })}
             />
+            <NumericInput
+              className="w-16 px-2 py-1.5 rounded-lg text-sm outline-none text-center"
+              style={inputStyle}
+              min={1}
+              max={30}
+              value={character.armor_class}
+              onChange={(val) => onUpdateCharacter({ armor_class: val })}
+            />
             <button
               className="px-3 py-1.5 rounded-lg text-sm cursor-pointer"
               style={{
@@ -473,6 +481,18 @@ export function CharacterSheet({
                 {tag}
               </span>
             ))}
+            <span
+              className="text-xs px-2.5 py-1 rounded-full inline-flex items-center gap-1"
+              style={{
+                background: 'rgba(160, 174, 192, 0.12)',
+                color: 'var(--text-secondary, #a0aec0)',
+                border: '1px solid rgba(160, 174, 192, 0.25)',
+                fontFamily: 'var(--heading)',
+                letterSpacing: '0.3px',
+              }}
+            >
+              <Shield size={11} /> AC {character.armor_class}
+            </span>
           </div>
         )}
         </div>

@@ -8,6 +8,10 @@ export interface Character {
   current_hp: number;
   max_hp: number;
   temp_hp: number;
+  armor_class: number;
+  death_save_successes: number;
+  death_save_failures: number;
+  conditions: string[];
   skill_proficiencies: string[];
   image_url: string | null;
   image_position: number;
