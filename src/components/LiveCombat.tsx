@@ -2,8 +2,11 @@ import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import type { FormEvent } from 'react';
 import type { Character, Combatant, SessionParticipant, Spell, Feature, Weapon, ActionType } from '../types/database';
 import { useCombatSession } from '../hooks/useCombatSession';
+import { useCombatLog } from '../hooks/useCombatLog';
+import type { CombatSummary } from '../hooks/useCombatLog';
 import { CombatSheetLoader } from './CombatSheetLoader';
 import type { ResourceConsumers } from './CombatSheetLoader';
+import { CombatReport } from './CombatReport';
 import { TurnActionFlow } from './TurnActionFlow';
 import type { TurnActionResult } from './TurnActionFlow';
 import { NumericInput } from './NumericInput';
@@ -1246,6 +1249,8 @@ export function LiveCombat({
     endSession,
   } = useCombatSession(sessionId, userId);
   const isDm = role === 'dm';
+  const combatLog = useCombatLog(sessionId, userId);
+  const [combatReport, setCombatReport] = useState<CombatSummary | null>(null);
 
   const handleLeaveSession = useCallback(async () => {
     if (!session) {
@@ -1274,6 +1279,25 @@ export function LiveCombat({
   const myParticipant = participants.find((p) => p.user_id === userId);
   const myCombatant = combatants.find((c) => c.participant_id === myParticipant?.id);
   const myCombatantIndex = combatants.findIndex((c) => c.participant_id === myParticipant?.id);
+
+  // Wrapped HP functions that log events for the combat report
+  const loggedUpdateEnemyHp = useCallback(async (id: string, delta: number) => {
+    const combatant = combatants.find((c) => c.id === id);
+    if (combatant && delta !== 0) {
+      combatLog.logHpAdjust(id, combatant.name, delta);
+    }
+    await updateEnemyHp(id, delta);
+  }, [updateEnemyHp, combatants, combatLog]);
+
+  const loggedUpdateMyHp = useCallback(async (newHp: number) => {
+    if (myCombatant) {
+      const delta = newHp - myCombatant.current_hp;
+      if (delta !== 0) {
+        combatLog.logHpAdjust(myCombatant.id, myCombatant.name, delta);
+      }
+    }
+    await updateMyHp(newHp);
+  }, [updateMyHp, myCombatant, combatLog]);
 
   // Tab switching between initiative order and combat sheet
   const [activeView, setActiveView] = useState<ActiveView>('initiative');
@@ -1380,6 +1404,23 @@ export function LiveCombat({
       spellSlotLevel: turnAction.spellSlotLevel,
       result,
     };
+
+    // Log the action for the combat report
+    if (actionFlowCombatantId) {
+      const actor = combatants.find((c) => c.id === actionFlowCombatantId);
+      const actionKind: 'spell' | 'weapon' | 'feature' = turnAction.spell ? 'spell' : turnAction.weapon ? 'weapon' : 'feature';
+      const actionName = turnAction.spell?.name ?? turnAction.weapon?.name ?? turnAction.feature?.title ?? 'Unknown';
+      combatLog.logAction({
+        actorId: actionFlowCombatantId,
+        actorName: actor?.name ?? 'Unknown',
+        targetIds: result.targets,
+        effectType: result.effectType,
+        amount: result.amount,
+        actionKind,
+        actionName,
+      });
+    }
+
     setTurnState(prev => ({
       ...prev,
       forTurnIndex: currentTurnIndex,
@@ -1387,7 +1428,7 @@ export function LiveCombat({
       action: null,
       undoStack: [...(prev.forTurnIndex === currentTurnIndex ? prev.undoStack : []), completedAction],
     }));
-  }, [turnAction, applyCombatantHpDelta, currentTurnIndex]);
+  }, [turnAction, applyCombatantHpDelta, currentTurnIndex, actionFlowCombatantId, combatants, combatLog]);
 
   // Undo the last completed action — reverse HP, restore resources, remove action type from used
   const handleUndo = useCallback(async () => {
@@ -1413,6 +1454,9 @@ export function LiveCombat({
       await resourceConsumersRef.current.restoreFeatureUse(last.feature.id);
     }
 
+    // Remove the corresponding event from the combat log
+    combatLog.undoLastAction();
+
     // Pop from undo stack and remove the action type from used set
     setTurnState(prev => {
       const newStack = prev.undoStack.slice(0, -1);
@@ -1423,15 +1467,19 @@ export function LiveCombat({
       }
       return { ...prev, undoStack: newStack, usedTypes: newUsedTypes };
     });
-  }, [undoStack, applyCombatantHpDelta]);
+  }, [undoStack, applyCombatantHpDelta, combatLog]);
 
-  // Auto-leave when session ends
+  // Generate report when session ends instead of auto-leaving
   useEffect(() => {
-    if (session?.status === 'ended') {
-      const t = setTimeout(onLeave, 2000);
+    if (session?.status === 'ended' && !combatReport) {
+      // Brief delay to allow final broadcast events to arrive
+      const t = setTimeout(() => {
+        const report = combatLog.generateReport(combatants, session.round_number ?? 1);
+        setCombatReport(report);
+      }, 1500);
       return () => clearTimeout(t);
     }
-  }, [session?.status, onLeave]);
+  }, [session?.status, session?.round_number, combatReport, combatLog, combatants]);
 
   if (loading) {
     return (
@@ -1465,6 +1513,9 @@ export function LiveCombat({
   }
 
   if (session.status === 'ended') {
+    if (combatReport) {
+      return <CombatReport summary={combatReport} onLeave={onLeave} />;
+    }
     return (
       <div className="flex items-center justify-center min-h-screen" style={{ background: darkBg }}>
         <div className="text-center p-6 animate-fade-in">
@@ -1472,7 +1523,7 @@ export function LiveCombat({
           <p className="text-xl mb-2" style={{ color: 'var(--text-h)', fontFamily: 'var(--heading)', letterSpacing: '2px' }}>
             COMBAT ENDED
           </p>
-          <p className="text-sm" style={{ color: 'var(--text)' }}>Returning to home screen…</p>
+          <p className="text-sm" style={{ color: 'var(--text)' }}>Generating report…</p>
         </div>
       </div>
     );
@@ -1658,7 +1709,7 @@ export function LiveCombat({
             combatants={combatants}
             participants={participants}
             onNextTurn={nextTurn}
-            onEnemyHpDelta={updateEnemyHp}
+            onEnemyHpDelta={loggedUpdateEnemyHp}
             onRemoveEnemy={removeEnemy}
             onInitiativeChange={updateCombatantInitiative}
             onEndSession={handleLeaveSession}
@@ -1707,7 +1758,7 @@ export function LiveCombat({
                       const combatant = combatants.find((c) => c.character_id === effectiveDmSheetCharId);
                       if (combatant) {
                         const delta = newHp - combatant.current_hp;
-                        if (delta !== 0) updateEnemyHp(combatant.id, delta);
+                        if (delta !== 0) loggedUpdateEnemyHp(combatant.id, delta);
                       }
                     }}
                     onActionInitiated={isMyTurnAsDm && activeCombatant?.character_id === effectiveDmSheetCharId ? handleActionInitiated : undefined}
@@ -1749,7 +1800,7 @@ export function LiveCombat({
           combatants={combatants}
           participants={participants}
           userId={userId}
-          onMyHpChange={updateMyHp}
+          onMyHpChange={loggedUpdateMyHp}
           endTurnControls={endTurnButton}
         />
       </div>
@@ -1760,7 +1811,7 @@ export function LiveCombat({
             <div className="flex-1 min-h-0 overflow-y-auto">
               <CombatSheetLoader
                 characterId={myCharacterId}
-                onCombatHpSync={updateMyHp}
+                onCombatHpSync={loggedUpdateMyHp}
                 onActionInitiated={isMyTurnAsPlayer ? handleActionInitiated : undefined}
                 usedActionTypes={isMyTurnAsPlayer ? usedActionTypes : undefined}
                 resourceConsumersRef={isMyTurnAsPlayer ? resourceConsumersRef : undefined}
