@@ -137,6 +137,22 @@ export function Auth({ onAuth, onForgotPassword }: AuthProps) {
               border: '1px solid var(--border)',
             }}
           />
+          <div className="flex items-center justify-between -mb-2">
+            <span className="text-xs" style={{ color: 'var(--text)', letterSpacing: '0.5px' }}>
+              Password
+            </span>
+            {!isSignUp && (
+              <button
+                type="button"
+                onClick={handleForgotPassword}
+                disabled={resetting}
+                className="text-xs bg-transparent border-none cursor-pointer disabled:opacity-50"
+                style={{ color: 'var(--accent)' }}
+              >
+                {resetting ? 'Sending reset email…' : 'Forgot password?'}
+              </button>
+            )}
+          </div>
           <input
             type="password"
             placeholder="Password"
@@ -154,18 +170,6 @@ export function Auth({ onAuth, onForgotPassword }: AuthProps) {
 
           {error && <p className="text-sm text-center" style={{ color: 'var(--danger-bright)' }}>{error}</p>}
           {info && <p className="text-sm text-center" style={{ color: 'var(--accent)' }}>{info}</p>}
-
-          {!isSignUp && (
-            <button
-              type="button"
-              onClick={handleForgotPassword}
-              disabled={resetting}
-              className="w-full text-sm text-center bg-transparent border-none cursor-pointer disabled:opacity-50"
-              style={{ color: 'var(--accent)' }}
-            >
-              {resetting ? 'Sending reset email…' : 'Forgot password?'}
-            </button>
-          )}
 
           <button
             type="submit"
