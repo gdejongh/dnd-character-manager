@@ -97,7 +97,17 @@ function SetupScreen() {
 }
 
 function App() {
-  const { user, loading: authLoading, signIn, signUp, signOut } = useAuth();
+  const {
+    user,
+    loading: authLoading,
+    signIn,
+    signUp,
+    signOut,
+    sendPasswordReset,
+    updateUsername,
+    updatePassword,
+    deleteAccount,
+  } = useAuth();
   const [selectedCharacterId, setSelectedCharacterId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<Tab>('sheet');
   const [showCombatTransition, setShowCombatTransition] = useState(false);
@@ -147,9 +157,9 @@ function App() {
   const { uploading: imageUploading, error: imageError, uploadImage, deleteImage } =
     useCharacterImage(user?.id, selectedCharacterId);
 
-  async function handleAuth(email: string, password: string, isSignUp: boolean) {
+  async function handleAuth(email: string, password: string, isSignUp: boolean, username?: string) {
     if (isSignUp) {
-      return await signUp(email, password);
+      return await signUp(email, password, username ?? '');
     }
     await signIn(email, password);
     return {};
@@ -183,7 +193,7 @@ function App() {
 
   // Not authenticated
   if (!user) {
-    return <Auth onAuth={handleAuth} />;
+    return <Auth onAuth={handleAuth} onForgotPassword={sendPasswordReset} />;
   }
 
   // Live Combat Session
@@ -205,20 +215,29 @@ function App() {
   // Home screen
   if (!selectedCharacterId) {
     return (
-      <HomeScreen
-        characters={characters}
-        loading={charsLoading}
-        onSelect={(id) => {
-          setSelectedCharacterId(id);
-          setActiveTab('sheet');
-        }}
-        onCreate={createCharacter}
-        onDelete={deleteCharacter}
-        onSignOut={signOut}
-        onStartCombat={async () => {
-          const sessionId = await createCombatSession(user.id);
-          setCombatRole('dm');
-          setCombatSessionId(sessionId);
+        <HomeScreen
+          characters={characters}
+          userEmail={user.email ?? ''}
+          username={
+            typeof user.user_metadata?.username === 'string' && user.user_metadata.username.trim()
+              ? user.user_metadata.username
+              : (user.email?.split('@')[0] ?? 'adventurer')
+          }
+          loading={charsLoading}
+          onSelect={(id) => {
+            setSelectedCharacterId(id);
+            setActiveTab('sheet');
+          }}
+          onCreate={createCharacter}
+          onDelete={deleteCharacter}
+          onSignOut={signOut}
+          onUpdateUsername={updateUsername}
+          onUpdatePassword={updatePassword}
+          onDeleteAccount={deleteAccount}
+          onStartCombat={async () => {
+            const sessionId = await createCombatSession(user.id);
+            setCombatRole('dm');
+            setCombatSessionId(sessionId);
         }}
         onJoinCombat={async (sessionId, characterId, charName, charClass, hp, maxHp, imageUrl, imagePosition) => {
           await joinCombatSession(sessionId, user.id, characterId, charName, charClass, hp, maxHp, imageUrl, imagePosition);

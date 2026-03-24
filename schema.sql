@@ -348,6 +348,30 @@ alter publication supabase_realtime add table session_participants;
 alter publication supabase_realtime add table combatants;
 
 -- =================================================================
+--  12. Auth helper RPCs
+-- =================================================================
+create or replace function public.delete_my_account()
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  current_uid uuid;
+begin
+  current_uid := auth.uid();
+  if current_uid is null then
+    raise exception 'Not authenticated';
+  end if;
+
+  delete from auth.users where id = current_uid;
+end;
+$$;
+
+revoke all on function public.delete_my_account() from public;
+grant execute on function public.delete_my_account() to authenticated;
+
+-- =================================================================
 --  11. Character Images (migration)
 -- =================================================================
 -- Run these statements if upgrading an existing database:

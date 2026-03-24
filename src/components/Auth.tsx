@@ -3,23 +3,28 @@ import type { FormEvent } from 'react';
 import { Shield, Mail } from 'lucide-react';
 
 interface AuthProps {
-  onAuth: (email: string, password: string, isSignUp: boolean) => Promise<{ needsEmailVerification?: boolean }>;
+  onAuth: (email: string, password: string, isSignUp: boolean, username?: string) => Promise<{ needsEmailVerification?: boolean }>;
+  onForgotPassword: (email: string) => Promise<void>;
 }
 
-export function Auth({ onAuth }: AuthProps) {
+export function Auth({ onAuth, onForgotPassword }: AuthProps) {
   const [isSignUp, setIsSignUp] = useState(false);
+  const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [info, setInfo] = useState('');
   const [loading, setLoading] = useState(false);
   const [emailSent, setEmailSent] = useState(false);
+  const [resetting, setResetting] = useState(false);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setError('');
+    setInfo('');
     setLoading(true);
     try {
-      const result = await onAuth(email, password, isSignUp);
+      const result = await onAuth(email, password, isSignUp, username);
       if (result?.needsEmailVerification) {
         setEmailSent(true);
       }
@@ -27,6 +32,19 @@ export function Auth({ onAuth }: AuthProps) {
       setError(err instanceof Error ? err.message : 'An error occurred');
     }
     setLoading(false);
+  }
+
+  async function handleForgotPassword() {
+    setError('');
+    setInfo('');
+    setResetting(true);
+    try {
+      await onForgotPassword(email);
+      setInfo('Password reset email sent. Check your inbox.');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not send reset email.');
+    }
+    setResetting(false);
   }
 
   const inputCls =
@@ -91,6 +109,21 @@ export function Auth({ onAuth }: AuthProps) {
         ) : (
         <>
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+          {isSignUp && (
+            <input
+              type="text"
+              placeholder="Username"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              required
+              className={inputCls}
+              style={{
+                background: 'var(--code-bg)',
+                color: 'var(--text-h)',
+                border: '1px solid var(--border)',
+              }}
+            />
+          )}
           <input
             type="email"
             placeholder="Email"
@@ -120,6 +153,19 @@ export function Auth({ onAuth }: AuthProps) {
           />
 
           {error && <p className="text-sm text-center" style={{ color: 'var(--danger-bright)' }}>{error}</p>}
+          {info && <p className="text-sm text-center" style={{ color: 'var(--accent)' }}>{info}</p>}
+
+          {!isSignUp && (
+            <button
+              type="button"
+              onClick={handleForgotPassword}
+              disabled={resetting}
+              className="w-full text-sm text-center bg-transparent border-none cursor-pointer disabled:opacity-50"
+              style={{ color: 'var(--accent)' }}
+            >
+              {resetting ? 'Sending reset email…' : 'Forgot password?'}
+            </button>
+          )}
 
           <button
             type="submit"
@@ -138,7 +184,11 @@ export function Auth({ onAuth }: AuthProps) {
         </form>
 
         <button
-          onClick={() => { setIsSignUp(!isSignUp); setError(''); }}
+          onClick={() => {
+            setIsSignUp(!isSignUp);
+            setError('');
+            setUsername('');
+          }}
           className="w-full mt-4 text-sm text-center bg-transparent border-none cursor-pointer"
           style={{ color: 'var(--accent)' }}
         >

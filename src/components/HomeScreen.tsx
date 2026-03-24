@@ -2,16 +2,22 @@ import { useState } from 'react';
 import type { FormEvent } from 'react';
 import type { Character } from '../types/database';
 import type { ActiveSessionInfo } from '../hooks/useCombatSession';
-import { LogOut, Trash2, Heart, Plus, Shield, Swords, Users } from 'lucide-react';
+import { LogOut, Trash2, Heart, Plus, Shield, Swords, Users, Settings } from 'lucide-react';
 import { lookupSession } from '../hooks/useCombatSession';
+import { AccountSettings } from './AccountSettings';
 
 interface HomeScreenProps {
   characters: Character[];
+  userEmail: string;
+  username: string;
   loading: boolean;
   onSelect: (id: string) => void;
   onCreate: (name: string, race: string, charClass: string) => Promise<Character | null>;
   onDelete: (id: string) => Promise<void>;
   onSignOut: () => void;
+  onUpdateUsername: (username: string) => Promise<void>;
+  onUpdatePassword: (password: string) => Promise<void>;
+  onDeleteAccount: () => Promise<void>;
   onStartCombat: () => Promise<void>;
   onJoinCombat: (sessionId: string, characterId: string, charName: string, charClass: string, hp: number, maxHp: number, imageUrl: string | null, imagePosition: number) => Promise<void>;
   activeSession: ActiveSessionInfo | null;
@@ -20,11 +26,16 @@ interface HomeScreenProps {
 
 export function HomeScreen({
   characters,
+  userEmail,
+  username,
   loading,
   onSelect,
   onCreate,
   onDelete,
   onSignOut,
+  onUpdateUsername,
+  onUpdatePassword,
+  onDeleteAccount,
   onStartCombat,
   onJoinCombat,
   activeSession,
@@ -43,6 +54,7 @@ export function HomeScreen({
   const [joinError, setJoinError] = useState('');
   const [joining, setJoining] = useState(false);
   const [startingCombat, setStartingCombat] = useState(false);
+  const [showAccountSettings, setShowAccountSettings] = useState(false);
 
   async function handleCreate(e: FormEvent) {
     e.preventDefault();
@@ -65,6 +77,19 @@ export function HomeScreen({
     border: '1px solid var(--border)',
   };
 
+  if (showAccountSettings) {
+    return (
+      <AccountSettings
+        email={userEmail}
+        username={username}
+        onBack={() => setShowAccountSettings(false)}
+        onUpdateUsername={onUpdateUsername}
+        onUpdatePassword={onUpdatePassword}
+        onDeleteAccount={onDeleteAccount}
+      />
+    );
+  }
+
   return (
     <div className="flex flex-col min-h-screen">
       {/* Header */}
@@ -84,14 +109,24 @@ export function HomeScreen({
             D&D Characters
           </h1>
         </div>
-        <button
-          onClick={onSignOut}
-          className="p-2.5 rounded-lg bg-transparent cursor-pointer"
-          style={{ color: 'var(--text)', border: '1px solid var(--border)' }}
-          aria-label="Sign out"
-        >
-          <LogOut size={16} />
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowAccountSettings(true)}
+            className="p-2.5 rounded-lg bg-transparent cursor-pointer"
+            style={{ color: 'var(--text)', border: '1px solid var(--border)' }}
+            aria-label="Account settings"
+          >
+            <Settings size={16} />
+          </button>
+          <button
+            onClick={onSignOut}
+            className="p-2.5 rounded-lg bg-transparent cursor-pointer"
+            style={{ color: 'var(--text)', border: '1px solid var(--border)' }}
+            aria-label="Sign out"
+          >
+            <LogOut size={16} />
+          </button>
+        </div>
       </header>
 
       {/* ── Rejoin Active Session Banner ── */}
