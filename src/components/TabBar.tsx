@@ -1,5 +1,5 @@
 import type { Tab } from '../types/database';
-import { Shield, Heart, Sparkles, Backpack, Swords, ScrollText, Crown, Axe } from 'lucide-react';
+import { Shield, Heart, Sparkles, Backpack, Swords, Crown, Axe } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 
 interface TabBarProps {
@@ -14,7 +14,6 @@ const TABS: { id: Tab; label: string; Icon: LucideIcon }[] = [
   { id: 'weapons', label: 'Arms', Icon: Axe },
   { id: 'items', label: 'Items', Icon: Backpack },
   { id: 'features', label: 'Traits', Icon: Crown },
-  { id: 'notes', label: 'Notes', Icon: ScrollText },
 ];
 
 export function TabBar({ activeTab, onTabChange }: TabBarProps) {

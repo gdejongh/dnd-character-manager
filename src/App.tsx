@@ -36,7 +36,7 @@ import { LiveCombat } from './components/LiveCombat';
 import { ExportPdfButton } from './components/ExportPdf';
 import { exportCharacterPdf } from './lib/exportPdf';
 import type { PdfStyle } from './lib/exportPdf';
-import { Users, Copy, Eye } from 'lucide-react';
+import { Users, Copy, Eye, ScrollText } from 'lucide-react';
 import './App.css';
 
 function SetupScreen() {
@@ -379,6 +379,18 @@ function App() {
             {character.level > 0 && ` · Lvl ${character.level}`}
           </p>
         </div>
+        <button
+          onClick={() => setActiveTab('notes')}
+          className="p-2 rounded-lg bg-transparent cursor-pointer shrink-0 flex items-center justify-center"
+          style={{
+            color: activeTab === 'notes' ? 'var(--accent)' : 'var(--text)',
+            border: `1px solid ${activeTab === 'notes' ? 'var(--accent-border)' : 'var(--border)'}`,
+            transition: 'color 0.2s, border-color 0.2s',
+          }}
+          title="Notes"
+        >
+          <ScrollText size={16} />
+        </button>
         {isReadOnly ? (
           <button
             onClick={async () => {
