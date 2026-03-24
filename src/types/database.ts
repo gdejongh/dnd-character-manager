@@ -16,6 +16,9 @@ export interface Character {
   initiative_modifier: number | null;
   passive_perception: number | null;
   hit_dice_remaining: number | null;
+  inspiration: boolean;
+  speed: number;
+  concentration_spell_id: string | null;
   image_url: string | null;
   image_position: number;
   created_at: string;
@@ -76,6 +79,7 @@ export interface Spell {
   description: string;
   level: number;
   prepared: boolean;
+  concentration: boolean;
   action_type: ActionType;
   created_at: string;
 }

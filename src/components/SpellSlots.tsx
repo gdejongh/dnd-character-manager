@@ -13,12 +13,14 @@ interface SpellSlotsProps {
   preparedLimit: number | null;
   characterClass: string;
   characterLevel: number;
+  concentrationSpellId: string | null;
   onUpdateTotal: (level: number, total: number) => void;
   onSetSlotUsed: (level: number, used: number) => void;
   onAutoFillSlots: (slotTotals: Record<number, number>) => void;
-  onAddSpell: (name: string, description: string, level: number, actionType: ActionType) => void;
-  onUpdateSpell: (id: string, updates: Partial<Pick<Spell, 'name' | 'description' | 'level' | 'prepared' | 'action_type'>>) => void;
+  onAddSpell: (name: string, description: string, level: number, actionType: ActionType, concentration: boolean) => void;
+  onUpdateSpell: (id: string, updates: Partial<Pick<Spell, 'name' | 'description' | 'level' | 'prepared' | 'concentration' | 'action_type'>>) => void;
   onDeleteSpell: (id: string) => void;
+  onSetConcentration: (spellId: string | null) => void;
 }
 
 const LEVEL_LABELS: Record<number, string> = {
@@ -46,12 +48,14 @@ export function SpellSlots({
   preparedLimit,
   characterClass,
   characterLevel,
+  concentrationSpellId,
   onUpdateTotal,
   onSetSlotUsed,
   onAutoFillSlots,
   onAddSpell,
   onUpdateSpell,
   onDeleteSpell,
+  onSetConcentration,
 }: SpellSlotsProps) {
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<'all' | 'prepared'>('all');
@@ -62,6 +66,7 @@ export function SpellSlots({
   const [formName, setFormName] = useState('');
   const [formDesc, setFormDesc] = useState('');
   const [formActionType, setFormActionType] = useState<ActionType>('action');
+  const [formConcentration, setFormConcentration] = useState(false);
   const [drainingSlot, setDrainingSlot] = useState<string | null>(null);
   const drainTimeoutRef = useRef<ReturnType<typeof setTimeout>>(undefined);
 
@@ -99,6 +104,7 @@ export function SpellSlots({
     setFormName('');
     setFormDesc('');
     setFormActionType('action');
+    setFormConcentration(false);
   }
 
   function startEdit(spell: Spell) {
@@ -107,6 +113,7 @@ export function SpellSlots({
     setFormName(spell.name);
     setFormDesc(spell.description);
     setFormActionType(spell.action_type ?? 'action');
+    setFormConcentration(spell.concentration ?? false);
   }
 
   function cancelForm() {
@@ -115,19 +122,26 @@ export function SpellSlots({
     setFormName('');
     setFormDesc('');
     setFormActionType('action');
+    setFormConcentration(false);
   }
 
   function handleAdd(e: FormEvent) {
     e.preventDefault();
     if (!formName.trim() || addingAtLevel === null) return;
-    onAddSpell(formName.trim(), formDesc.trim(), addingAtLevel, formActionType);
+    onAddSpell(formName.trim(), formDesc.trim(), addingAtLevel, formActionType, addingAtLevel > 0 && formConcentration);
     cancelForm();
   }
 
   function handleSaveEdit(e: FormEvent) {
     e.preventDefault();
     if (!formName.trim() || !editingSpellId) return;
-    onUpdateSpell(editingSpellId, { name: formName.trim(), description: formDesc.trim(), action_type: formActionType });
+    const editingSpell = spells.find(s => s.id === editingSpellId);
+    const conc = editingSpell && editingSpell.level > 0 ? formConcentration : false;
+    onUpdateSpell(editingSpellId, { name: formName.trim(), description: formDesc.trim(), action_type: formActionType, concentration: conc });
+    // If we un-marked concentration on the spell we're concentrating on, drop it
+    if (!conc && concentrationSpellId === editingSpellId) {
+      onSetConcentration(null);
+    }
     cancelForm();
   }
 
@@ -178,6 +192,41 @@ export function SpellSlots({
           </button>
         </div>
       )}
+
+      {/* Active Concentration Banner */}
+      {concentrationSpellId && (() => {
+        const concSpell = spells.find(s => s.id === concentrationSpellId);
+        if (!concSpell) return null;
+        return (
+          <div
+            className="flex items-center justify-between px-3 py-2.5 rounded-xl animate-fade-in"
+            style={{
+              background: 'rgba(251, 191, 36, 0.08)',
+              border: '1px solid rgba(251, 191, 36, 0.3)',
+            }}
+          >
+            <div className="flex items-center gap-2">
+              <span style={{ fontSize: '14px' }}>🔮</span>
+              <div className="flex flex-col">
+                <span className="text-xs font-semibold" style={{ color: '#fbbf24', fontFamily: 'var(--heading)' }}>
+                  Concentrating
+                </span>
+                <span className="text-[11px] font-medium" style={{ color: 'var(--text-h)' }}>
+                  {concSpell.name}
+                </span>
+              </div>
+            </div>
+            <button
+              onClick={() => onSetConcentration(null)}
+              className="px-3 py-1.5 rounded-lg text-[10px] font-semibold cursor-pointer active:scale-95 transition-transform"
+              style={{ background: 'rgba(251, 191, 36, 0.15)', color: '#fbbf24', border: '1px solid rgba(251, 191, 36, 0.3)', fontFamily: 'var(--heading)' }}
+            >
+              Drop
+            </button>
+          </div>
+        );
+      })()}
+
       {/* Search bar */}
       <div className="relative">
         <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2" style={{ color: 'var(--spell-indigo)' }} />
@@ -391,6 +440,24 @@ export function SpellSlots({
                         </span>
                         <ActionTypePicker value={formActionType} onChange={setFormActionType} />
                       </div>
+                      {spell.level > 0 && (
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <button
+                            type="button"
+                            onClick={() => setFormConcentration(!formConcentration)}
+                            className="w-5 h-5 rounded flex items-center justify-center shrink-0 cursor-pointer"
+                            style={{
+                              background: formConcentration ? 'rgba(251, 191, 36, 0.2)' : 'transparent',
+                              border: formConcentration ? '2px solid #fbbf24' : '2px solid var(--border-light)',
+                              color: formConcentration ? '#fbbf24' : 'transparent',
+                              fontSize: '11px',
+                            }}
+                          >
+                            C
+                          </button>
+                          <span className="text-xs" style={{ color: 'var(--text)' }}>Concentration</span>
+                        </label>
+                      )}
                       <div className="flex gap-2">
                         <button
                           type="submit"
@@ -467,6 +534,19 @@ export function SpellSlots({
                           {spell.name}
                         </span>
                         <ActionTypeBadge type={spell.action_type ?? 'action'} small />
+                        {spell.concentration && (
+                          <span
+                            className="shrink-0 text-[9px] font-bold rounded px-1.5 py-0.5"
+                            style={{
+                              background: concentrationSpellId === spell.id ? 'rgba(251, 191, 36, 0.2)' : 'rgba(251, 191, 36, 0.08)',
+                              color: concentrationSpellId === spell.id ? '#fbbf24' : 'rgba(251, 191, 36, 0.6)',
+                              border: concentrationSpellId === spell.id ? '1px solid rgba(251, 191, 36, 0.4)' : '1px solid rgba(251, 191, 36, 0.2)',
+                            }}
+                            title="Concentration"
+                          >
+                            C
+                          </span>
+                        )}
                         <span className="text-xs shrink-0" style={{ color: 'var(--spell-indigo)' }}>
                           {expandedSpellId === spell.id ? '▾' : '▸'}
                         </span>
@@ -486,13 +566,34 @@ export function SpellSlots({
                               No description.
                             </p>
                           )}
-                          <button
-                            onClick={() => startEdit(spell)}
-                            className="mt-3 px-3 py-1.5 rounded-lg text-xs cursor-pointer"
-                            style={{ background: 'var(--spell-bg)', color: 'var(--spell-violet)', border: '1px solid var(--spell-border)' }}
-                          >
-                            Edit Spell
-                          </button>
+                          <div className="flex items-center gap-2 mt-3">
+                            <button
+                              onClick={() => startEdit(spell)}
+                              className="px-3 py-1.5 rounded-lg text-xs cursor-pointer"
+                              style={{ background: 'var(--spell-bg)', color: 'var(--spell-violet)', border: '1px solid var(--spell-border)' }}
+                            >
+                              Edit Spell
+                            </button>
+                            {spell.concentration && spell.level > 0 && (
+                              concentrationSpellId === spell.id ? (
+                                <button
+                                  onClick={() => onSetConcentration(null)}
+                                  className="px-3 py-1.5 rounded-lg text-xs cursor-pointer active:scale-95 transition-transform"
+                                  style={{ background: 'rgba(251, 191, 36, 0.15)', color: '#fbbf24', border: '1px solid rgba(251, 191, 36, 0.3)' }}
+                                >
+                                  Drop Concentration
+                                </button>
+                              ) : (
+                                <button
+                                  onClick={() => onSetConcentration(spell.id)}
+                                  className="px-3 py-1.5 rounded-lg text-xs cursor-pointer active:scale-95 transition-transform"
+                                  style={{ background: 'rgba(251, 191, 36, 0.08)', color: '#fbbf24', border: '1px solid rgba(251, 191, 36, 0.2)' }}
+                                >
+                                  Concentrate
+                                </button>
+                              )
+                            )}
+                          </div>
                         </div>
                       )}
                     </div>
@@ -536,6 +637,24 @@ export function SpellSlots({
                     </span>
                     <ActionTypePicker value={formActionType} onChange={setFormActionType} />
                   </div>
+                  {level > 0 && (
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <button
+                        type="button"
+                        onClick={() => setFormConcentration(!formConcentration)}
+                        className="w-5 h-5 rounded flex items-center justify-center shrink-0 cursor-pointer"
+                        style={{
+                          background: formConcentration ? 'rgba(251, 191, 36, 0.2)' : 'transparent',
+                          border: formConcentration ? '2px solid #fbbf24' : '2px solid var(--border-light)',
+                          color: formConcentration ? '#fbbf24' : 'transparent',
+                          fontSize: '11px',
+                        }}
+                      >
+                        C
+                      </button>
+                      <span className="text-xs" style={{ color: 'var(--text)' }}>Concentration</span>
+                    </label>
+                  )}
                   <div className="flex gap-2">
                     <button
                       type="submit"

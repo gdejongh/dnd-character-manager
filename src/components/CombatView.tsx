@@ -25,7 +25,7 @@ interface CombatViewProps {
   spells: Spell[];
   weapons: Weapon[];
   features: Feature[];
-  onUpdateCharacter: (updates: Partial<Pick<Character, 'current_hp' | 'max_hp' | 'temp_hp' | 'armor_class' | 'death_save_successes' | 'death_save_failures' | 'conditions' | 'initiative_modifier' | 'passive_perception' | 'hit_dice_remaining'>>) => void;
+  onUpdateCharacter: (updates: Partial<Pick<Character, 'current_hp' | 'max_hp' | 'temp_hp' | 'armor_class' | 'death_save_successes' | 'death_save_failures' | 'conditions' | 'initiative_modifier' | 'passive_perception' | 'hit_dice_remaining' | 'concentration_spell_id'>>) => void;
   onSetSlotUsed: (level: number, used: number) => void;
   onUpdateFeature: (id: string, updates: Partial<Pick<Feature, 'used_uses'>>) => void;
   /** When provided, Cast/Use/Attack buttons trigger this instead of internal animation handlers */
@@ -673,18 +673,66 @@ export function CombatView({
           value={formatModifier(initiativeValue)}
           color="var(--spell-violet)"
         />
+        <StatBox
+          label="Speed"
+          value={`${character.speed} ft`}
+          color="var(--accent)"
+        />
+        {spellSaveDC !== null && (
+          <StatBox label="Spell DC" value={String(spellSaveDC)} color="var(--spell-indigo)" />
+        )}
+        {spellAtkBonus !== null && (
+          <StatBox
+            label="Spell Atk"
+            value={formatModifier(spellAtkBonus)}
+            color="var(--spell-violet)"
+            subtitle={castingAbility ? ABILITY_NAMES[castingAbility] : undefined}
+          />
+        )}
       </div>
-      {spellSaveDC !== null && (
-        <div className="grid grid-cols-2 gap-2">
-          <StatBox label="Spell Save DC" value={String(spellSaveDC)} color="var(--spell-indigo)" />
-          {spellAtkBonus !== null && (
-            <StatBox
-              label="Spell Atk"
-              value={formatModifier(spellAtkBonus)}
-              color="var(--spell-violet)"
-              subtitle={castingAbility ? ABILITY_NAMES[castingAbility] : undefined}
-            />
-          )}
+
+      {/* ── Concentration ──────────────────────────────────────────────── */}
+      {character.concentration_spell_id && (() => {
+        const concSpell = spells.find(s => s.id === character.concentration_spell_id);
+        if (!concSpell) return null;
+        return (
+          <div
+            className="flex items-center justify-between px-3 py-2 rounded-lg animate-fade-in"
+            style={{
+              background: 'rgba(251, 191, 36, 0.08)',
+              border: '1px solid rgba(251, 191, 36, 0.3)',
+            }}
+          >
+            <div className="flex items-center gap-2">
+              <span style={{ fontSize: '14px' }}>🔮</span>
+              <span className="text-xs font-semibold" style={{ color: '#fbbf24', fontFamily: 'var(--heading)' }}>
+                Concentrating: {concSpell.name}
+              </span>
+            </div>
+            <button
+              onClick={() => onUpdateCharacter({ concentration_spell_id: null })}
+              className="px-2 py-1 rounded text-[10px] font-semibold cursor-pointer active:scale-95 transition-transform"
+              style={{ background: 'rgba(251, 191, 36, 0.15)', color: '#fbbf24', border: '1px solid rgba(251, 191, 36, 0.3)' }}
+            >
+              Drop
+            </button>
+          </div>
+        );
+      })()}
+
+      {/* ── Inspiration ────────────────────────────────────────────────── */}
+      {character.inspiration && (
+        <div
+          className="flex items-center gap-2 px-3 py-1.5 rounded-lg"
+          style={{
+            background: 'rgba(250, 204, 21, 0.08)',
+            border: '1px solid rgba(250, 204, 21, 0.3)',
+          }}
+        >
+          <Sparkles size={14} style={{ color: '#facc15' }} />
+          <span className="text-xs font-semibold" style={{ color: '#facc15', fontFamily: 'var(--heading)' }}>
+            Inspired
+          </span>
         </div>
       )}
 

@@ -29,11 +29,11 @@ export function useSpells(characterId: string | null) {
     return () => { active = false; };
   }, [characterId]);
 
-  async function addSpell(name: string, description: string, level: number, actionType: ActionType = 'action') {
+  async function addSpell(name: string, description: string, level: number, actionType: ActionType = 'action', concentration: boolean = false) {
     if (!characterId) return;
     const { data, error } = await supabase
       .from('spells')
-      .insert({ character_id: characterId, name, description, level, action_type: actionType })
+      .insert({ character_id: characterId, name, description, level, action_type: actionType, concentration })
       .select()
       .single();
 
@@ -43,7 +43,7 @@ export function useSpells(characterId: string | null) {
 
   async function updateSpell(
     id: string,
-    updates: Partial<Pick<Spell, 'name' | 'description' | 'level' | 'prepared' | 'action_type'>>,
+    updates: Partial<Pick<Spell, 'name' | 'description' | 'level' | 'prepared' | 'concentration' | 'action_type'>>,
   ) {
     const { data, error } = await supabase
       .from('spells')

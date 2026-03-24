@@ -16,7 +16,7 @@ interface CharacterSheetProps {
   character: Character;
   scores: AbilityScore[];
   onUpdateCharacter: (
-    updates: Partial<Pick<Character, 'name' | 'race' | 'class' | 'level' | 'armor_class' | 'skill_proficiencies' | 'initiative_modifier' | 'passive_perception' | 'image_url' | 'image_position'>>,
+    updates: Partial<Pick<Character, 'name' | 'race' | 'class' | 'level' | 'armor_class' | 'speed' | 'skill_proficiencies' | 'initiative_modifier' | 'passive_perception' | 'image_url' | 'image_position'>>,
   ) => void;
   onUpdateScore: (ability: string, score: number) => void;
   onToggleSavingThrow: (ability: string) => void;
@@ -499,8 +499,8 @@ export function CharacterSheet({
         </div>
       </div>
 
-      {/* Initiative & Passive Perception */}
-      <div className="grid grid-cols-2 gap-3">
+      {/* Initiative, Passive Perception & Speed */}
+      <div className="grid grid-cols-3 gap-3">
         {/* Initiative */}
         {(() => {
           const dexMod = getModifier(getScore('DEX'));
@@ -633,9 +633,52 @@ export function CharacterSheet({
             </div>
           );
         })()}
-      </div>
 
-      {/* Hit Dice */}
+        {/* Speed */}
+        <div
+          className="flex flex-col items-center gap-1 p-3 rounded-xl cursor-pointer"
+          style={{
+            background: 'var(--bg-surface)',
+            border: `1px solid var(--border)`,
+          }}
+          onClick={() => {
+            if (readOnly) return;
+            if (editingField === 'speed') return;
+            setEditingField('speed');
+          }}
+        >
+          <span className="text-[10px] uppercase tracking-wider font-semibold" style={{ color: 'var(--accent)', fontFamily: 'var(--heading)', letterSpacing: '1px' }}>
+            Speed
+          </span>
+          {editingField === 'speed' ? (
+            <div className="flex items-center gap-2">
+              <NumericInput
+                min={0}
+                max={120}
+                value={character.speed}
+                onChange={(val) => onUpdateCharacter({ speed: val })}
+                className="w-16 px-2 py-1 rounded-lg text-center text-lg font-bold outline-none"
+                style={{ background: 'var(--code-bg)', color: 'var(--text-h)', border: '1px solid var(--border)', fontFamily: 'var(--mono)' }}
+                autoFocus
+              />
+              <button
+                className="px-2 py-1 rounded-lg text-[10px] cursor-pointer font-semibold"
+                style={{ background: 'var(--accent)', color: '#0f0e13', border: 'none' }}
+                onClick={(e) => { e.stopPropagation(); setEditingField(null); }}
+              >
+                OK
+              </button>
+            </div>
+          ) : (
+            <span className="text-xl font-bold" style={{ color: 'var(--text-h)', fontFamily: 'var(--mono)' }}>
+              {character.speed} ft
+            </span>
+          )}
+          <span className="text-[9px]" style={{ color: 'var(--text-muted)' }}>
+            Walking
+          </span>
+        </div>
+      </div>
       {(() => {
         const hitDie = getHitDie(character.class);
         const remaining = character.hit_dice_remaining ?? character.level;

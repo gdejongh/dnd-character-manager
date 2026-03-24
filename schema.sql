@@ -22,6 +22,9 @@ create table characters (
   initiative_modifier integer,
   passive_perception integer,
   hit_dice_remaining integer,
+  inspiration boolean not null default false,
+  speed integer not null default 30,
+  concentration_spell_id uuid,
   created_at  timestamptz not null default now(),
   updated_at  timestamptz not null default now()
 );
@@ -187,6 +190,7 @@ create table spells (
   description   text not null default '',
   level         integer not null default 0 check (level between 0 and 9),
   prepared      boolean not null default true,
+  concentration boolean not null default false,
   action_type   text not null default 'action' check (action_type in ('action','bonus_action','reaction','other')),
   created_at    timestamptz not null default now()
 );
@@ -592,8 +596,8 @@ begin
     raise exception 'Share not found or not accepted';
   end if;
 
-  insert into characters (user_id, name, race, class, level, current_hp, max_hp, temp_hp, armor_class, skill_proficiencies, initiative_modifier, passive_perception, hit_dice_remaining, image_url, image_position)
-  select v_user_id, name || ' (Copy)', race, class, level, current_hp, max_hp, temp_hp, armor_class, skill_proficiencies, initiative_modifier, passive_perception, null, image_url, image_position
+  insert into characters (user_id, name, race, class, level, current_hp, max_hp, temp_hp, armor_class, skill_proficiencies, initiative_modifier, passive_perception, hit_dice_remaining, inspiration, speed, image_url, image_position)
+  select v_user_id, name || ' (Copy)', race, class, level, current_hp, max_hp, temp_hp, armor_class, skill_proficiencies, initiative_modifier, passive_perception, null, false, speed, image_url, image_position
   from characters where id = v_source_char_id
   returning id into v_new_char_id;
 
@@ -605,8 +609,8 @@ begin
   select v_new_char_id, level, total, 0
   from spell_slots where character_id = v_source_char_id;
 
-  insert into spells (character_id, name, description, level, prepared, action_type)
-  select v_new_char_id, name, description, level, prepared, action_type
+  insert into spells (character_id, name, description, level, prepared, concentration, action_type)
+  select v_new_char_id, name, description, level, prepared, concentration, action_type
   from spells where character_id = v_source_char_id;
 
   insert into inventory_items (character_id, name, quantity, weight, notes)
@@ -650,6 +654,18 @@ grant execute on function public.copy_shared_character(uuid) to authenticated;
 --   ALTER TABLE characters ADD COLUMN IF NOT EXISTS initiative_modifier integer;
 --   ALTER TABLE characters ADD COLUMN IF NOT EXISTS passive_perception integer;
 --   ALTER TABLE characters ADD COLUMN IF NOT EXISTS hit_dice_remaining integer;
+--
+--   -- Update copy_shared_character function (re-run the CREATE OR REPLACE above)
+--
+-- =================================================================
+--  MIGRATION: Inspiration, Speed, Concentration
+-- =================================================================
+-- Run these statements if upgrading an existing database:
+--
+--   ALTER TABLE characters ADD COLUMN IF NOT EXISTS inspiration boolean NOT NULL DEFAULT false;
+--   ALTER TABLE characters ADD COLUMN IF NOT EXISTS speed integer NOT NULL DEFAULT 30;
+--   ALTER TABLE characters ADD COLUMN IF NOT EXISTS concentration_spell_id uuid;
+--   ALTER TABLE spells ADD COLUMN IF NOT EXISTS concentration boolean NOT NULL DEFAULT false;
 --
 --   -- Update copy_shared_character function (re-run the CREATE OR REPLACE above)
 --

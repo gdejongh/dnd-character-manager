@@ -37,7 +37,7 @@ import { LiveCombat } from './components/LiveCombat';
 import { ExportPdfButton } from './components/ExportPdf';
 import { exportCharacterPdf } from './lib/exportPdf';
 import type { PdfStyle } from './lib/exportPdf';
-import { Users, Copy, Eye, ScrollText } from 'lucide-react';
+import { Users, Copy, Eye, ScrollText, Sparkles } from 'lucide-react';
 import './App.css';
 
 function SetupScreen() {
@@ -391,6 +391,21 @@ function App() {
             {character.level > 0 && ` · Lvl ${character.level}`}
           </p>
         </div>
+        {!isReadOnly && (
+          <button
+            onClick={() => updateCharacter({ inspiration: !character.inspiration })}
+            className="p-2 rounded-lg bg-transparent cursor-pointer shrink-0 flex items-center justify-center transition-all"
+            style={{
+              color: character.inspiration ? '#facc15' : 'var(--text-muted)',
+              border: `1px solid ${character.inspiration ? 'rgba(250, 204, 21, 0.4)' : 'var(--border)'}`,
+              background: character.inspiration ? 'rgba(250, 204, 21, 0.08)' : 'transparent',
+              boxShadow: character.inspiration ? '0 0 12px rgba(250, 204, 21, 0.2)' : 'none',
+            }}
+            title={character.inspiration ? 'Has Inspiration — tap to remove' : 'No Inspiration — tap to grant'}
+          >
+            <Sparkles size={16} />
+          </button>
+        )}
         <button
           onClick={() => setActiveTab('notes')}
           className="p-2 rounded-lg bg-transparent cursor-pointer shrink-0 flex items-center justify-center"
@@ -490,12 +505,14 @@ function App() {
               preparedLimit={preparedLimit}
               characterClass={character.class}
               characterLevel={character.level}
+              concentrationSpellId={character.concentration_spell_id}
               onUpdateTotal={isReadOnly ? noOpAsync : updateTotal}
               onSetSlotUsed={isReadOnly ? noOpAsync : setSlotUsed}
               onAutoFillSlots={isReadOnly ? noOpAsync : autoFillSlots}
               onAddSpell={isReadOnly ? noOpAsync : addSpell}
               onUpdateSpell={isReadOnly ? noOpAsync : updateSpell}
               onDeleteSpell={isReadOnly ? noOpAsync : deleteSpell}
+              onSetConcentration={isReadOnly ? noOpAsync : (spellId: string | null) => updateCharacter({ concentration_spell_id: spellId })}
             />
           )}
           {activeTab === 'items' && (
@@ -561,6 +578,7 @@ function App() {
               const newRemaining = Math.min(character.level, current + recovery);
               return updateCharacter({ hit_dice_remaining: newRemaining });
             }}
+            onDropConcentration={() => updateCharacter({ concentration_spell_id: null })}
           />
         </>
       )}
