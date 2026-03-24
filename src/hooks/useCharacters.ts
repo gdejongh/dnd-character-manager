@@ -92,5 +92,5 @@ export function useCharacters(userId: string | undefined) {
     else refresh();
   }
 
-  return { characters, loading, createCharacter, deleteCharacter, syncCharacter };
+  return { characters, loading, createCharacter, deleteCharacter, syncCharacter, refresh };
 }

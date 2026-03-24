@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect } from 'react';
 import type { Tab } from './types/database';
 import { isSupabaseConfigured } from './lib/supabase';
 import { getPreparedSpellLimit } from './constants/dnd';
+import { showToast } from './lib/toast';
 import { useAuth } from './hooks/useAuth';
 import { useCharacters } from './hooks/useCharacters';
 import { useCharacter } from './hooks/useCharacter';
@@ -13,6 +14,8 @@ import { useFeatures } from './hooks/useFeatures';
 import { useNotes } from './hooks/useNotes';
 import { useWeapons } from './hooks/useWeapons';
 import { useCharacterImage } from './hooks/useCharacterImage';
+import { useCharacterShares } from './hooks/useCharacterShares';
+import { useSharedWithMe } from './hooks/useSharedWithMe';
 import { createCombatSession, joinCombatSession, findActiveSession } from './hooks/useCombatSession';
 import type { ActiveSessionInfo } from './hooks/useCombatSession';
 import { Auth } from './components/Auth';
@@ -33,7 +36,7 @@ import { LiveCombat } from './components/LiveCombat';
 import { ExportPdfButton } from './components/ExportPdf';
 import { exportCharacterPdf } from './lib/exportPdf';
 import type { PdfStyle } from './lib/exportPdf';
-import { Users } from 'lucide-react';
+import { Users, Copy, Eye } from 'lucide-react';
 import './App.css';
 
 function SetupScreen() {
@@ -119,6 +122,10 @@ function App() {
   // Active session detection for rejoin
   const [activeSession, setActiveSession] = useState<ActiveSessionInfo | null>(null);
 
+  // Shared character viewing state
+  const [sharedViewShareId, setSharedViewShareId] = useState<string | null>(null);
+  const isReadOnly = sharedViewShareId !== null;
+
   // Check for active sessions when user lands on HomeScreen
   useEffect(() => {
     if (!user || combatSessionId) return;
@@ -140,7 +147,7 @@ function App() {
     [activeTab],
   );
 
-  const { characters, loading: charsLoading, createCharacter, deleteCharacter, syncCharacter } =
+  const { characters, loading: charsLoading, createCharacter, deleteCharacter, syncCharacter, refresh: refreshCharacters } =
     useCharacters(user?.id);
   const { character, loading: charLoading, updateCharacter } =
     useCharacter(selectedCharacterId, syncCharacter);
@@ -156,6 +163,12 @@ function App() {
   const { notes, loading: notesLoading, updateContent } = useNotes(selectedCharacterId);
   const { uploading: imageUploading, error: imageError, uploadImage, deleteImage } =
     useCharacterImage(user?.id, selectedCharacterId);
+
+  // Character sharing
+  const { shareCharacter, revokeShare, getSharesForCharacter } =
+    useCharacterShares(user?.id);
+  const { pendingShares, acceptedShares, acceptShare, declineShare, copyCharacter } =
+    useSharedWithMe(user?.id);
 
   async function handleAuth(email: string, password: string, isSignUp: boolean, username?: string) {
     if (isSignUp) {
@@ -226,6 +239,7 @@ function App() {
           loading={charsLoading}
           onSelect={(id) => {
             setSelectedCharacterId(id);
+            setSharedViewShareId(null);
             setActiveTab('sheet');
           }}
           onCreate={createCharacter}
@@ -248,6 +262,18 @@ function App() {
         onRejoinCombat={(sessionId, role) => {
           setCombatRole(role);
           setCombatSessionId(sessionId);
+        }}
+        getSharesForCharacter={getSharesForCharacter}
+        onShareCharacter={shareCharacter}
+        onRevokeShare={revokeShare}
+        pendingShares={pendingShares}
+        acceptedShares={acceptedShares}
+        onAcceptShare={acceptShare}
+        onDeclineShare={declineShare}
+        onSelectSharedCharacter={(characterId, shareId) => {
+          setSelectedCharacterId(characterId);
+          setSharedViewShareId(shareId);
+          setActiveTab('sheet');
         }}
       />
     );
@@ -287,6 +313,16 @@ function App() {
     ? getPreparedSpellLimit(character.class, character.level, abilityScoreMap)
     : null;
 
+  // Find the share info for the read-only banner
+  const currentShareInfo = isReadOnly
+    ? acceptedShares.find((s) => s.share.id === sharedViewShareId)
+    : null;
+
+  // No-op handlers for read-only mode
+  const noOpAsync = async () => {};
+  const noOpUpdate = async () => ({} as ReturnType<typeof updateCharacter>);
+  const noOpUpload = async () => null as string | null;
+
   return (
     <div className="flex flex-col min-h-screen">
       <ToastContainer />
@@ -308,7 +344,7 @@ function App() {
         }}
       >
         <button
-          onClick={() => setSelectedCharacterId(null)}
+          onClick={() => { setSelectedCharacterId(null); setSharedViewShareId(null); }}
           className="p-2 rounded-lg bg-transparent cursor-pointer shrink-0 flex items-center gap-1"
           style={{
             color: 'var(--accent)',
@@ -331,59 +367,105 @@ function App() {
             {character.level > 0 && ` · Lvl ${character.level}`}
           </p>
         </div>
-        <ExportPdfButton
-          onExport={(pdfStyle: PdfStyle) => {
-            exportCharacterPdf({
-              character,
-              scores,
-              slots,
-              spells,
-              items,
-              features,
-              notes,
-            }, pdfStyle);
-          }}
-        />
+        {isReadOnly ? (
+          <button
+            onClick={async () => {
+              try {
+                await copyCharacter(sharedViewShareId!);
+                refreshCharacters();
+                setSelectedCharacterId(null);
+                setSharedViewShareId(null);
+                showToast('Character copied to your collection!');
+              } catch (err: unknown) {
+                showToast(err instanceof Error ? err.message : 'Failed to copy character');
+              }
+            }}
+            className="px-3 py-2 rounded-lg cursor-pointer shrink-0 flex items-center gap-1.5 text-xs font-semibold"
+            style={{
+              background: 'linear-gradient(135deg, var(--accent), var(--accent-bright))',
+              color: '#0f0e13',
+              border: 'none',
+              fontFamily: 'var(--heading)',
+              letterSpacing: '0.5px',
+            }}
+          >
+            <Copy size={13} /> Copy
+          </button>
+        ) : (
+          <ExportPdfButton
+            onExport={(pdfStyle: PdfStyle) => {
+              exportCharacterPdf({
+                character,
+                scores,
+                slots,
+                spells,
+                items,
+                features,
+                notes,
+              }, pdfStyle);
+            }}
+          />
+        )}
       </header>
+
+      {/* Read-only banner */}
+      {isReadOnly && (
+        <div
+          className="flex items-center justify-center gap-2 px-4 py-2"
+          style={{
+            background: 'linear-gradient(135deg, rgba(147,130,220,0.1) 0%, rgba(147,130,220,0.05) 100%)',
+            borderBottom: '1px solid rgba(147,130,220,0.2)',
+          }}
+        >
+          <Eye size={13} style={{ color: '#a78bfa' }} />
+          <span className="text-xs" style={{ color: '#a78bfa' }}>
+            Read Only
+            {currentShareInfo && (
+              <> · Shared by {currentShareInfo.share.sender_username || currentShareInfo.share.sender_email}</>
+            )}
+          </span>
+        </div>
+      )}
 
       {/* Tab content with fade transition */}
       <main className="flex-1 overflow-y-auto">
-        <div key={activeTab} className="animate-fade-in">
+        <div key={activeTab} className="animate-fade-in" style={isReadOnly ? { pointerEvents: 'none' } : undefined}>
           {activeTab === 'sheet' && (
             <CharacterSheet
               character={character}
               scores={scores}
-              onUpdateCharacter={updateCharacter}
-              onUpdateScore={updateScore}
-              onToggleSavingThrow={toggleSavingThrow}
+              onUpdateCharacter={isReadOnly ? noOpUpdate : updateCharacter}
+              onUpdateScore={isReadOnly ? noOpAsync : updateScore}
+              onToggleSavingThrow={isReadOnly ? noOpAsync : toggleSavingThrow}
               imageUploading={imageUploading}
               imageError={imageError}
-              onUploadImage={uploadImage}
-              onDeleteImage={deleteImage}
+              onUploadImage={isReadOnly ? noOpUpload : uploadImage}
+              onDeleteImage={isReadOnly ? noOpAsync : deleteImage}
+              readOnly={isReadOnly}
             />
           )}
           {activeTab === 'hp' && (
-            <HpTracker character={character} onUpdate={updateCharacter} />
+            <HpTracker character={character} onUpdate={isReadOnly ? noOpUpdate : updateCharacter} />
           )}
           {activeTab === 'spells' && (
             <SpellSlots
               slots={slots}
               spells={spells}
               preparedLimit={preparedLimit}
-              onUpdateTotal={updateTotal}
-              onSetSlotUsed={setSlotUsed}
-              onAddSpell={addSpell}
-              onUpdateSpell={updateSpell}
-              onDeleteSpell={deleteSpell}
+              onUpdateTotal={isReadOnly ? noOpAsync : updateTotal}
+              onSetSlotUsed={isReadOnly ? noOpAsync : setSlotUsed}
+              onAddSpell={isReadOnly ? noOpAsync : addSpell}
+              onUpdateSpell={isReadOnly ? noOpAsync : updateSpell}
+              onDeleteSpell={isReadOnly ? noOpAsync : deleteSpell}
             />
           )}
           {activeTab === 'items' && (
             <Inventory
               items={items}
               strScore={strScore}
-              onAdd={addItem}
-              onUpdate={updateItem}
-              onDelete={deleteItem}
+              onAdd={isReadOnly ? noOpAsync : addItem}
+              onUpdate={isReadOnly ? noOpAsync : updateItem}
+              onDelete={isReadOnly ? noOpAsync : deleteItem}
             />
           )}
           {activeTab === 'weapons' && (
@@ -391,21 +473,21 @@ function App() {
               weapons={weapons}
               scores={scores}
               level={character.level}
-              onAdd={addWeapon}
-              onUpdate={updateWeapon}
-              onDelete={deleteWeapon}
+              onAdd={isReadOnly ? noOpAsync : addWeapon}
+              onUpdate={isReadOnly ? noOpAsync : updateWeapon}
+              onDelete={isReadOnly ? noOpAsync : deleteWeapon}
             />
           )}
           {activeTab === 'features' && (
             <FeaturesTraits
               features={features}
-              onAdd={addFeature}
-              onUpdate={updateFeature}
-              onDelete={deleteFeature}
+              onAdd={isReadOnly ? noOpAsync : addFeature}
+              onUpdate={isReadOnly ? noOpAsync : updateFeature}
+              onDelete={isReadOnly ? noOpAsync : deleteFeature}
             />
           )}
           {activeTab === 'notes' && (
-            <Notes notes={notes} loading={notesLoading} onUpdateContent={updateContent} />
+            <Notes notes={notes} loading={notesLoading} onUpdateContent={isReadOnly ? noOpAsync : updateContent} />
           )}
           {activeTab === 'combat' && (
             <CombatView
@@ -415,15 +497,15 @@ function App() {
               spells={spells}
               weapons={weapons}
               features={features}
-              onUpdateCharacter={updateCharacter}
-              onSetSlotUsed={setSlotUsed}
-              onUpdateFeature={updateFeature}
+              onUpdateCharacter={isReadOnly ? noOpUpdate : updateCharacter}
+              onSetSlotUsed={isReadOnly ? noOpAsync : setSlotUsed}
+              onUpdateFeature={isReadOnly ? noOpAsync : updateFeature}
             />
           )}
         </div>
       </main>
 
-      <LongRestButton onRestoreSlots={resetAll} onRestoreUses={resetAllUses} />
+      {!isReadOnly && <LongRestButton onRestoreSlots={resetAll} onRestoreUses={resetAllUses} />}
       <TabBar activeTab={activeTab} onTabChange={handleTabChange} />
     </div>
   );

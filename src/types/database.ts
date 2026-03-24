@@ -130,3 +130,19 @@ export interface Combatant {
   image_position: number;
   sort_order: number;
 }
+
+/* ── Character Sharing ── */
+
+export type ShareStatus = 'pending' | 'accepted' | 'declined';
+
+export interface CharacterShare {
+  id: string;
+  character_id: string;
+  sender_id: string;
+  sender_email: string;
+  sender_username: string;
+  recipient_email: string;
+  recipient_id: string | null;
+  status: ShareStatus;
+  created_at: string;
+}

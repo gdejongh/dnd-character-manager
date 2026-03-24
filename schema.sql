@@ -410,3 +410,217 @@ grant execute on function public.delete_my_account() to authenticated;
 --   CREATE POLICY "Anyone can view character images"
 --     ON storage.objects FOR SELECT
 --     USING (bucket_id = 'character-images');
+
+-- =================================================================
+--  13. Character Sharing
+-- =================================================================
+create table character_shares (
+  id              uuid primary key default gen_random_uuid(),
+  character_id    uuid references characters(id) on delete cascade not null,
+  sender_id       uuid references auth.users(id) on delete cascade not null,
+  sender_email    text not null,
+  sender_username text not null default '',
+  recipient_email text not null,
+  recipient_id    uuid references auth.users(id) on delete cascade,
+  status          text not null default 'pending' check (status in ('pending','accepted','declined')),
+  created_at      timestamptz not null default now(),
+  unique (character_id, recipient_email)
+);
+
+alter table character_shares enable row level security;
+
+-- Sender can view, create, and delete their own shares
+create policy "Sender can view own shares"
+  on character_shares for select using (sender_id = auth.uid());
+create policy "Sender can insert shares"
+  on character_shares for insert with check (sender_id = auth.uid());
+create policy "Sender can delete own shares"
+  on character_shares for delete using (sender_id = auth.uid());
+
+-- Recipient can view and update (accept/decline) their shares
+create policy "Recipient can view shares"
+  on character_shares for select using (recipient_id = auth.uid());
+create policy "Recipient can update share status"
+  on character_shares for update using (recipient_id = auth.uid());
+
+-- Read-only access to shared characters
+create policy "Users can view shared characters"
+  on characters for select using (
+    exists (
+      select 1 from character_shares cs
+      where cs.character_id = characters.id
+        and cs.recipient_id = auth.uid()
+        and cs.status in ('pending', 'accepted')
+    )
+  );
+
+-- Child table read access for accepted shares
+create policy "View shared ability_scores"
+  on ability_scores for select using (
+    character_id in (
+      select cs.character_id from character_shares cs
+      where cs.recipient_id = auth.uid() and cs.status = 'accepted'
+    )
+  );
+
+create policy "View shared spell_slots"
+  on spell_slots for select using (
+    character_id in (
+      select cs.character_id from character_shares cs
+      where cs.recipient_id = auth.uid() and cs.status = 'accepted'
+    )
+  );
+
+create policy "View shared inventory_items"
+  on inventory_items for select using (
+    character_id in (
+      select cs.character_id from character_shares cs
+      where cs.recipient_id = auth.uid() and cs.status = 'accepted'
+    )
+  );
+
+create policy "View shared features"
+  on features for select using (
+    character_id in (
+      select cs.character_id from character_shares cs
+      where cs.recipient_id = auth.uid() and cs.status = 'accepted'
+    )
+  );
+
+create policy "View shared notes"
+  on notes for select using (
+    character_id in (
+      select cs.character_id from character_shares cs
+      where cs.recipient_id = auth.uid() and cs.status = 'accepted'
+    )
+  );
+
+create policy "View shared spells"
+  on spells for select using (
+    character_id in (
+      select cs.character_id from character_shares cs
+      where cs.recipient_id = auth.uid() and cs.status = 'accepted'
+    )
+  );
+
+create policy "View shared weapons"
+  on weapons for select using (
+    character_id in (
+      select cs.character_id from character_shares cs
+      where cs.recipient_id = auth.uid() and cs.status = 'accepted'
+    )
+  );
+
+-- RPC: Share a character (resolves email to user_id server-side)
+create or replace function public.share_character(p_character_id uuid, p_recipient_email text)
+returns uuid
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_sender_id uuid;
+  v_sender_email text;
+  v_sender_username text;
+  v_recipient_id uuid;
+  v_share_id uuid;
+begin
+  v_sender_id := auth.uid();
+  if v_sender_id is null then
+    raise exception 'Not authenticated';
+  end if;
+
+  if not exists (select 1 from characters where id = p_character_id and user_id = v_sender_id) then
+    raise exception 'Character not found';
+  end if;
+
+  select email, raw_user_meta_data->>'username'
+  into v_sender_email, v_sender_username
+  from auth.users where id = v_sender_id;
+
+  if lower(v_sender_email) = lower(p_recipient_email) then
+    raise exception 'Cannot share with yourself';
+  end if;
+
+  select id into v_recipient_id from auth.users where lower(email) = lower(p_recipient_email);
+  if v_recipient_id is null then
+    raise exception 'No user found with that email';
+  end if;
+
+  insert into character_shares (character_id, sender_id, sender_email, sender_username, recipient_email, recipient_id, status)
+  values (p_character_id, v_sender_id, v_sender_email, coalesce(v_sender_username, ''), lower(p_recipient_email), v_recipient_id, 'pending')
+  on conflict (character_id, recipient_email)
+  do update set status = 'pending', created_at = now()
+  returning id into v_share_id;
+
+  return v_share_id;
+end;
+$$;
+
+revoke all on function public.share_character(uuid, text) from public;
+grant execute on function public.share_character(uuid, text) to authenticated;
+
+-- RPC: Deep-copy a shared character
+create or replace function public.copy_shared_character(p_share_id uuid)
+returns uuid
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_user_id uuid;
+  v_source_char_id uuid;
+  v_new_char_id uuid;
+begin
+  v_user_id := auth.uid();
+  if v_user_id is null then
+    raise exception 'Not authenticated';
+  end if;
+
+  select character_id into v_source_char_id
+  from character_shares
+  where id = p_share_id and recipient_id = v_user_id and status = 'accepted';
+
+  if v_source_char_id is null then
+    raise exception 'Share not found or not accepted';
+  end if;
+
+  insert into characters (user_id, name, race, class, level, current_hp, max_hp, temp_hp, skill_proficiencies, image_url, image_position)
+  select v_user_id, name || ' (Copy)', race, class, level, current_hp, max_hp, temp_hp, skill_proficiencies, image_url, image_position
+  from characters where id = v_source_char_id
+  returning id into v_new_char_id;
+
+  insert into ability_scores (character_id, ability, score, saving_throw_proficiency)
+  select v_new_char_id, ability, score, saving_throw_proficiency
+  from ability_scores where character_id = v_source_char_id;
+
+  insert into spell_slots (character_id, level, total, used)
+  select v_new_char_id, level, total, 0
+  from spell_slots where character_id = v_source_char_id;
+
+  insert into spells (character_id, name, description, level, prepared, action_type)
+  select v_new_char_id, name, description, level, prepared, action_type
+  from spells where character_id = v_source_char_id;
+
+  insert into inventory_items (character_id, name, quantity, weight, notes)
+  select v_new_char_id, name, quantity, weight, notes
+  from inventory_items where character_id = v_source_char_id;
+
+  insert into features (character_id, title, description, source, action_type, max_uses, used_uses)
+  select v_new_char_id, title, description, source, action_type, max_uses, 0
+  from features where character_id = v_source_char_id;
+
+  insert into weapons (character_id, name, damage_dice, damage_type, ability_mod, proficient, action_type)
+  select v_new_char_id, name, damage_dice, damage_type, ability_mod, proficient, action_type
+  from weapons where character_id = v_source_char_id;
+
+  insert into notes (character_id, content)
+  select v_new_char_id, content
+  from notes where character_id = v_source_char_id;
+
+  return v_new_char_id;
+end;
+$$;
+
+revoke all on function public.copy_shared_character(uuid) from public;
+grant execute on function public.copy_shared_character(uuid) to authenticated;

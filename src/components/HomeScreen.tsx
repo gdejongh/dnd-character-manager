@@ -1,10 +1,12 @@
 import { useState } from 'react';
 import type { FormEvent } from 'react';
-import type { Character } from '../types/database';
+import type { Character, CharacterShare } from '../types/database';
 import type { ActiveSessionInfo } from '../hooks/useCombatSession';
-import { LogOut, Trash2, Heart, Plus, Shield, Swords, Users, Settings } from 'lucide-react';
+import type { SharedCharacterInfo } from '../hooks/useSharedWithMe';
+import { LogOut, Trash2, Heart, Plus, Shield, Swords, Users, Settings, Share2, Check, X, Eye } from 'lucide-react';
 import { lookupSession } from '../hooks/useCombatSession';
 import { AccountSettings } from './AccountSettings';
+import { ShareModal } from './ShareModal';
 
 interface HomeScreenProps {
   characters: Character[];
@@ -22,6 +24,16 @@ interface HomeScreenProps {
   onJoinCombat: (sessionId: string, characterId: string, charName: string, charClass: string, hp: number, maxHp: number, imageUrl: string | null, imagePosition: number) => Promise<void>;
   activeSession: ActiveSessionInfo | null;
   onRejoinCombat: (sessionId: string, role: 'dm' | 'player') => void;
+  // Sharing — sender side
+  getSharesForCharacter: (characterId: string) => CharacterShare[];
+  onShareCharacter: (characterId: string, email: string) => Promise<void>;
+  onRevokeShare: (shareId: string) => Promise<void>;
+  // Sharing — recipient side
+  pendingShares: SharedCharacterInfo[];
+  acceptedShares: SharedCharacterInfo[];
+  onAcceptShare: (shareId: string) => Promise<void>;
+  onDeclineShare: (shareId: string) => Promise<void>;
+  onSelectSharedCharacter: (characterId: string, shareId: string) => void;
 }
 
 export function HomeScreen({
@@ -40,6 +52,14 @@ export function HomeScreen({
   onJoinCombat,
   activeSession,
   onRejoinCombat,
+  getSharesForCharacter,
+  onShareCharacter,
+  onRevokeShare,
+  pendingShares,
+  acceptedShares,
+  onAcceptShare,
+  onDeclineShare,
+  onSelectSharedCharacter,
 }: HomeScreenProps) {
   const [showForm, setShowForm] = useState(false);
   const [name, setName] = useState('');
@@ -55,6 +75,10 @@ export function HomeScreen({
   const [joining, setJoining] = useState(false);
   const [startingCombat, setStartingCombat] = useState(false);
   const [showAccountSettings, setShowAccountSettings] = useState(false);
+
+  // Share modal state
+  const [shareModalCharId, setShareModalCharId] = useState<string | null>(null);
+  const shareModalChar = shareModalCharId ? characters.find((c) => c.id === shareModalCharId) : null;
 
   async function handleCreate(e: FormEvent) {
     e.preventDefault();
@@ -221,17 +245,30 @@ export function HomeScreen({
                         {char.level > 0 && ` · Level ${char.level}`}
                       </p>
                     </div>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onDelete(char.id);
-                      }}
-                      className="p-2.5 rounded-lg bg-transparent cursor-pointer shrink-0"
-                      style={{ color: 'var(--text)', border: '1px solid var(--border)' }}
-                      aria-label={`Delete ${char.name}`}
-                    >
-                      <Trash2 size={14} />
-                    </button>
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setShareModalCharId(char.id);
+                        }}
+                        className="p-2.5 rounded-lg bg-transparent cursor-pointer shrink-0"
+                        style={{ color: 'var(--text)', border: '1px solid var(--border)' }}
+                        aria-label={`Share ${char.name}`}
+                      >
+                        <Share2 size={14} />
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onDelete(char.id);
+                        }}
+                        className="p-2.5 rounded-lg bg-transparent cursor-pointer shrink-0"
+                        style={{ color: 'var(--text)', border: '1px solid var(--border)' }}
+                        aria-label={`Delete ${char.name}`}
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
                   </div>
                   <div className="flex gap-3 mt-3">
                     <span
@@ -255,6 +292,140 @@ export function HomeScreen({
                 <p className="text-center" style={{ color: 'var(--text)' }}>
                   No adventurers yet. Create your first character!
                 </p>
+              </div>
+            )}
+
+            {/* ── Pending Share Invitations ── */}
+            {pendingShares.length > 0 && (
+              <div className="mt-6">
+                <h3
+                  className="text-xs mb-3 px-1"
+                  style={{ color: 'var(--accent)', fontFamily: 'var(--heading)', letterSpacing: '1.5px' }}
+                >
+                  ✦ PENDING INVITATIONS
+                </h3>
+                <div className="flex flex-col gap-2">
+                  {pendingShares.map((item) => (
+                    <div
+                      key={item.share.id}
+                      className="p-3 rounded-xl animate-fade-in"
+                      style={{
+                        background: 'linear-gradient(135deg, rgba(201,168,76,0.08) 0%, rgba(201,168,76,0.03) 100%)',
+                        border: '1px solid var(--accent-border)',
+                      }}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-semibold truncate" style={{ color: 'var(--text-h)', fontFamily: 'var(--heading)' }}>
+                            {item.character.name}
+                          </p>
+                          <p className="text-xs mt-0.5 truncate" style={{ color: 'var(--text)' }}>
+                            {[item.character.race, item.character.class].filter(Boolean).join(' · ')}
+                            {item.character.level > 0 && ` · Level ${item.character.level}`}
+                          </p>
+                          <p className="text-xs mt-1" style={{ color: 'var(--text)' }}>
+                            From <span style={{ color: 'var(--accent)' }}>{item.share.sender_username || item.share.sender_email}</span>
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0 ml-3">
+                          <button
+                            onClick={() => onAcceptShare(item.share.id)}
+                            className="p-2 rounded-lg cursor-pointer"
+                            style={{
+                              background: 'rgba(34,197,94,0.15)',
+                              color: '#4ade80',
+                              border: '1px solid rgba(34,197,94,0.3)',
+                            }}
+                            aria-label="Accept"
+                          >
+                            <Check size={14} />
+                          </button>
+                          <button
+                            onClick={() => onDeclineShare(item.share.id)}
+                            className="p-2 rounded-lg cursor-pointer"
+                            style={{
+                              background: 'rgba(239,68,68,0.1)',
+                              color: '#f87171',
+                              border: '1px solid rgba(239,68,68,0.25)',
+                            }}
+                            aria-label="Decline"
+                          >
+                            <X size={14} />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* ── Shared With Me ── */}
+            {acceptedShares.length > 0 && (
+              <div className="mt-6">
+                <h3
+                  className="text-xs mb-3 px-1"
+                  style={{ color: 'var(--text)', fontFamily: 'var(--heading)', letterSpacing: '1.5px' }}
+                >
+                  SHARED WITH ME
+                </h3>
+                <div className="flex flex-col gap-3">
+                  {acceptedShares.map((item, i) => (
+                    <div
+                      key={item.share.id}
+                      className="p-4 rounded-xl cursor-pointer transition-all active:scale-[0.98] animate-fade-in"
+                      style={{
+                        background: 'linear-gradient(135deg, var(--bg-raised) 0%, var(--bg-surface) 100%)',
+                        border: '1px solid var(--border)',
+                        boxShadow: 'var(--shadow)',
+                        animationDelay: `${i * 60}ms`,
+                      }}
+                      onClick={() => onSelectSharedCharacter(item.character.id, item.share.id)}
+                      role="button"
+                      tabIndex={0}
+                      onKeyDown={(e) => e.key === 'Enter' && onSelectSharedCharacter(item.character.id, item.share.id)}
+                    >
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <h2 className="text-lg m-0" style={{ color: 'var(--accent)', fontSize: '1rem' }}>
+                              {item.character.name}
+                            </h2>
+                            <span
+                              className="text-xs px-1.5 py-0.5 rounded flex items-center gap-1"
+                              style={{
+                                background: 'rgba(147,130,220,0.12)',
+                                color: '#a78bfa',
+                                border: '1px solid rgba(147,130,220,0.25)',
+                              }}
+                            >
+                              <Eye size={10} /> Shared
+                            </span>
+                          </div>
+                          <p className="text-sm mt-1" style={{ color: 'var(--text)' }}>
+                            {[item.character.race, item.character.class].filter(Boolean).join(' · ') || 'No race/class'}
+                            {item.character.level > 0 && ` · Level ${item.character.level}`}
+                          </p>
+                          <p className="text-xs mt-1" style={{ color: 'var(--text)' }}>
+                            From {item.share.sender_username || item.share.sender_email}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex gap-3 mt-3">
+                        <span
+                          className="text-xs px-2.5 py-1 rounded-full flex items-center gap-1"
+                          style={{
+                            background: 'rgba(185,28,28,0.15)',
+                            color: 'var(--hp-crimson)',
+                            border: '1px solid rgba(185,28,28,0.25)',
+                          }}
+                        >
+                          <Heart size={10} fill="currentColor" /> {item.character.current_hp}/{item.character.max_hp}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
           </>
@@ -524,6 +695,17 @@ export function HomeScreen({
             <Plus size={18} /> New Character
           </button>
         </div>
+      )}
+
+      {/* Share Modal */}
+      {shareModalChar && (
+        <ShareModal
+          characterName={shareModalChar.name}
+          shares={getSharesForCharacter(shareModalChar.id)}
+          onShare={(email) => onShareCharacter(shareModalChar.id, email)}
+          onRevoke={onRevokeShare}
+          onClose={() => setShareModalCharId(null)}
+        />
       )}
     </div>
   );

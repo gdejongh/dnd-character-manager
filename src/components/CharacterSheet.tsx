@@ -9,7 +9,7 @@ import {
   formatModifier,
 } from '../constants/dnd';
 import { NumericInput } from './NumericInput';
-import { Camera, Trash2, Loader, Move, X, Pencil } from 'lucide-react';
+import { Camera, Trash2, Loader, Move, X, Pencil, Shield } from 'lucide-react';
 
 interface CharacterSheetProps {
   character: Character;
@@ -23,6 +23,7 @@ interface CharacterSheetProps {
   imageError: string | null;
   onUploadImage: (file: File) => Promise<string | null>;
   onDeleteImage: () => Promise<void>;
+  readOnly?: boolean;
 }
 
 export function CharacterSheet({
@@ -35,6 +36,7 @@ export function CharacterSheet({
   imageError,
   onUploadImage,
   onDeleteImage,
+  readOnly,
 }: CharacterSheetProps) {
   const [editingField, setEditingField] = useState<string | null>(null);
   const [tappedAbility, setTappedAbility] = useState<Ability | null>(null);
@@ -238,7 +240,7 @@ export function CharacterSheet({
               touchAction: repositioning ? 'none' : 'auto',
             }}
             onClick={() => {
-              if (repositioning || imageUploading) return;
+              if (readOnly || repositioning || imageUploading) return;
               if (character.image_url) {
                 setShowFullImage(true);
               } else {
@@ -281,7 +283,11 @@ export function CharacterSheet({
               />
             ) : (
               <div className="w-full h-full flex items-center justify-center">
-                <Camera size={24} style={{ color: 'var(--text)' }} />
+                {readOnly ? (
+                  <Shield size={24} style={{ color: 'var(--text)' }} />
+                ) : (
+                  <Camera size={24} style={{ color: 'var(--text)' }} />
+                )}
               </div>
             )}
             {imageUploading && (
@@ -318,7 +324,7 @@ export function CharacterSheet({
               Done
             </button>
           )}
-          {character.image_url && !imageUploading && !repositioning && (
+          {character.image_url && !imageUploading && !repositioning && !readOnly && (
             <button
               onClick={(e) => { e.stopPropagation(); setShowImageMenu(!showImageMenu); }}
               className="absolute -bottom-0.5 -right-0.5 w-6 h-6 rounded-full flex items-center justify-center cursor-pointer"
