@@ -76,9 +76,11 @@ export function HomeScreen({
   const [joinError, setJoinError] = useState('');
   const [joining, setJoining] = useState(false);
   const [joinKeyboardInset, setJoinKeyboardInset] = useState(0);
+  const [joinCodeInputFocused, setJoinCodeInputFocused] = useState(false);
   const [startingCombat, setStartingCombat] = useState(false);
   const [showAccountSettings, setShowAccountSettings] = useState(false);
   const joinKeyboardSafetyGap = joinKeyboardInset > 0 ? 72 : 0;
+  const joinFocusSafetyGap = joinCodeInputFocused ? 170 : 0;
   const joinCodeSectionRef = useRef<HTMLDivElement | null>(null);
   const joinCodeActionsRef = useRef<HTMLDivElement | null>(null);
   const keyboardWasOpenRef = useRef(false);
@@ -131,6 +133,7 @@ export function HomeScreen({
   useEffect(() => {
     if (joinStep !== 'code') {
       setJoinKeyboardInset(0);
+      setJoinCodeInputFocused(false);
       return;
     }
 
@@ -572,7 +575,7 @@ export function HomeScreen({
           style={{
             borderTop: '1px solid var(--border)',
             background: 'var(--bg-surface)',
-            paddingBottom: `${16 + joinKeyboardInset + joinKeyboardSafetyGap}px`,
+            paddingBottom: `${16 + joinKeyboardInset + joinKeyboardSafetyGap + joinFocusSafetyGap}px`,
           }}
         >
           <h3
@@ -602,7 +605,11 @@ export function HomeScreen({
               placeholder="e.g. DRAGON-42"
               value={roomCode}
               onChange={(e) => setRoomCode(e.target.value.toUpperCase())}
-              onFocus={scrollJoinCodeIntoView}
+              onFocus={() => {
+                setJoinCodeInputFocused(true);
+                scrollJoinCodeIntoView();
+              }}
+              onBlur={() => setJoinCodeInputFocused(false)}
               className="w-full px-4 py-3.5 rounded-lg text-center text-lg outline-none tracking-widest"
               style={{
                 ...inputStyle,
