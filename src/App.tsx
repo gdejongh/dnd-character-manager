@@ -31,13 +31,17 @@ import { CombatView } from './components/CombatView';
 import { TabBar } from './components/TabBar';
 import { CombatTransition } from './components/CombatTransition';
 import { ToastContainer } from './components/Toast';
-import { LongRestButton } from './components/LongRestButton';
-import { ShortRestButton } from './components/ShortRestButton';
 import { LiveCombat } from './components/LiveCombat';
 import { ExportPdfButton } from './components/ExportPdf';
 import { exportCharacterPdf } from './lib/exportPdf';
 import type { PdfStyle } from './lib/exportPdf';
-import { Users, Copy, Eye, ScrollText, Sparkles } from 'lucide-react';
+import { Users, Copy, Eye, ScrollText, Sparkles, HelpCircle } from 'lucide-react';
+import { QuickReference } from './components/QuickReference';
+import { DiceRoller } from './components/DiceRoller';
+import { ActionFAB } from './components/ActionFAB';
+import { useDiceRoller } from './hooks/useDiceRoller';
+import { buildQuickRolls } from './constants/dice';
+import type { Ability } from './types/database';
 import './App.css';
 
 function SetupScreen() {
@@ -115,6 +119,11 @@ function App() {
   const [selectedCharacterId, setSelectedCharacterId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<Tab>('sheet');
   const [showCombatTransition, setShowCombatTransition] = useState(false);
+  const [showQuickRef, setShowQuickRef] = useState(false);
+  const [showDiceRoller, setShowDiceRoller] = useState(false);
+
+  // Dice roller
+  const diceRoller = useDiceRoller();
 
   // Live Combat Session state
   const [combatSessionId, setCombatSessionId] = useState<string | null>(null);
@@ -407,6 +416,18 @@ function App() {
           </button>
         )}
         <button
+          onClick={() => setShowQuickRef(true)}
+          className="p-2 rounded-lg bg-transparent cursor-pointer shrink-0 flex items-center justify-center"
+          style={{
+            color: activeTab === 'notes' ? 'var(--text)' : 'var(--text)',
+            border: '1px solid var(--border)',
+            transition: 'color 0.2s, border-color 0.2s',
+          }}
+          title="Quick Reference"
+        >
+          <HelpCircle size={16} />
+        </button>
+        <button
           onClick={() => setActiveTab('notes')}
           className="p-2 rounded-lg bg-transparent cursor-pointer shrink-0 flex items-center justify-center"
           style={{
@@ -561,28 +582,49 @@ function App() {
         </div>
       </main>
 
-      {!isReadOnly && (
-        <>
-          <ShortRestButton
-            isWarlock={charIsWarlock}
-            currentHp={character.current_hp}
-            maxHp={character.max_hp}
-            onRestoreHp={(amount: number) => {
-              const nextHp = Math.min(character.max_hp, character.current_hp + amount);
-              return updateCharacter({ current_hp: nextHp });
-            }}
-            onRestoreWarlockSlots={charIsWarlock ? resetAll : undefined}
-          />
-          <LongRestButton
-            onRestoreSlots={resetAll}
-            onRestoreUses={resetAllUses}
-            onResetDeathSaves={() => updateCharacter({ death_save_successes: 0, death_save_failures: 0 })}
-            onClearConditions={() => updateCharacter({ conditions: [] })}
-            onDropConcentration={() => updateCharacter({ concentration_spell_id: null })}
-          />
-        </>
-      )}
       <TabBar activeTab={activeTab} onTabChange={handleTabChange} />
+
+      {/* Unified Action FAB (Dice + Short Rest + Long Rest) */}
+      {!isReadOnly && !showDiceRoller && !showQuickRef && (
+        <ActionFAB
+          onOpenDiceRoller={() => setShowDiceRoller(true)}
+          isWarlock={charIsWarlock}
+          currentHp={character.current_hp}
+          maxHp={character.max_hp}
+          onRestoreHp={(amount: number) => {
+            const nextHp = Math.min(character.max_hp, character.current_hp + amount);
+            return updateCharacter({ current_hp: nextHp });
+          }}
+          onRestoreWarlockSlots={charIsWarlock ? resetAll : undefined}
+          onRestoreSlots={resetAll}
+          onRestoreUses={resetAllUses}
+          onResetDeathSaves={() => updateCharacter({ death_save_successes: 0, death_save_failures: 0 })}
+          onClearConditions={() => updateCharacter({ conditions: [] })}
+          onDropConcentration={() => updateCharacter({ concentration_spell_id: null })}
+        />
+      )}
+      {showDiceRoller && (
+        <DiceRoller
+          onClose={() => setShowDiceRoller(false)}
+          lastRoll={diceRoller.lastRoll}
+          history={diceRoller.history}
+          isRolling={diceRoller.isRolling}
+          onRoll={diceRoller.roll}
+          onClearHistory={diceRoller.clearHistory}
+          quickRolls={buildQuickRolls(
+            abilityScoreMap,
+            character.level,
+            character.skill_proficiencies ?? [],
+            scores.filter((s) => s.saving_throw_proficiency).map((s) => s.ability) as Ability[],
+            weapons.map((w) => ({ name: w.name, damage_dice: w.damage_dice, ability_mod: w.ability_mod as Ability, proficient: w.proficient })),
+          )}
+        />
+      )}
+
+      {/* Quick Reference Overlay */}
+      {showQuickRef && (
+        <QuickReference onClose={() => setShowQuickRef(false)} />
+      )}
     </div>
   );
 }

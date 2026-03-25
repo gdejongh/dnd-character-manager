@@ -162,6 +162,34 @@ code {
 .slot-drain { animation: slotDrain 0.35s ease-out; }
 .hp-pulse { animation: hpPulse 0.3s ease-out; }
 
+/* ── Dice Roller Animations ── */
+@keyframes diceRollBounce {
+  0% { transform: scale(1); }
+  20% { transform: scale(0.85) rotate(-5deg); }
+  50% { transform: scale(1.15) rotate(3deg); }
+  70% { transform: scale(0.95) rotate(-1deg); }
+  100% { transform: scale(1) rotate(0); }
+}
+@keyframes critGlow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(201, 168, 76, 0); }
+  25% { box-shadow: 0 0 30px 8px rgba(201, 168, 76, 0.5); }
+  50% { box-shadow: 0 0 20px 4px rgba(240, 192, 64, 0.3); }
+  75% { box-shadow: 0 0 30px 8px rgba(201, 168, 76, 0.5); }
+}
+@keyframes fumblePulse {
+  0%, 100% { transform: translateX(0); }
+  10% { transform: translateX(-4px); }
+  20% { transform: translateX(4px); }
+  30% { transform: translateX(-3px); }
+  40% { transform: translateX(3px); }
+  50% { transform: translateX(-2px); }
+  60% { transform: translateX(2px); }
+  70% { transform: translateX(0); }
+}
+.dice-roll-bounce { animation: diceRollBounce 0.5s ease-out; }
+.crit-glow { animation: critGlow 1s ease-in-out; }
+.fumble-pulse { animation: fumblePulse 0.5s ease-out; }
+
 /* ─── Combat Animations ─── */
 @keyframes arcaneExplosion {
   0% { transform: scale(0); opacity: 1; }

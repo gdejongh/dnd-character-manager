@@ -4,8 +4,9 @@ import type { SpellSlot, Spell, ActionType } from '../types/database';
 import { NumericInput } from './NumericInput';
 import { ActionTypePicker, ActionTypeBadge, ActionTypeFilterBar } from './ActionType';
 import type { ActionTypeFilter } from '../constants/actionTypes';
-import { Search, X, Wand2 } from 'lucide-react';
+import { Search, X, Wand2, BookOpen } from 'lucide-react';
 import { getSpellSlotProgression, isWarlock, getWarlockPactInfo } from '../constants/dnd';
+import { SpellDatabaseModal } from './SpellDatabaseModal';
 
 interface SpellSlotsProps {
   slots: SpellSlot[];
@@ -68,6 +69,7 @@ export function SpellSlots({
   const [formActionType, setFormActionType] = useState<ActionType>('action');
   const [formConcentration, setFormConcentration] = useState(false);
   const [drainingSlot, setDrainingSlot] = useState<string | null>(null);
+  const [showSrdBrowser, setShowSrdBrowser] = useState(false);
   const drainTimeoutRef = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   function isSpellPrepared(spell: Spell) {
@@ -191,6 +193,30 @@ export function SpellSlots({
             <Wand2 size={12} /> Auto-fill
           </button>
         </div>
+      )}
+
+      {/* Browse SRD Spells Button */}
+      <button
+        onClick={() => setShowSrdBrowser(true)}
+        className="flex items-center justify-center gap-2 w-full py-3 rounded-xl text-sm font-semibold cursor-pointer active:scale-[0.98] transition-transform"
+        style={{
+          background: 'linear-gradient(135deg, rgba(99,102,241,0.12), rgba(139,92,246,0.08))',
+          color: 'var(--spell-violet)',
+          border: '1px solid var(--spell-border)',
+          fontFamily: 'var(--heading)',
+          letterSpacing: '0.3px',
+        }}
+      >
+        <BookOpen size={15} /> Browse SRD Spells
+      </button>
+
+      {/* SRD Spell Database Modal */}
+      {showSrdBrowser && (
+        <SpellDatabaseModal
+          characterClass={characterClass}
+          onAddSpell={onAddSpell}
+          onClose={() => setShowSrdBrowser(false)}
+        />
       )}
 
       {/* Active Concentration Banner */}
