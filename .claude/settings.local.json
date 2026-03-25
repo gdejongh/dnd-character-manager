@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(xargs ls:*)",
+      "Bash(grep -r \"CREATE TABLE\\\\|spell\\\\|combat\\\\|ability\" /Users/gabedejongh/workspace/DnD/dnd-character-manager --include=*.sql)"
+    ]
+  }
+}
