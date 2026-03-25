@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { FileDown, X, Palette, FileText } from 'lucide-react';
 import type { PdfStyle } from '../lib/exportPdf';
 
@@ -39,7 +40,7 @@ export function ExportPdfButton({ onExport }: ExportPdfProps) {
     );
   }
 
-  return (
+  const modalContent = (
     <>
       {/* Backdrop */}
       <div
@@ -50,7 +51,7 @@ export function ExportPdfButton({ onExport }: ExportPdfProps) {
 
       {/* Modal */}
       <div
-        className="fixed z-50 left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[340px] rounded-2xl p-6 flex flex-col gap-5 animate-fade-in"
+        className="fixed z-50 left-1/2 top-[58%] sm:top-1/2 -translate-x-1/2 -translate-y-1/2 w-[340px] max-w-[calc(100vw-2rem)] max-h-[calc(100dvh-2rem)] sm:max-h-none overflow-y-auto sm:overflow-visible rounded-2xl p-6 flex flex-col gap-5 animate-fade-in"
         style={{
           background: 'linear-gradient(180deg, #1c1b25 0%, #16151d 100%)',
           border: '1px solid var(--accent-border)',
@@ -160,4 +161,6 @@ export function ExportPdfButton({ onExport }: ExportPdfProps) {
       </div>
     </>
   );
+
+  return typeof document !== 'undefined' ? createPortal(modalContent, document.body) : modalContent;
 }
