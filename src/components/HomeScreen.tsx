@@ -80,6 +80,7 @@ export function HomeScreen({
   const [showAccountSettings, setShowAccountSettings] = useState(false);
   const joinKeyboardSafetyGap = joinKeyboardInset > 0 ? 72 : 0;
   const joinCodeSectionRef = useRef<HTMLDivElement | null>(null);
+  const joinCodeActionsRef = useRef<HTMLDivElement | null>(null);
   const keyboardWasOpenRef = useRef(false);
   const maxKeyboardInsetRef = useRef(0);
 
@@ -114,6 +115,19 @@ export function HomeScreen({
     });
   };
 
+  const keepJoinActionsAboveKeyboard = (visibleBottom: number) => {
+    requestAnimationFrame(() => {
+      const actionsRect = joinCodeActionsRef.current?.getBoundingClientRect();
+      if (!actionsRect) return;
+
+      const minGap = 12;
+      const overlap = actionsRect.bottom - (visibleBottom - minGap);
+      if (overlap > 0) {
+        window.scrollBy({ top: overlap + 8, behavior: 'auto' });
+      }
+    });
+  };
+
   useEffect(() => {
     if (joinStep !== 'code') {
       setJoinKeyboardInset(0);
@@ -128,6 +142,7 @@ export function HomeScreen({
     const updateForKeyboard = () => {
       const rawInset = Math.max(0, window.innerHeight - viewport.height - viewport.offsetTop);
       const keyboardLooksOpen = rawInset > 80;
+      const visibleBottom = viewport.offsetTop + viewport.height;
 
       if (!keyboardLooksOpen) {
         keyboardWasOpenRef.current = false;
@@ -143,6 +158,8 @@ export function HomeScreen({
         keyboardWasOpenRef.current = true;
         scrollJoinCodeIntoView();
       }
+
+      keepJoinActionsAboveKeyboard(visibleBottom);
     };
 
     viewport.addEventListener('resize', updateForKeyboard);
@@ -598,7 +615,7 @@ export function HomeScreen({
             {joinError && (
               <p className="text-xs text-center" style={{ color: 'var(--danger-bright)' }}>{joinError}</p>
             )}
-            <div className="flex gap-3">
+            <div ref={joinCodeActionsRef} className="flex gap-3">
               <button
                 type="button"
                 onClick={() => { setJoinStep('idle'); setRoomCode(''); setJoinError(''); }}
