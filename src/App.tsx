@@ -388,18 +388,7 @@ function App() {
         >
           <Users size={14} /> All Characters
         </button>
-        <div className="flex-1 min-w-0">
-          <h1
-            className="text-base font-bold m-0 truncate animate-shimmer"
-            style={{ fontSize: '1rem', letterSpacing: '0.5px' }}
-          >
-            {character.name}
-          </h1>
-          <p className="text-xs m-0 truncate" style={{ color: 'var(--text)' }}>
-            {[character.race, character.class].filter(Boolean).join(' · ')}
-            {character.level > 0 && ` · Lvl ${character.level}`}
-          </p>
-        </div>
+        <div className="flex-1" />
         {!isReadOnly && (
           <button
             onClick={() => updateCharacter({ inspiration: !character.inspiration })}
