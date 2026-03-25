@@ -78,6 +78,7 @@ export function HomeScreen({
   const [joinKeyboardInset, setJoinKeyboardInset] = useState(0);
   const [startingCombat, setStartingCombat] = useState(false);
   const [showAccountSettings, setShowAccountSettings] = useState(false);
+  const joinKeyboardSafetyGap = joinKeyboardInset > 0 ? 72 : 0;
   const joinCodeSectionRef = useRef<HTMLDivElement | null>(null);
   const keyboardWasOpenRef = useRef(false);
   const maxKeyboardInsetRef = useRef(0);
@@ -554,7 +555,7 @@ export function HomeScreen({
           style={{
             borderTop: '1px solid var(--border)',
             background: 'var(--bg-surface)',
-            paddingBottom: `${16 + joinKeyboardInset}px`,
+            paddingBottom: `${16 + joinKeyboardInset + joinKeyboardSafetyGap}px`,
           }}
         >
           <h3
