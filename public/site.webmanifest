@@ -1,0 +1,22 @@
+{
+  "name": "D&D Character Manager",
+  "short_name": "D&D Manager",
+  "description": "Build and manage your D&D 5e characters.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "theme_color": "#0f0e13",
+  "background_color": "#0f0e13",
+  "icons": [
+    {
+      "src": "/android-chrome-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/android-chrome-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
