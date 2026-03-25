@@ -80,7 +80,7 @@ export function HomeScreen({
   const [startingCombat, setStartingCombat] = useState(false);
   const [showAccountSettings, setShowAccountSettings] = useState(false);
   const joinKeyboardSafetyGap = joinKeyboardInset > 0 ? 72 : 0;
-  const joinFocusSafetyGap = joinCodeInputFocused ? 170 : 0;
+  const joinFocusSafetyGap = joinCodeInputFocused ? 130 : 0;
   const joinCodeSectionRef = useRef<HTMLDivElement | null>(null);
   const joinCodeActionsRef = useRef<HTMLDivElement | null>(null);
   const keyboardWasOpenRef = useRef(false);
