@@ -45,7 +45,8 @@ export function Inventory({ items, strScore, onAdd, onUpdate, onDelete }: Invent
   };
 
   return (
-    <div className="flex flex-col gap-4 p-4 pb-24 animate-fade-in">
+    <div className="flex flex-col gap-4 p-4 md:p-6 lg:p-8 animate-fade-in">
+      <div className="max-w-5xl mx-auto w-full flex flex-col gap-4">
       {/* Weight Summary */}
       <div
         className="p-4 rounded-xl flex items-center justify-between"
@@ -224,6 +225,7 @@ export function Inventory({ items, strScore, onAdd, onUpdate, onDelete }: Invent
           + Add Item
         </button>
       )}
+      </div>
     </div>
   );
 }

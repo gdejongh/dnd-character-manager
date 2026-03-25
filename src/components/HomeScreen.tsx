@@ -286,18 +286,19 @@ export function HomeScreen({
       )}
 
       {/* Character List */}
-      <div className="flex-1 p-4">
+      <div className="flex-1 p-4 md:p-6 lg:p-8">
+        <div className="max-w-4xl mx-auto w-full">
         {loading ? (
           <p className="text-center py-12" style={{ color: 'var(--text)' }}>
             Loading characters…
           </p>
         ) : (
           <>
-            <div className="flex flex-col gap-3">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4">
               {characters.map((char, i) => (
                 <div
                   key={char.id}
-                  className="p-4 rounded-xl cursor-pointer transition-all active:scale-[0.98] animate-fade-in"
+                  className="p-4 rounded-xl cursor-pointer transition-all active:scale-[0.98] animate-fade-in hover:border-[var(--border-light)]"
                   style={{
                     background: 'linear-gradient(135deg, var(--bg-raised) 0%, var(--bg-surface) 100%)',
                     border: '1px solid var(--border)',
@@ -523,6 +524,7 @@ export function HomeScreen({
             )}
           </>
         )}
+        </div>
       </div>
 
       {/* ── Combat Session Buttons ── */}

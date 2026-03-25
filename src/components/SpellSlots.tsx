@@ -159,8 +159,8 @@ export function SpellSlots({
   }
 
   return (
-    <div className="flex flex-col gap-4 p-4 pb-24 animate-fade-in">
-      {/* Auto-fill & Pact Magic info */}
+    <div className="flex flex-col gap-4 p-4 md:p-6 lg:p-8 animate-fade-in">
+      <div className="max-w-5xl mx-auto w-full flex flex-col gap-4">
       {hasSuggestedSlots && (
         <div
           className="flex items-center justify-between p-3 rounded-xl"
@@ -337,6 +337,7 @@ export function SpellSlots({
       {/* Spell Levels */}
 
       {/* Spell levels */}
+      <div className="md:grid md:grid-cols-2 md:gap-4 flex flex-col gap-4">
       {levels.map((level) => {
         const slot = slots.find((s) => s.level === level);
         const levelSpells = spellsAtLevel(level);
@@ -718,6 +719,7 @@ export function SpellSlots({
           </section>
         );
       })}
+      </div>
 
       {(search || filter === 'prepared') && filteredSpells.length === 0 && (
         <p className="text-center py-8" style={{ color: 'var(--text)' }}>
@@ -726,6 +728,7 @@ export function SpellSlots({
             : 'No spells prepared yet — cantrips are always prepared; use the checkbox for leveled spells.'}
         </p>
       )}
+      </div>
     </div>
   );
 }

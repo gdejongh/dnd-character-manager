@@ -74,7 +74,8 @@ export function Weapons({ weapons, scores, level, onAdd, onUpdate, onDelete }: W
   }
 
   return (
-    <div className="flex flex-col gap-4 p-4 pb-24 animate-fade-in">
+    <div className="flex flex-col gap-4 p-4 md:p-6 lg:p-8 animate-fade-in">
+      <div className="max-w-5xl mx-auto w-full flex flex-col gap-4">
       {/* Header */}
       <div className="flex items-center gap-2 mb-1">
         <Swords size={18} style={{ color: 'var(--hp-crimson)' }} />
@@ -101,6 +102,7 @@ export function Weapons({ weapons, scores, level, onAdd, onUpdate, onDelete }: W
         </div>
       )}
 
+      <div className="md:grid md:grid-cols-2 md:gap-4 flex flex-col gap-4">
       {weapons.map((weapon) => (
         editingId === weapon.id ? (
           <WeaponEditCard
@@ -120,6 +122,7 @@ export function Weapons({ weapons, scores, level, onAdd, onUpdate, onDelete }: W
           />
         )
       ))}
+      </div>
 
       {/* Add Weapon Form */}
       {showForm ? (
@@ -246,6 +249,7 @@ export function Weapons({ weapons, scores, level, onAdd, onUpdate, onDelete }: W
           + Add Weapon
         </button>
       )}
+      </div>
     </div>
   );
 }

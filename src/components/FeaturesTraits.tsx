@@ -47,7 +47,8 @@ export function FeaturesTraits({ features, onAdd, onUpdate, onDelete }: Features
   };
 
   return (
-    <div className="flex flex-col gap-3 p-4 pb-24 animate-fade-in">
+    <div className="flex flex-col gap-3 p-4 md:p-6 lg:p-8 animate-fade-in">
+      <div className="max-w-5xl mx-auto w-full flex flex-col gap-3">
       <div className="flex items-center gap-2 mb-1">
         <Swords size={16} style={{ color: 'var(--accent)' }} />
         <h3
@@ -71,6 +72,7 @@ export function FeaturesTraits({ features, onAdd, onUpdate, onDelete }: Features
         }}
       />
 
+      <div className="md:grid md:grid-cols-2 md:gap-3 flex flex-col gap-3">
       {filteredFeatures.map((feature) => (
         <FeatureCard
           key={feature.id}
@@ -81,6 +83,7 @@ export function FeaturesTraits({ features, onAdd, onUpdate, onDelete }: Features
           onDelete={() => onDelete(feature.id)}
         />
       ))}
+      </div>
 
       {filteredFeatures.length === 0 && !showForm && (
         <p className="text-center py-8" style={{ color: 'var(--text)' }}>
@@ -166,6 +169,7 @@ export function FeaturesTraits({ features, onAdd, onUpdate, onDelete }: Features
           + Add Feature
         </button>
       )}
+      </div>
     </div>
   );
 }

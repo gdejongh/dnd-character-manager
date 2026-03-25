@@ -115,7 +115,8 @@ export function HpTracker({ character, onUpdate }: HpTrackerProps) {
   const activeConditions = character.conditions ?? [];
 
   return (
-    <div className="flex flex-col items-center gap-5 p-4 pb-24 animate-fade-in">
+    <div className="flex flex-col items-center gap-5 p-4 md:p-6 lg:p-8 animate-fade-in">
+      <div className="max-w-2xl mx-auto w-full flex flex-col items-center gap-5">
       {/* HP + AC Header */}
       <div className="flex items-start gap-4 w-full">
         {/* HP Display */}
@@ -257,6 +258,8 @@ export function HpTracker({ character, onUpdate }: HpTrackerProps) {
                     <button
                       key={`s-${i}`}
                       onClick={() => toggleDeathSave('successes', i)}
+                      aria-label={`Death save success ${i + 1}`}
+                      aria-pressed={filled}
                       className="cursor-pointer active:scale-90 transition-all"
                       style={{
                         width: '28px',
@@ -284,6 +287,8 @@ export function HpTracker({ character, onUpdate }: HpTrackerProps) {
                     <button
                       key={`f-${i}`}
                       onClick={() => toggleDeathSave('failures', i)}
+                      aria-label={`Death save failure ${i + 1}`}
+                      aria-pressed={filled}
                       className="cursor-pointer active:scale-90 transition-all"
                       style={{
                         width: '28px',
@@ -316,6 +321,7 @@ export function HpTracker({ character, onUpdate }: HpTrackerProps) {
             className="flex items-center justify-center rounded-xl font-bold text-lg cursor-pointer active:scale-95 transition-transform text-white"
             style={{ background: bg, border: 'none', minHeight: '56px' }}
             onClick={() => adjustHp(amt)}
+            aria-label={amt > 0 ? `Heal ${amt} HP` : `Take ${Math.abs(amt)} damage`}
           >
             {label}
           </button>
@@ -490,6 +496,7 @@ export function HpTracker({ character, onUpdate }: HpTrackerProps) {
             </button>
           )}
         </div>
+      </div>
       </div>
     </div>
   );

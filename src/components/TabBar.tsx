@@ -1,3 +1,4 @@
+import { useRef, useCallback, useEffect } from 'react';
 import type { Tab } from '../types/database';
 import { Shield, Heart, Sparkles, Backpack, Swords, Crown, Axe } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
@@ -16,88 +17,178 @@ const TABS: { id: Tab; label: string; Icon: LucideIcon }[] = [
   { id: 'features', label: 'Traits', Icon: Crown },
 ];
 
+const COMBAT_TAB = { id: 'combat' as Tab, label: 'Combat', Icon: Swords };
+const ALL_TABS = [...TABS.slice(0, 3), COMBAT_TAB, ...TABS.slice(3)];
+
 export function TabBar({ activeTab, onTabChange }: TabBarProps) {
   const isCombatActive = activeTab === 'combat';
+  const navRef = useRef<HTMLElement>(null);
+
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      const currentIdx = ALL_TABS.findIndex((t) => t.id === activeTab);
+      if (currentIdx === -1) return;
+
+      // On mobile: left/right arrows. On desktop (sidebar): up/down arrows. Support both always.
+      let nextIdx = currentIdx;
+      if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+        nextIdx = (currentIdx + 1) % ALL_TABS.length;
+        e.preventDefault();
+      } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+        nextIdx = (currentIdx - 1 + ALL_TABS.length) % ALL_TABS.length;
+        e.preventDefault();
+      } else if (e.key === 'Home') {
+        nextIdx = 0;
+        e.preventDefault();
+      } else if (e.key === 'End') {
+        nextIdx = ALL_TABS.length - 1;
+        e.preventDefault();
+      } else {
+        return;
+      }
+
+      onTabChange(ALL_TABS[nextIdx].id);
+      // Focus the newly active tab button
+      const buttons = navRef.current?.querySelectorAll<HTMLButtonElement>('[role="tab"]');
+      buttons?.[nextIdx]?.focus();
+    },
+    [activeTab, onTabChange],
+  );
+
+  // Focus the active tab on mount / tab change for screen readers
+  useEffect(() => {
+    const currentIdx = ALL_TABS.findIndex((t) => t.id === activeTab);
+    const buttons = navRef.current?.querySelectorAll<HTMLButtonElement>('[role="tab"]');
+    if (buttons?.[currentIdx] && document.activeElement && navRef.current?.contains(document.activeElement)) {
+      buttons[currentIdx].focus();
+    }
+  }, [activeTab]);
 
   return (
-    <nav
-      className="fixed bottom-0 left-0 right-0 flex items-stretch z-20"
-      style={{
-        background: 'linear-gradient(180deg, #1c1b25 0%, #13121a 100%)',
-        borderTop: '2px solid var(--border)',
-        boxShadow: '0 -4px 20px rgba(0,0,0,0.4)',
-        paddingBottom: 'env(safe-area-inset-bottom, 0px)',
-      }}
-    >
-      {/* Decorative top border with gold accent */}
-      <div
-        className="absolute top-0 left-0 right-0 h-px"
+    <>
+      {/* ── Mobile / Tablet bottom nav (< 1024px) ── */}
+      <nav
+        ref={navRef}
+        role="tablist"
+        aria-label="Character sections"
+        onKeyDown={handleKeyDown}
+        className="fixed bottom-0 left-0 right-0 flex items-stretch z-20 lg:hidden"
         style={{
-          background: isCombatActive
-            ? 'linear-gradient(90deg, transparent 0%, rgba(220,38,38,0.4) 30%, rgba(220,38,38,0.8) 50%, rgba(220,38,38,0.4) 70%, transparent 100%)'
-            : 'linear-gradient(90deg, transparent 0%, var(--accent-border) 30%, var(--accent) 50%, var(--accent-border) 70%, transparent 100%)',
+          background: 'linear-gradient(180deg, #1c1b25 0%, #13121a 100%)',
+          borderTop: '2px solid var(--border)',
+          boxShadow: '0 -4px 20px rgba(0,0,0,0.4)',
+          paddingBottom: 'env(safe-area-inset-bottom, 0px)',
         }}
-      />
-
-      {/* Regular tabs - first half */}
-      {TABS.slice(0, 3).map((tab) => (
-        <TabButton key={tab.id} tab={tab} isActive={activeTab === tab.id} onTabChange={onTabChange} />
-      ))}
-
-      {/* Combat tab - special center button */}
-      <button
-        onClick={() => onTabChange('combat')}
-        className="flex flex-col items-center justify-center bg-transparent border-none cursor-pointer relative"
-        style={{ minHeight: '56px', flex: '1.3' }}
       >
-        {/* Raised circle */}
+        {/* Decorative top border with gold accent */}
         <div
-          className="relative flex items-center justify-center rounded-full -mt-5"
+          className="absolute top-0 left-0 right-0 h-px"
           style={{
-            width: '48px',
-            height: '48px',
             background: isCombatActive
-              ? 'linear-gradient(135deg, #dc2626, #b91c1c)'
-              : 'linear-gradient(135deg, #991b1b, #7f1d1d)',
-            boxShadow: isCombatActive
-              ? '0 0 20px rgba(220,38,38,0.5), 0 0 40px rgba(220,38,38,0.2), inset 0 1px 0 rgba(255,255,255,0.15)'
-              : '0 4px 12px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.1)',
-            border: `2px solid ${isCombatActive ? '#ef4444' : '#991b1b'}`,
-            transition: 'all 0.3s ease',
-            animation: isCombatActive ? 'combatPulse 2s ease-in-out infinite' : undefined,
+              ? 'linear-gradient(90deg, transparent 0%, rgba(220,38,38,0.4) 30%, rgba(220,38,38,0.8) 50%, rgba(220,38,38,0.4) 70%, transparent 100%)'
+              : 'linear-gradient(90deg, transparent 0%, var(--accent-border) 30%, var(--accent) 50%, var(--accent-border) 70%, transparent 100%)',
           }}
-        >
-          <Swords
-            size={22}
-            style={{
-              color: isCombatActive ? '#fff' : '#ef4444',
-              filter: isCombatActive ? 'drop-shadow(0 0 6px rgba(255,255,255,0.4))' : 'drop-shadow(0 0 4px rgba(239,68,68,0.5))',
-            }}
-          />
-        </div>
-        <span
-          style={{
-            fontSize: '9px',
-            fontWeight: 700,
-            color: isCombatActive ? '#ef4444' : '#dc2626',
-            fontFamily: 'var(--heading)',
-            letterSpacing: '1px',
-            marginTop: '2px',
-          }}
-        >
-          COMBAT
-        </span>
-      </button>
+        />
 
-      {/* Regular tabs - second half */}
-      {TABS.slice(3).map((tab) => (
-        <TabButton key={tab.id} tab={tab} isActive={activeTab === tab.id} onTabChange={onTabChange} />
-      ))}
-    </nav>
+        {/* Regular tabs - first half */}
+        {TABS.slice(0, 3).map((tab) => (
+          <MobileTabButton key={tab.id} tab={tab} isActive={activeTab === tab.id} onTabChange={onTabChange} />
+        ))}
+
+        {/* Combat tab - special center button (mobile) */}
+        <button
+          role="tab"
+          aria-selected={isCombatActive}
+          aria-current={isCombatActive ? 'page' : undefined}
+          tabIndex={isCombatActive ? 0 : -1}
+          onClick={() => onTabChange('combat')}
+          className="flex flex-col items-center justify-center bg-transparent border-none cursor-pointer relative"
+          style={{ minHeight: '56px', flex: '1.3' }}
+        >
+          {/* Raised circle */}
+          <div
+            className="relative flex items-center justify-center rounded-full -mt-5"
+            style={{
+              width: '48px',
+              height: '48px',
+              background: isCombatActive
+                ? 'linear-gradient(135deg, #dc2626, #b91c1c)'
+                : 'linear-gradient(135deg, #991b1b, #7f1d1d)',
+              boxShadow: isCombatActive
+                ? '0 0 20px rgba(220,38,38,0.5), 0 0 40px rgba(220,38,38,0.2), inset 0 1px 0 rgba(255,255,255,0.15)'
+                : '0 4px 12px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.1)',
+              border: `2px solid ${isCombatActive ? '#ef4444' : '#991b1b'}`,
+              transition: 'all 0.3s ease',
+              animation: isCombatActive ? 'combatPulse 2s ease-in-out infinite' : undefined,
+            }}
+          >
+            <Swords
+              size={22}
+              style={{
+                color: isCombatActive ? '#fff' : '#ef4444',
+                filter: isCombatActive ? 'drop-shadow(0 0 6px rgba(255,255,255,0.4))' : 'drop-shadow(0 0 4px rgba(239,68,68,0.5))',
+              }}
+            />
+          </div>
+          <span
+            style={{
+              fontSize: '9px',
+              fontWeight: 700,
+              color: isCombatActive ? '#ef4444' : '#dc2626',
+              fontFamily: 'var(--heading)',
+              letterSpacing: '1px',
+              marginTop: '2px',
+            }}
+          >
+            COMBAT
+          </span>
+        </button>
+
+        {/* Regular tabs - second half */}
+        {TABS.slice(3).map((tab) => (
+          <MobileTabButton key={tab.id} tab={tab} isActive={activeTab === tab.id} onTabChange={onTabChange} />
+        ))}
+      </nav>
+
+      {/* ── Desktop left sidebar (>= 1024px) ── */}
+      <nav
+        role="tablist"
+        aria-label="Character sections"
+        onKeyDown={handleKeyDown}
+        className="hidden lg:flex fixed top-0 left-0 bottom-0 w-20 flex-col items-center z-20 py-4 gap-1"
+        style={{
+          background: 'linear-gradient(90deg, #13121a 0%, #1c1b25 100%)',
+          borderRight: '2px solid var(--border)',
+          boxShadow: '4px 0 20px rgba(0,0,0,0.4)',
+        }}
+      >
+        {/* Decorative right-edge accent line */}
+        <div
+          className="absolute top-0 right-0 bottom-0 w-px"
+          style={{
+            background: isCombatActive
+              ? 'linear-gradient(180deg, transparent 0%, rgba(220,38,38,0.4) 20%, rgba(220,38,38,0.8) 50%, rgba(220,38,38,0.4) 80%, transparent 100%)'
+              : 'linear-gradient(180deg, transparent 0%, var(--accent-border) 20%, var(--accent) 50%, var(--accent-border) 80%, transparent 100%)',
+          }}
+        />
+
+        {/* All tabs including combat as regular item */}
+        {ALL_TABS.map((tab) => (
+          <DesktopTabButton
+            key={tab.id}
+            tab={tab}
+            isActive={activeTab === tab.id}
+            isCombat={tab.id === 'combat'}
+            onTabChange={onTabChange}
+          />
+        ))}
+      </nav>
+    </>
   );
 }
 
-function TabButton({
+/* ── Mobile tab button (unchanged from original) ── */
+function MobileTabButton({
   tab,
   isActive,
   onTabChange,
@@ -108,6 +199,10 @@ function TabButton({
 }) {
   return (
     <button
+      role="tab"
+      aria-selected={isActive}
+      aria-current={isActive ? 'page' : undefined}
+      tabIndex={isActive ? 0 : -1}
       onClick={() => onTabChange(tab.id)}
       className="flex-1 flex flex-col items-center justify-center gap-0.5 py-2 bg-transparent border-none cursor-pointer transition-colors relative"
       style={{ minHeight: '56px' }}
@@ -131,6 +226,68 @@ function TabButton({
           fontSize: '9px',
           fontWeight: 600,
           color: isActive ? 'var(--accent)' : 'var(--text)',
+          fontFamily: 'var(--heading)',
+          letterSpacing: '0.5px',
+          transition: 'color 0.2s',
+        }}
+      >
+        {tab.label}
+      </span>
+    </button>
+  );
+}
+
+/* ── Desktop sidebar tab button ── */
+function DesktopTabButton({
+  tab,
+  isActive,
+  isCombat,
+  onTabChange,
+}: {
+  tab: { id: Tab; label: string; Icon: LucideIcon };
+  isActive: boolean;
+  isCombat: boolean;
+  onTabChange: (tab: Tab) => void;
+}) {
+  const activeColor = isCombat ? '#ef4444' : 'var(--accent)';
+  const inactiveColor = isCombat ? '#dc2626' : 'var(--text)';
+
+  return (
+    <button
+      role="tab"
+      aria-selected={isActive}
+      aria-current={isActive ? 'page' : undefined}
+      tabIndex={isActive ? 0 : -1}
+      onClick={() => onTabChange(tab.id)}
+      className="w-full flex flex-col items-center justify-center gap-1 py-3 bg-transparent border-none cursor-pointer transition-all relative rounded-lg mx-1"
+      style={{
+        background: isActive ? 'var(--bg-raised)' : 'transparent',
+      }}
+    >
+      {/* Active indicator on right edge */}
+      {isActive && (
+        <div
+          className="absolute top-2 bottom-2 right-0 w-0.5 rounded-full"
+          style={{ background: activeColor }}
+        />
+      )}
+      <tab.Icon
+        size={20}
+        style={{
+          color: isActive ? activeColor : inactiveColor,
+          filter: isActive
+            ? isCombat
+              ? 'drop-shadow(0 0 4px rgba(239,68,68,0.4))'
+              : 'drop-shadow(0 0 4px rgba(201,168,76,0.4))'
+            : 'none',
+          transition: 'color 0.2s, filter 0.2s',
+        }}
+      />
+      <span
+        style={{
+          fontSize: '9px',
+          fontWeight: 600,
+          color: isActive ? activeColor : inactiveColor,
           fontFamily: 'var(--heading)',
           letterSpacing: '0.5px',
           transition: 'color 0.2s',

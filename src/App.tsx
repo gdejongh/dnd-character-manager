@@ -357,7 +357,7 @@ function App() {
   const noOpUpload = async () => null as string | null;
 
   return (
-    <div className="flex flex-col min-h-screen">
+    <div className="flex flex-col lg:ml-20 min-h-screen">
       <ToastContainer />
 
       {showCombatTransition && (
@@ -489,7 +489,7 @@ function App() {
       )}
 
       {/* Tab content with fade transition */}
-      <main className="flex-1 overflow-y-auto">
+      <main id="main-content" className="flex-1 overflow-y-auto pb-24 lg:pb-6">
         <div key={activeTab} className="animate-fade-in" style={isReadOnly ? { pointerEvents: 'none' } : undefined}>
           {activeTab === 'sheet' && (
             <CharacterSheet

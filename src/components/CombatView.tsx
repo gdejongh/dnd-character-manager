@@ -403,7 +403,8 @@ export function CombatView({
       : 'linear-gradient(90deg, #991b1b, #dc2626)';
 
   return (
-    <div className="flex flex-col gap-4 p-4 pb-24 combat-entrance">
+    <div className="flex flex-col gap-4 p-4 md:p-6 lg:p-8 combat-entrance">
+      <div className="max-w-5xl mx-auto w-full flex flex-col gap-4">
       {/* Explosion overlays */}
       {castingSpell && (
         <ArcaneExplosion spellName={castingSpell} onDone={() => setCastingSpell(null)} />
@@ -1183,6 +1184,7 @@ export function CombatView({
           </p>
         </div>
       )}
+      </div>
     </div>
   );
 }

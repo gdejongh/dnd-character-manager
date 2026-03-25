@@ -117,7 +117,7 @@ export function CharacterSheet({
   })).filter((g) => g.skills.length > 0);
 
   return (
-    <div className="flex flex-col gap-6 p-4 pb-24 animate-fade-in">
+    <div className="flex flex-col gap-6 md:gap-7 p-4 md:p-6 lg:p-8 animate-fade-in">
       {/* Adjust new image position modal */}
       {adjustingNew && newImageUrl && (
         <div
@@ -225,12 +225,13 @@ export function CharacterSheet({
         }}
       />
 
+      <div className="max-w-5xl mx-auto w-full flex flex-col gap-5 md:gap-6">
       {/* Character Info Header */}
-      <div className="flex gap-4">
+      <div className="flex gap-4 md:gap-5 items-start">
         {/* Character Image */}
         <div className="shrink-0 relative">
           <div
-            className="relative w-20 h-20 rounded-full overflow-hidden cursor-pointer"
+            className="relative w-20 h-20 md:w-28 md:h-28 lg:w-32 lg:h-32 rounded-full overflow-hidden cursor-pointer"
             style={{
               background: 'var(--bg-surface)',
               border: repositioning ? '2px solid var(--accent)' : '2px solid var(--accent-border)',
@@ -392,7 +393,7 @@ export function CharacterSheet({
         </div>
 
         {/* Name / Race / Class / Level */}
-        <div className="flex flex-col gap-2 flex-1 min-w-0">
+        <div className="flex flex-col gap-2.5 md:gap-3 flex-1 min-w-0">
         {editingField === 'name' ? (
           <input
             className="text-xl font-bold px-3 py-2 rounded-lg outline-none"
@@ -502,7 +503,7 @@ export function CharacterSheet({
       </div>
 
       {/* Initiative, Passive Perception & Speed */}
-      <div className="grid grid-cols-3 gap-3">
+      <div className="mt-1 md:mt-2 grid grid-cols-3 gap-3 md:gap-4">
         {/* Initiative */}
         {(() => {
           const dexMod = getModifier(getScore('DEX'));
@@ -686,14 +687,14 @@ export function CharacterSheet({
           </span>
         </div>
       </div>
-      <section>
+      <section className="pt-1">
         <h3
           className="text-xs uppercase tracking-widest mb-3"
           style={{ color: 'var(--accent)', fontFamily: 'var(--heading)', letterSpacing: '2px' }}
         >
           Ability Scores
         </h3>
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-3 md:grid-cols-6 gap-4 md:gap-5">
           {ABILITIES.map((ability) => {
             const score = getScore(ability);
             const mod = getModifier(score);
@@ -762,7 +763,7 @@ export function CharacterSheet({
       </section>
 
       {/* Saving Throws */}
-      <section>
+      <section className="pt-1">
         <h3
           className="text-xs uppercase tracking-widest mb-3"
           style={{ color: 'var(--accent)', fontFamily: 'var(--heading)', letterSpacing: '2px' }}
@@ -816,18 +817,18 @@ export function CharacterSheet({
       </section>
 
       {/* Skills — grouped by ability */}
-      <section>
+      <section className="pt-1">
         <h3
           className="text-xs uppercase tracking-widest mb-3"
           style={{ color: 'var(--accent)', fontFamily: 'var(--heading)', letterSpacing: '2px' }}
         >
           Skills
         </h3>
-        <div className="flex flex-col gap-4">
+        <div className="flex flex-col md:grid md:grid-cols-2 md:gap-x-6 gap-5">
           {skillsByAbility.map((group) => (
             <div key={group.ability}>
               <div
-                className="text-[10px] font-bold uppercase tracking-widest px-4 py-1.5 mb-1"
+                className="text-[10px] font-bold uppercase tracking-widest px-4 py-1.5 mb-2"
                 style={{
                   color: 'var(--accent)',
                   fontFamily: 'var(--heading)',
@@ -849,7 +850,7 @@ export function CharacterSheet({
                   return (
                     <div
                       key={skill.name}
-                      className="flex items-center gap-3 py-2.5 px-4"
+                      className="flex items-center gap-3 py-3 px-4"
                       style={{ borderBottom: '1px solid var(--border)' }}
                     >
                       <button
@@ -863,6 +864,7 @@ export function CharacterSheet({
                           fontWeight: 'bold',
                         }}
                         aria-label={`Toggle ${skill.name} proficiency`}
+                        aria-pressed={proficient}
                       >
                         ✓
                       </button>
@@ -886,6 +888,7 @@ export function CharacterSheet({
           ))}
         </div>
       </section>
+      </div>
     </div>
   );
 }

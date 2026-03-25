@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import type { DiceRoll, QuickRollConfig, DieType } from '../constants/dice';
 import { DICE } from '../constants/dice';
 import { X, Trash2, ChevronDown, ChevronRight } from 'lucide-react';
@@ -95,8 +95,51 @@ export function DiceRoller({
     return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
   }
 
+  const dialogRef = useRef<HTMLDivElement>(null);
+
+  // Close on Escape
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [onClose]);
+
+  // Focus trap
+  useEffect(() => {
+    const dialog = dialogRef.current;
+    if (!dialog) return;
+    const focusable = dialog.querySelectorAll<HTMLElement>(
+      'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+    );
+    if (focusable.length > 0) focusable[0].focus();
+
+    const trap = (e: KeyboardEvent) => {
+      if (e.key !== 'Tab' || focusable.length === 0) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (e.shiftKey) {
+        if (document.activeElement === first) { e.preventDefault(); last.focus(); }
+      } else {
+        if (document.activeElement === last) { e.preventDefault(); first.focus(); }
+      }
+    };
+    dialog.addEventListener('keydown', trap);
+    return () => dialog.removeEventListener('keydown', trap);
+  }, []);
+
   return (
-    <div className="fixed inset-0 z-50 flex flex-col" style={{ background: 'var(--bg)' }}>
+    <>
+      <div className="hidden lg:block fixed inset-0 z-40 bg-black/60 backdrop-blur-sm" onClick={onClose} />
+      <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Dice Roller"
+        className="fixed inset-0 z-50 flex flex-col lg:inset-auto lg:top-1/2 lg:left-1/2 lg:-translate-x-1/2 lg:-translate-y-1/2 lg:w-full lg:max-w-[480px] lg:max-h-[90vh] lg:rounded-2xl lg:shadow-2xl"
+        style={{ background: 'var(--bg)' }}
+      >
       {/* Header */}
       <header
         className="flex items-center gap-3 px-4 py-3 shrink-0"
@@ -448,6 +491,7 @@ export function DiceRoller({
           </div>
         )}
       </main>
-    </div>
+      </div>
+    </>
   );
 }

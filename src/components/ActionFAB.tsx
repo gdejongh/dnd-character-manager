@@ -88,11 +88,13 @@ export function ActionFAB({
   }
 
   const fabBottom = 'calc(72px + env(safe-area-inset-bottom, 0px))';
+  // On desktop (>=1024px) the sidebar takes 80px, so we use CSS to adjust
+  const fabClasses = 'fixed right-4 lg:right-8 z-40';
 
   // Short rest prompt panel
   if (shortRestPrompt) {
     return (
-      <div className="fixed right-4 z-40" style={{ bottom: fabBottom }}>
+      <div className={fabClasses} style={{ bottom: fabBottom }}>
         <div
           className="p-3 rounded-xl w-56 flex flex-col gap-2 mb-3 animate-fade-in"
           style={{
@@ -166,7 +168,7 @@ export function ActionFAB({
   // Long rest confirm panel
   if (longRestConfirm) {
     return (
-      <div className="fixed right-4 z-40" style={{ bottom: fabBottom }}>
+      <div className={fabClasses} style={{ bottom: fabBottom }}>
         <div
           className="p-3 rounded-xl w-56 flex flex-col gap-2 mb-3 animate-fade-in"
           style={{
@@ -219,7 +221,7 @@ export function ActionFAB({
   }
 
   return (
-    <div className="fixed right-4 z-40" style={{ bottom: fabBottom }}>
+    <div className={fabClasses} style={{ bottom: fabBottom }}>
       {/* Expanded action menu */}
       {expanded && (
         <div className="flex flex-col gap-2.5 mb-3 items-end animate-fade-in">

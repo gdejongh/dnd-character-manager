@@ -17,7 +17,8 @@ export function Notes({ notes, loading, onUpdateContent }: NotesProps) {
   }
 
   return (
-    <div className="flex flex-col p-4 pb-24 animate-fade-in" style={{ minHeight: 'calc(100vh - 130px)' }}>
+    <div className="flex flex-col p-4 md:p-6 lg:p-8 animate-fade-in" style={{ minHeight: 'calc(100vh - 130px)' }}>
+      <div className="max-w-3xl mx-auto w-full flex flex-col flex-1">
       <div className="flex items-center gap-2 mb-3">
         <ScrollText size={16} style={{ color: 'var(--accent)' }} />
         <h3
@@ -45,6 +46,7 @@ export function Notes({ notes, loading, onUpdateContent }: NotesProps) {
         value={notes?.content ?? ''}
         onChange={(e) => onUpdateContent(e.target.value)}
       />
+      </div>
     </div>
   );
 }
