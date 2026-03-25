@@ -79,7 +79,8 @@ export function HomeScreen({
   const [startingCombat, setStartingCombat] = useState(false);
   const [showAccountSettings, setShowAccountSettings] = useState(false);
   const joinCodeSectionRef = useRef<HTMLDivElement | null>(null);
-  const roomCodeInputRef = useRef<HTMLInputElement | null>(null);
+  const keyboardWasOpenRef = useRef(false);
+  const maxKeyboardInsetRef = useRef(0);
 
   // Share modal state
   const [shareModalCharId, setShareModalCharId] = useState<string | null>(null);
@@ -108,7 +109,7 @@ export function HomeScreen({
 
   const scrollJoinCodeIntoView = () => {
     requestAnimationFrame(() => {
-      joinCodeSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
+      joinCodeSectionRef.current?.scrollIntoView({ behavior: 'auto', block: 'end' });
     });
   };
 
@@ -118,15 +119,27 @@ export function HomeScreen({
       return;
     }
 
-    scrollJoinCodeIntoView();
+    setTimeout(scrollJoinCodeIntoView, 50);
 
     const viewport = window.visualViewport;
     if (!viewport) return;
 
     const updateForKeyboard = () => {
-      const keyboardInset = Math.max(0, window.innerHeight - viewport.height - viewport.offsetTop);
-      setJoinKeyboardInset((prev) => (Math.abs(prev - keyboardInset) > 1 ? keyboardInset : prev));
-      if (keyboardInset > 0) {
+      const rawInset = Math.max(0, window.innerHeight - viewport.height - viewport.offsetTop);
+      const keyboardLooksOpen = rawInset > 80;
+
+      if (!keyboardLooksOpen) {
+        keyboardWasOpenRef.current = false;
+        maxKeyboardInsetRef.current = 0;
+        setJoinKeyboardInset(0);
+        return;
+      }
+
+      maxKeyboardInsetRef.current = Math.max(maxKeyboardInsetRef.current, Math.round(rawInset));
+      setJoinKeyboardInset((prev) => (prev !== maxKeyboardInsetRef.current ? maxKeyboardInsetRef.current : prev));
+
+      if (!keyboardWasOpenRef.current) {
+        keyboardWasOpenRef.current = true;
         scrollJoinCodeIntoView();
       }
     };
@@ -138,6 +151,8 @@ export function HomeScreen({
     return () => {
       viewport.removeEventListener('resize', updateForKeyboard);
       viewport.removeEventListener('scroll', updateForKeyboard);
+      keyboardWasOpenRef.current = false;
+      maxKeyboardInsetRef.current = 0;
       setJoinKeyboardInset(0);
     };
   }, [joinStep]);
@@ -565,7 +580,6 @@ export function HomeScreen({
             className="flex flex-col gap-3"
           >
             <input
-              ref={roomCodeInputRef}
               type="text"
               placeholder="e.g. DRAGON-42"
               value={roomCode}
