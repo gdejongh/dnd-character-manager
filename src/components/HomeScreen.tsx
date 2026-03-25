@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
 import type { Character, CharacterShare } from '../types/database';
 import type { ActiveSessionInfo } from '../hooks/useCombatSession';
@@ -75,8 +75,11 @@ export function HomeScreen({
   const [joinSessionId, setJoinSessionId] = useState<string | null>(null);
   const [joinError, setJoinError] = useState('');
   const [joining, setJoining] = useState(false);
+  const [joinKeyboardInset, setJoinKeyboardInset] = useState(0);
   const [startingCombat, setStartingCombat] = useState(false);
   const [showAccountSettings, setShowAccountSettings] = useState(false);
+  const joinCodeSectionRef = useRef<HTMLDivElement | null>(null);
+  const roomCodeInputRef = useRef<HTMLInputElement | null>(null);
 
   // Share modal state
   const [shareModalCharId, setShareModalCharId] = useState<string | null>(null);
@@ -102,6 +105,42 @@ export function HomeScreen({
     color: 'var(--text-h)',
     border: '1px solid var(--border)',
   };
+
+  const scrollJoinCodeIntoView = () => {
+    requestAnimationFrame(() => {
+      joinCodeSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
+    });
+  };
+
+  useEffect(() => {
+    if (joinStep !== 'code') {
+      setJoinKeyboardInset(0);
+      return;
+    }
+
+    scrollJoinCodeIntoView();
+
+    const viewport = window.visualViewport;
+    if (!viewport) return;
+
+    const updateForKeyboard = () => {
+      const keyboardInset = Math.max(0, window.innerHeight - viewport.height - viewport.offsetTop);
+      setJoinKeyboardInset((prev) => (Math.abs(prev - keyboardInset) > 1 ? keyboardInset : prev));
+      if (keyboardInset > 0) {
+        scrollJoinCodeIntoView();
+      }
+    };
+
+    viewport.addEventListener('resize', updateForKeyboard);
+    viewport.addEventListener('scroll', updateForKeyboard);
+    updateForKeyboard();
+
+    return () => {
+      viewport.removeEventListener('resize', updateForKeyboard);
+      viewport.removeEventListener('scroll', updateForKeyboard);
+      setJoinKeyboardInset(0);
+    };
+  }, [joinStep]);
 
   if (showAccountSettings) {
     return (
@@ -494,7 +533,15 @@ export function HomeScreen({
 
       {/* ── Join Flow: Enter Room Code ── */}
       {joinStep === 'code' && (
-        <div className="px-4 py-4 animate-fade-in" style={{ borderTop: '1px solid var(--border)', background: 'var(--bg-surface)' }}>
+        <div
+          ref={joinCodeSectionRef}
+          className="px-4 py-4 animate-fade-in"
+          style={{
+            borderTop: '1px solid var(--border)',
+            background: 'var(--bg-surface)',
+            paddingBottom: `${16 + joinKeyboardInset}px`,
+          }}
+        >
           <h3
             className="text-center mb-3"
             style={{ fontFamily: 'var(--heading)', color: 'var(--accent)', fontSize: '0.85rem', letterSpacing: '1px' }}
@@ -518,10 +565,12 @@ export function HomeScreen({
             className="flex flex-col gap-3"
           >
             <input
+              ref={roomCodeInputRef}
               type="text"
               placeholder="e.g. DRAGON-42"
               value={roomCode}
               onChange={(e) => setRoomCode(e.target.value.toUpperCase())}
+              onFocus={scrollJoinCodeIntoView}
               className="w-full px-4 py-3.5 rounded-lg text-center text-lg outline-none tracking-widest"
               style={{
                 ...inputStyle,
