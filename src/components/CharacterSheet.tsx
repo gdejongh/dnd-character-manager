@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import type { Character, AbilityScore, Ability } from '../types/database';
 import {
   ABILITIES,
@@ -119,68 +120,73 @@ export function CharacterSheet({
   return (
     <div className="flex flex-col gap-6 md:gap-7 p-4 md:p-6 lg:p-8 animate-fade-in">
       {/* Adjust new image position modal */}
-      {adjustingNew && newImageUrl && (
-        <div
-          className="fixed inset-0 z-50 flex flex-col items-center justify-center p-6"
-          style={{ background: 'rgba(0,0,0,0.9)' }}
-        >
-          <p
-            className="text-sm mb-4"
-            style={{ color: 'var(--text-h)', fontFamily: 'var(--heading)', letterSpacing: '1px' }}
-          >
-            DRAG TO ADJUST POSITION
-          </p>
+      {adjustingNew && newImageUrl && typeof document !== 'undefined' &&
+        createPortal(
           <div
-            className="relative w-32 h-32 rounded-full overflow-hidden"
+            className="fixed inset-0 z-[90] flex flex-col items-center justify-start p-4 md:justify-center md:p-6"
             style={{
-              border: '3px solid var(--accent)',
-              boxShadow: '0 0 24px rgba(201,168,76,0.3)',
-              touchAction: 'none',
+              background: 'rgba(0,0,0,0.9)',
+              paddingTop: 'calc(env(safe-area-inset-top, 0px) + 16px)',
             }}
-            onMouseDown={(e) => {
-              e.preventDefault();
-              handleDragStart(e.clientY);
-              const onMove = (ev: MouseEvent) => handleDragMove(ev.clientY);
-              const onUp = () => { handleDragEnd(); window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp); };
-              window.addEventListener('mousemove', onMove);
-              window.addEventListener('mouseup', onUp);
-            }}
-            onTouchStart={(e) => handleDragStart(e.touches[0].clientY)}
-            onTouchMove={(e) => { e.preventDefault(); handleDragMove(e.touches[0].clientY); }}
-            onTouchEnd={() => handleDragEnd()}
           >
-            <img
-              src={newImageUrl}
-              alt="Position preview"
-              className="w-full h-full object-cover pointer-events-none"
-              draggable={false}
-              style={{ objectPosition: `center ${adjustingPos}%` }}
-            />
-            <div
-              className="absolute inset-0 flex items-center justify-center"
-              style={{ background: 'rgba(0,0,0,0.15)' }}
+            <p
+              className="text-sm mb-4"
+              style={{ color: 'var(--text-h)', fontFamily: 'var(--heading)', letterSpacing: '1px' }}
             >
-              <Move size={20} style={{ color: 'rgba(255,255,255,0.7)' }} />
+              DRAG TO ADJUST POSITION
+            </p>
+            <div
+              className="relative w-32 h-32 rounded-full overflow-hidden"
+              style={{
+                border: '3px solid var(--accent)',
+                boxShadow: '0 0 24px rgba(201,168,76,0.3)',
+                touchAction: 'none',
+              }}
+              onMouseDown={(e) => {
+                e.preventDefault();
+                handleDragStart(e.clientY);
+                const onMove = (ev: MouseEvent) => handleDragMove(ev.clientY);
+                const onUp = () => { handleDragEnd(); window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp); };
+                window.addEventListener('mousemove', onMove);
+                window.addEventListener('mouseup', onUp);
+              }}
+              onTouchStart={(e) => handleDragStart(e.touches[0].clientY)}
+              onTouchMove={(e) => { e.preventDefault(); handleDragMove(e.touches[0].clientY); }}
+              onTouchEnd={() => handleDragEnd()}
+            >
+              <img
+                src={newImageUrl}
+                alt="Position preview"
+                className="w-full h-full object-cover pointer-events-none"
+                draggable={false}
+                style={{ objectPosition: `center ${adjustingPos}%` }}
+              />
+              <div
+                className="absolute inset-0 flex items-center justify-center"
+                style={{ background: 'rgba(0,0,0,0.15)' }}
+              >
+                <Move size={20} style={{ color: 'rgba(255,255,255,0.7)' }} />
+              </div>
             </div>
-          </div>
-          <p className="text-xs mt-3" style={{ color: 'var(--text)' }}>
-            Drag up or down to center on your character
-          </p>
-          <button
-            onClick={confirmNewImagePosition}
-            className="mt-6 px-8 py-3 rounded-xl font-semibold cursor-pointer"
-            style={{
-              background: 'linear-gradient(135deg, var(--accent), var(--accent-bright))',
-              color: '#0f0e13',
-              border: 'none',
-              fontFamily: 'var(--heading)',
-              letterSpacing: '1px',
-            }}
-          >
-            Done
-          </button>
-        </div>
-      )}
+            <p className="text-xs mt-3" style={{ color: 'var(--text)' }}>
+              Drag up or down to center on your character
+            </p>
+            <button
+              onClick={confirmNewImagePosition}
+              className="mt-6 px-8 py-3 rounded-xl font-semibold cursor-pointer"
+              style={{
+                background: 'linear-gradient(135deg, var(--accent), var(--accent-bright))',
+                color: '#0f0e13',
+                border: 'none',
+                fontFamily: 'var(--heading)',
+                letterSpacing: '1px',
+              }}
+            >
+              Done
+            </button>
+          </div>,
+          document.body,
+        )}
 
       {/* Fullscreen image preview */}
       {showFullImage && character.image_url && (

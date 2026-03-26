@@ -440,4 +440,10 @@ code {
     z-index: 15;
     pointer-events: none;
   }
+  .quick-ref-panel {
+    left: auto;
+    width: 100%;
+    max-width: 600px;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  }
 }
