@@ -46,6 +46,15 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* Prevent iOS Safari focus-zoom on form controls */
+@media (max-width: 1023px) {
+  input:not([type='checkbox']):not([type='radio']),
+  textarea,
+  select {
+    font-size: 16px !important;
+  }
+}
+
 /* ─── Background Texture ─── */
 body {
   margin: 0;
