@@ -146,12 +146,37 @@ export function HpTracker({ character, onUpdate }: HpTrackerProps) {
               {animatedHp}
             </span>
             <span className="text-2xl" style={{ color: 'var(--border-light)' }}>/</span>
-            <span
-              className="text-2xl font-bold"
-              style={{ color: 'var(--text-h)', fontFamily: 'var(--mono)' }}
-            >
-              {character.max_hp}
-            </span>
+            {editingMax ? (
+              <div className="flex items-center gap-1.5">
+                <NumericInput
+                  min={1}
+                  value={character.max_hp}
+                  onChange={(val) => onUpdate({ max_hp: val, current_hp: Math.min(character.current_hp, val) })}
+                  className="w-16 px-1 py-0.5 rounded-lg text-center text-2xl font-bold outline-none"
+                  style={{ background: 'var(--code-bg)', color: 'var(--text-h)', border: '1px solid var(--accent)', fontFamily: 'var(--mono)' }}
+                  autoFocus
+                />
+                <button
+                  className="px-2 py-1 rounded-lg text-xs cursor-pointer font-semibold"
+                  style={{ background: 'var(--accent)', color: '#0f0e13', border: 'none' }}
+                  onClick={() => {
+                    if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
+                    setTimeout(() => setEditingMax(false), 0);
+                  }}
+                >
+                  OK
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => setEditingMax(true)}
+                className="text-2xl font-bold cursor-pointer bg-transparent"
+                style={{ color: 'var(--text-h)', fontFamily: 'var(--mono)', border: 'none', padding: 0 }}
+                title="Edit max HP"
+              >
+                {character.max_hp}
+              </button>
+            )}
           </div>
         </div>
 
@@ -459,44 +484,6 @@ export function HpTracker({ character, onUpdate }: HpTrackerProps) {
         )}
       </div>
 
-      {/* Max HP */}
-      <div
-        className="w-full p-4 rounded-xl"
-        style={{ border: '1px solid var(--border)', background: 'var(--bg-surface)' }}
-      >
-        <div className="flex items-center justify-between">
-          <span className="text-sm font-semibold" style={{ color: 'var(--text)', fontFamily: 'var(--heading)' }}>
-            Max HP
-          </span>
-          {editingMax ? (
-            <div className="flex items-center gap-2">
-              <NumericInput
-                min={1}
-                value={character.max_hp}
-                onChange={(val) => onUpdate({ max_hp: val, current_hp: Math.min(character.current_hp, val) })}
-                className="w-20 px-2 py-1 rounded-lg text-center outline-none"
-                style={{ background: 'var(--code-bg)', color: 'var(--text-h)', border: '1px solid var(--border)' }}
-                autoFocus
-              />
-              <button
-                className="px-3 py-1 rounded-lg text-sm cursor-pointer"
-                style={{ background: 'var(--accent)', color: '#0f0e13', border: 'none' }}
-                onClick={() => setEditingMax(false)}
-              >
-                Done
-              </button>
-            </div>
-          ) : (
-            <button
-              onClick={() => setEditingMax(true)}
-              className="text-lg font-bold cursor-pointer bg-transparent"
-              style={{ color: 'var(--accent)', border: 'none', fontFamily: 'var(--mono)' }}
-            >
-              {character.max_hp}
-            </button>
-          )}
-        </div>
-      </div>
       </div>
     </div>
   );
