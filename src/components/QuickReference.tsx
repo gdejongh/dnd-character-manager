@@ -48,6 +48,18 @@ export function QuickReference({ onClose }: QuickReferenceProps) {
 
   const dialogRef = useRef<HTMLDivElement>(null);
 
+  // Lock background scrolling while the overlay is open (especially important on iOS).
+  useEffect(() => {
+    const prevHtmlOverflow = document.documentElement.style.overflow;
+    const prevBodyOverflow = document.body.style.overflow;
+    document.documentElement.style.overflow = 'hidden';
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.documentElement.style.overflow = prevHtmlOverflow;
+      document.body.style.overflow = prevBodyOverflow;
+    };
+  }, []);
+
   // Close on Escape
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -88,7 +100,7 @@ export function QuickReference({ onClose }: QuickReferenceProps) {
         role="dialog"
         aria-modal="true"
         aria-label="Quick Reference"
-        className="fixed inset-0 z-50 flex flex-col lg:inset-auto lg:top-0 lg:right-0 lg:bottom-0 lg:left-auto lg:w-full lg:max-w-[600px] lg:shadow-2xl"
+        className="fixed inset-0 z-50 flex h-dvh min-h-0 flex-col overflow-hidden lg:inset-auto lg:top-0 lg:right-0 lg:bottom-0 lg:left-auto lg:w-full lg:max-w-[600px] lg:shadow-2xl"
         style={{ background: 'var(--bg)' }}
       >
       {/* Header */}
@@ -129,7 +141,6 @@ export function QuickReference({ onClose }: QuickReferenceProps) {
               color: 'var(--text-h)',
               border: '1px solid var(--accent-border)',
             }}
-            autoFocus
           />
           {search && (
             <button
@@ -144,7 +155,10 @@ export function QuickReference({ onClose }: QuickReferenceProps) {
       </div>
 
       {/* Content */}
-      <main className="flex-1 min-h-0 overflow-y-auto px-4 py-3 flex flex-col gap-3 pb-8" style={{ WebkitOverflowScrolling: 'touch', overscrollBehavior: 'contain' }}>
+      <main
+        className="flex-1 min-h-0 overflow-y-scroll px-4 py-3 flex flex-col gap-3 pb-8"
+        style={{ WebkitOverflowScrolling: 'touch', overscrollBehavior: 'contain', touchAction: 'pan-y' }}
+      >
         {!hasResults && (
           <div className="flex flex-col items-center justify-center py-12 gap-2">
             <span style={{ fontSize: '32px' }}>🔍</span>
