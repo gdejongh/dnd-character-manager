@@ -1,7 +1,8 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import type { Tab } from './types/database';
 import { isSupabaseConfigured } from './lib/supabase';
-import { getPreparedSpellLimit, isWarlock } from './constants/dnd';
+import { supabase } from './lib/supabase';
+import { getPreparedSpellLimit, isWarlock, isDruid } from './constants/dnd';
 import { showToast } from './lib/toast';
 import { useAuth } from './hooks/useAuth';
 import { useCharacters } from './hooks/useCharacters';
@@ -16,10 +17,14 @@ import { useWeapons } from './hooks/useWeapons';
 import { useCharacterImage } from './hooks/useCharacterImage';
 import { useCharacterShares } from './hooks/useCharacterShares';
 import { useSharedWithMe } from './hooks/useSharedWithMe';
+import { useCustomBeasts } from './hooks/useCustomBeasts';
 import { createCombatSession, joinCombatSession, findActiveSession } from './hooks/useCombatSession';
 import type { ActiveSessionInfo } from './hooks/useCombatSession';
 import { Auth } from './components/Auth';
 import { HomeScreen } from './components/HomeScreen';
+import { GuestCharacterBuilder } from './components/GuestCharacterBuilder';
+import type { GuestCharacterData, GuestScoreData } from './components/GuestCharacterBuilder';
+import { GuestSheetPreview } from './components/GuestSheetPreview';
 import { CharacterSheet } from './components/CharacterSheet';
 import { HpTracker } from './components/HpTracker';
 import { SpellSlots } from './components/SpellSlots';
@@ -38,10 +43,12 @@ import type { PdfStyle } from './lib/exportPdf';
 import { Users, Copy, Eye, ScrollText, Sparkles, HelpCircle } from 'lucide-react';
 import { QuickReference } from './components/QuickReference';
 import { DiceRoller } from './components/DiceRoller';
+import { WildShapeModal } from './components/WildShapeModal';
 import { ActionFAB } from './components/ActionFAB';
 import { useDiceRoller } from './hooks/useDiceRoller';
 import { buildQuickRolls } from './constants/dice';
 import type { Ability } from './types/database';
+import type { Beast } from './constants/beasts';
 import './App.css';
 
 function SetupScreen() {
@@ -136,6 +143,139 @@ function App() {
   const [sharedViewShareId, setSharedViewShareId] = useState<string | null>(null);
   const isReadOnly = sharedViewShareId !== null;
 
+  // Guest mode state
+  const GUEST_STORAGE_KEY = 'dnd-guest-character';
+  const [showAuth, setShowAuth] = useState(false);
+  const [guestCharacter, setGuestCharacter] = useState<GuestCharacterData | null>(() => {
+    try {
+      const stored = localStorage.getItem(GUEST_STORAGE_KEY);
+      return stored ? JSON.parse(stored).character ?? null : null;
+    } catch { return null; }
+  });
+  const [guestScores, setGuestScores] = useState<GuestScoreData[]>(() => {
+    try {
+      const stored = localStorage.getItem(GUEST_STORAGE_KEY);
+      return stored ? JSON.parse(stored).scores ?? [] : [];
+    } catch { return []; }
+  });
+  const [guestEditing, setGuestEditing] = useState(false);
+
+  // Persist guest data to localStorage (survives email verification redirect)
+  useEffect(() => {
+    if (guestCharacter) {
+      localStorage.setItem(GUEST_STORAGE_KEY, JSON.stringify({ character: guestCharacter, scores: guestScores }));
+    } else {
+      localStorage.removeItem(GUEST_STORAGE_KEY);
+    }
+  }, [guestCharacter, guestScores]);
+
+  // Auto-save guest character after login/signup
+  const guestSaveAttempted = useRef(false);
+  useEffect(() => {
+    if (!user || !guestCharacter || guestSaveAttempted.current) return;
+    guestSaveAttempted.current = true;
+    (async () => {
+      try {
+        const created = await createCharacter(guestCharacter.name, guestCharacter.race, guestCharacter.class);
+        if (!created) throw new Error('Failed to create character');
+
+        // Update character fields beyond name/race/class
+        await supabase.from('characters').update({
+          level: guestCharacter.level,
+          max_hp: guestCharacter.max_hp,
+          current_hp: guestCharacter.max_hp,
+          armor_class: guestCharacter.armor_class,
+          speed: guestCharacter.speed,
+        }).eq('id', created.id);
+
+        // Update seeded ability scores to match guest values
+        for (const s of guestScores) {
+          await supabase.from('ability_scores').update({ score: s.score })
+            .eq('character_id', created.id)
+            .eq('ability', s.ability);
+        }
+
+        // Save guest extras (spells, weapons, features, spell slots)
+        const GUEST_EXTRAS_KEY = 'dnd-guest-extras';
+        try {
+          const stored = localStorage.getItem(GUEST_EXTRAS_KEY);
+          if (stored) {
+            const extras = JSON.parse(stored);
+
+            if (extras.spells?.length) {
+              await supabase.from('spells').insert(
+                extras.spells.map((s: { name: string; description: string; level: number; prepared: boolean; concentration: boolean; action_type: string }) => ({
+                  character_id: created.id,
+                  name: s.name,
+                  description: s.description,
+                  level: s.level,
+                  prepared: s.prepared,
+                  concentration: s.concentration,
+                  action_type: s.action_type,
+                })),
+              );
+            }
+
+            if (extras.weapons?.length) {
+              await supabase.from('weapons').insert(
+                extras.weapons.map((w: { name: string; damage_dice: string; damage_type: string; ability_mod: string; proficient: boolean; action_type: string }) => ({
+                  character_id: created.id,
+                  name: w.name,
+                  damage_dice: w.damage_dice,
+                  damage_type: w.damage_type,
+                  ability_mod: w.ability_mod,
+                  proficient: w.proficient,
+                  action_type: w.action_type,
+                })),
+              );
+            }
+
+            if (extras.features?.length) {
+              await supabase.from('features').insert(
+                extras.features.map((f: { title: string; description: string; source: string; action_type: string; max_uses: number | null; used_uses: number }) => ({
+                  character_id: created.id,
+                  title: f.title,
+                  description: f.description,
+                  source: f.source,
+                  action_type: f.action_type,
+                  max_uses: f.max_uses,
+                  used_uses: f.used_uses,
+                })),
+              );
+            }
+
+            // Update spell slot totals (slots are already seeded by createCharacter)
+            if (extras.slots?.length) {
+              for (const slot of extras.slots as { level: number; total: number; used: number }[]) {
+                if (slot.total > 0) {
+                  await supabase.from('spell_slots').update({ total: slot.total, used: slot.used })
+                    .eq('character_id', created.id)
+                    .eq('level', slot.level);
+                }
+              }
+            }
+
+            localStorage.removeItem(GUEST_EXTRAS_KEY);
+          }
+        } catch (extrasErr) {
+          console.error('Error saving guest extras:', extrasErr);
+        }
+
+        setGuestCharacter(null);
+        setGuestScores([]);
+        setGuestEditing(false);
+        setSelectedCharacterId(created.id);
+        setActiveTab('sheet');
+        showToast(`${guestCharacter.name} has been saved!`);
+      } catch (err) {
+        console.error('Error saving guest character:', err);
+        showToast('Could not save your character. Please try creating it again.');
+        setGuestCharacter(null);
+        setGuestScores([]);
+      }
+    })();
+  }, [user, guestCharacter]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Check for active sessions when user lands on HomeScreen
   useEffect(() => {
     if (!user || combatSessionId) return;
@@ -173,6 +313,30 @@ function App() {
   const { notes, loading: notesLoading, updateContent } = useNotes(selectedCharacterId);
   const { uploading: imageUploading, error: imageError, uploadImage, deleteImage } =
     useCharacterImage(user?.id, selectedCharacterId);
+  const { customBeasts, addCustomBeast, deleteCustomBeast } = useCustomBeasts(selectedCharacterId);
+
+  // Wild Shape modal state
+  const [showWildShapeModal, setShowWildShapeModal] = useState(false);
+
+  const handleActivateWildShape = useCallback((beast: Beast) => {
+    updateCharacter({
+      wild_shape_active: true,
+      wild_shape_beast_name: beast.name,
+      wild_shape_current_hp: beast.hp,
+      wild_shape_max_hp: beast.hp,
+      wild_shape_beast_ac: beast.ac,
+      wild_shape_beast_str: beast.str,
+      wild_shape_beast_dex: beast.dex,
+      wild_shape_beast_con: beast.con,
+      wild_shape_beast_speed: beast.speed,
+      wild_shape_beast_swim_speed: beast.swimSpeed ?? null,
+      wild_shape_beast_fly_speed: beast.flySpeed ?? null,
+      wild_shape_beast_climb_speed: beast.climbSpeed ?? null,
+      wild_shape_beast_burrow_speed: beast.burrowSpeed ?? null,
+    });
+    setShowWildShapeModal(false);
+    showToast(`🐺 Wild Shape: ${beast.name}`);
+  }, [updateCharacter]);
 
   // Character sharing
   const { shareCharacter, revokeShare, getSharesForCharacter } =
@@ -214,9 +378,48 @@ function App() {
     return <SetupScreen />;
   }
 
-  // Not authenticated
+  // Not authenticated — guest flow or auth
   if (!user) {
-    return <Auth onAuth={handleAuth} onForgotPassword={sendPasswordReset} />;
+    // Show auth screen if explicitly requested
+    if (showAuth) {
+      return (
+        <Auth
+          onAuth={handleAuth}
+          onForgotPassword={sendPasswordReset}
+          onGuestMode={() => setShowAuth(false)}
+        />
+      );
+    }
+
+    // Show guest preview if character has been built
+    if (guestCharacter && !guestEditing) {
+      return (
+        <GuestSheetPreview
+          character={guestCharacter}
+          scores={guestScores}
+          onCreateAccount={() => setShowAuth(true)}
+          onEdit={() => setGuestEditing(true)}
+          onStartOver={() => {
+            setGuestCharacter(null);
+            setGuestScores([]);
+            setGuestEditing(false);
+            localStorage.removeItem('dnd-guest-extras');
+          }}
+        />
+      );
+    }
+
+    // Show guest character builder (default landing for unauthenticated users)
+    return (
+      <GuestCharacterBuilder
+        onComplete={(charData, scoreData) => {
+          setGuestCharacter(charData);
+          setGuestScores(scoreData);
+          setGuestEditing(false);
+        }}
+        onSignIn={() => setShowAuth(true)}
+      />
+    );
   }
 
   // Live Combat Session
@@ -503,10 +706,15 @@ function App() {
               onUploadImage={isReadOnly ? noOpUpload : uploadImage}
               onDeleteImage={isReadOnly ? noOpAsync : deleteImage}
               readOnly={isReadOnly}
+              onOpenWildShapeModal={isReadOnly ? undefined : () => setShowWildShapeModal(true)}
             />
           )}
           {activeTab === 'hp' && (
-            <HpTracker character={character} onUpdate={isReadOnly ? noOpUpdate : updateCharacter} />
+            <HpTracker
+              character={character}
+              onUpdate={isReadOnly ? noOpUpdate : updateCharacter}
+              onOpenWildShapeModal={isReadOnly ? undefined : () => setShowWildShapeModal(true)}
+            />
           )}
           {activeTab === 'spells' && (
             <SpellSlots
@@ -566,6 +774,7 @@ function App() {
               onUpdateCharacter={isReadOnly ? noOpUpdate : updateCharacter}
               onSetSlotUsed={isReadOnly ? noOpAsync : setSlotUsed}
               onUpdateFeature={isReadOnly ? noOpAsync : updateFeature}
+              onOpenWildShapeModal={isReadOnly ? undefined : () => setShowWildShapeModal(true)}
             />
           )}
         </div>
@@ -613,6 +822,16 @@ function App() {
       {/* Quick Reference Overlay */}
       {showQuickRef && (
         <QuickReference onClose={() => setShowQuickRef(false)} />
+      )}
+      {showWildShapeModal && character && isDruid(character.class) && (
+        <WildShapeModal
+          druidLevel={character.level}
+          customBeasts={customBeasts}
+          onSelect={handleActivateWildShape}
+          onAddCustomBeast={addCustomBeast}
+          onDeleteCustomBeast={deleteCustomBeast}
+          onClose={() => setShowWildShapeModal(false)}
+        />
       )}
     </div>
   );

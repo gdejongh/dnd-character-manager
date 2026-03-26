@@ -24,7 +24,24 @@ create table characters (
   hit_dice_remaining integer,
   inspiration boolean not null default false,
   speed integer not null default 30,
+  swim_speed integer,
+  fly_speed integer,
+  climb_speed integer,
+  burrow_speed integer,
   concentration_spell_id uuid,
+  wild_shape_active boolean not null default false,
+  wild_shape_beast_name text,
+  wild_shape_current_hp integer,
+  wild_shape_max_hp integer,
+  wild_shape_beast_ac integer,
+  wild_shape_beast_str integer,
+  wild_shape_beast_dex integer,
+  wild_shape_beast_con integer,
+  wild_shape_beast_speed integer,
+  wild_shape_beast_swim_speed integer,
+  wild_shape_beast_fly_speed integer,
+  wild_shape_beast_climb_speed integer,
+  wild_shape_beast_burrow_speed integer,
   created_at  timestamptz not null default now(),
   updated_at  timestamptz not null default now()
 );
@@ -236,6 +253,43 @@ create policy "Update own weapons"
   using (character_id in (select id from characters where user_id = auth.uid()));
 create policy "Delete own weapons"
   on weapons for delete
+  using (character_id in (select id from characters where user_id = auth.uid()));
+
+-- 7c. Custom Beasts (Wild Shape) -----------------------------------
+create table custom_beasts (
+  id              uuid primary key default gen_random_uuid(),
+  character_id    uuid references characters(id) on delete cascade not null,
+  name            text not null,
+  cr              real not null default 0,
+  hp              integer not null default 1,
+  ac              integer not null default 10,
+  str             integer not null default 10,
+  dex             integer not null default 10,
+  con             integer not null default 10,
+  speed           integer not null default 30,
+  swim_speed      integer,
+  fly_speed       integer,
+  climb_speed     integer,
+  burrow_speed    integer,
+  senses          text not null default '',
+  attacks         jsonb not null default '[]',
+  special_traits  jsonb not null default '[]',
+  created_at      timestamptz not null default now()
+);
+
+alter table custom_beasts enable row level security;
+
+create policy "View own custom beasts"
+  on custom_beasts for select
+  using (character_id in (select id from characters where user_id = auth.uid()));
+create policy "Insert own custom beasts"
+  on custom_beasts for insert
+  with check (character_id in (select id from characters where user_id = auth.uid()));
+create policy "Update own custom beasts"
+  on custom_beasts for update
+  using (character_id in (select id from characters where user_id = auth.uid()));
+create policy "Delete own custom beasts"
+  on custom_beasts for delete
   using (character_id in (select id from characters where user_id = auth.uid()));
 
 -- =================================================================
@@ -668,4 +722,25 @@ grant execute on function public.copy_shared_character(uuid) to authenticated;
 --   ALTER TABLE spells ADD COLUMN IF NOT EXISTS concentration boolean NOT NULL DEFAULT false;
 --
 --   -- Update copy_shared_character function (re-run the CREATE OR REPLACE above)
+--
+-- =================================================================
+--  MIGRATION: Wild Shape
+-- =================================================================
+-- Run these statements if upgrading an existing database:
+--
+--   ALTER TABLE characters ADD COLUMN IF NOT EXISTS wild_shape_active boolean NOT NULL DEFAULT false;
+--   ALTER TABLE characters ADD COLUMN IF NOT EXISTS wild_shape_beast_name text;
+--   ALTER TABLE characters ADD COLUMN IF NOT EXISTS wild_shape_current_hp integer;
+--   ALTER TABLE characters ADD COLUMN IF NOT EXISTS wild_shape_max_hp integer;
+--   ALTER TABLE characters ADD COLUMN IF NOT EXISTS wild_shape_beast_ac integer;
+--   ALTER TABLE characters ADD COLUMN IF NOT EXISTS wild_shape_beast_str integer;
+--   ALTER TABLE characters ADD COLUMN IF NOT EXISTS wild_shape_beast_dex integer;
+--   ALTER TABLE characters ADD COLUMN IF NOT EXISTS wild_shape_beast_con integer;
+--   ALTER TABLE characters ADD COLUMN IF NOT EXISTS wild_shape_beast_speed integer;
+--   ALTER TABLE characters ADD COLUMN IF NOT EXISTS wild_shape_beast_swim_speed integer;
+--   ALTER TABLE characters ADD COLUMN IF NOT EXISTS wild_shape_beast_fly_speed integer;
+--   ALTER TABLE characters ADD COLUMN IF NOT EXISTS wild_shape_beast_climb_speed integer;
+--   ALTER TABLE characters ADD COLUMN IF NOT EXISTS wild_shape_beast_burrow_speed integer;
+--
+--   -- Create custom_beasts table (run full CREATE TABLE + RLS from above)
 --

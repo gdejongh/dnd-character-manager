@@ -54,6 +54,41 @@ function resolveClassKey(className: string): string {
   return className.toLowerCase().trim().split(/[\s:(/–-]/)[0];
 }
 
+/* ── Wild Shape (Druid) ── */
+
+export function isDruid(className: string): boolean {
+  return resolveClassKey(className) === 'druid';
+}
+
+export interface WildShapeLimits {
+  maxCR: number;
+  canSwim: boolean;
+  canFly: boolean;
+}
+
+/**
+ * Wild Shape CR and movement limits by druid level (5e base rules).
+ * Level 2: CR ≤ 1/4, no swim/fly
+ * Level 4: CR ≤ 1/2, swim ok, no fly
+ * Level 8: CR ≤ 1, swim + fly ok
+ */
+export function getWildShapeLimits(level: number): WildShapeLimits {
+  if (level >= 8) return { maxCR: 1, canSwim: true, canFly: true };
+  if (level >= 4) return { maxCR: 0.5, canSwim: true, canFly: false };
+  return { maxCR: 0.25, canSwim: false, canFly: false };
+}
+
+/** Wild Shape uses per short rest (always 2 in 5e) */
+export const WILD_SHAPE_USES = 2;
+
+export const WILD_SHAPE_RULES = [
+  'You retain your INT, WIS, and CHA scores.',
+  'You can\'t cast spells. Transforming doesn\'t break concentration.',
+  'You keep your proficiencies and gain the beast\'s as well.',
+  'You can\'t use equipment, but merged gear continues to function.',
+  'When beast HP hits 0, you revert and excess damage carries over.',
+];
+
 /** Which ability governs spellcasting for each class */
 const SPELLCASTING_ABILITY: Record<string, Ability | null> = {
   wizard: 'INT',
@@ -227,6 +262,24 @@ export function getSpellSlotProgression(className: string, level: number): Recor
   }
   return result;
 }
+
+/* ── Movement Speed Types (5e) ── */
+
+export interface SpeedType {
+  key: 'speed' | 'swim_speed' | 'fly_speed' | 'climb_speed' | 'burrow_speed';
+  label: string;
+  emoji: string;
+}
+
+export const SPEED_TYPES: SpeedType[] = [
+  { key: 'speed', label: 'Walking', emoji: '🚶' },
+  { key: 'swim_speed', label: 'Swimming', emoji: '🏊' },
+  { key: 'fly_speed', label: 'Flying', emoji: '🪽' },
+  { key: 'climb_speed', label: 'Climbing', emoji: '🧗' },
+  { key: 'burrow_speed', label: 'Burrowing', emoji: '⛏️' },
+];
+
+export const EXTRA_SPEED_TYPES = SPEED_TYPES.filter(s => s.key !== 'speed');
 
 /* ── Standard 5e Conditions ── */
 

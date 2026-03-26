@@ -5,9 +5,10 @@ import { Mail } from 'lucide-react';
 interface AuthProps {
   onAuth: (email: string, password: string, isSignUp: boolean, username?: string) => Promise<{ needsEmailVerification?: boolean }>;
   onForgotPassword: (email: string) => Promise<void>;
+  onGuestMode?: () => void;
 }
 
-export function Auth({ onAuth, onForgotPassword }: AuthProps) {
+export function Auth({ onAuth, onForgotPassword, onGuestMode }: AuthProps) {
   const [isSignUp, setIsSignUp] = useState(false);
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
@@ -223,6 +224,17 @@ export function Auth({ onAuth, onForgotPassword }: AuthProps) {
               : <>No account? <span style={{ color: 'var(--accent)' }}>Create one</span></>}
           </button>
         </div>
+        {onGuestMode && (
+          <div className="mt-3 text-center">
+            <button
+              onClick={onGuestMode}
+              className="text-xs bg-transparent border-none cursor-pointer"
+              style={{ color: 'var(--text)' }}
+            >
+              Just exploring? <span style={{ color: 'var(--accent)' }}>Build a character without an account</span>
+            </button>
+          </div>
+        )}
         </>
         )}
       </div>

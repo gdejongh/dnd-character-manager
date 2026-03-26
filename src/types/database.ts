@@ -18,7 +18,24 @@ export interface Character {
   hit_dice_remaining: number | null;
   inspiration: boolean;
   speed: number;
+  swim_speed: number | null;
+  fly_speed: number | null;
+  climb_speed: number | null;
+  burrow_speed: number | null;
   concentration_spell_id: string | null;
+  wild_shape_active: boolean;
+  wild_shape_beast_name: string | null;
+  wild_shape_current_hp: number | null;
+  wild_shape_max_hp: number | null;
+  wild_shape_beast_ac: number | null;
+  wild_shape_beast_str: number | null;
+  wild_shape_beast_dex: number | null;
+  wild_shape_beast_con: number | null;
+  wild_shape_beast_speed: number | null;
+  wild_shape_beast_swim_speed: number | null;
+  wild_shape_beast_fly_speed: number | null;
+  wild_shape_beast_climb_speed: number | null;
+  wild_shape_beast_burrow_speed: number | null;
   image_url: string | null;
   image_position: number;
   created_at: string;
@@ -97,6 +114,27 @@ export interface Weapon {
 }
 
 export type Ability = 'STR' | 'DEX' | 'CON' | 'INT' | 'WIS' | 'CHA';
+
+export interface CustomBeast {
+  id: string;
+  character_id: string;
+  name: string;
+  cr: number;
+  hp: number;
+  ac: number;
+  str: number;
+  dex: number;
+  con: number;
+  speed: number;
+  swim_speed: number | null;
+  fly_speed: number | null;
+  climb_speed: number | null;
+  burrow_speed: number | null;
+  senses: string;
+  attacks: { name: string; toHitBonus: number; damage: string; damageType: string }[];
+  special_traits: string[];
+  created_at: string;
+}
 
 export type Tab = 'sheet' | 'hp' | 'spells' | 'weapons' | 'items' | 'features' | 'notes' | 'combat';
 

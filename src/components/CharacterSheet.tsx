@@ -5,6 +5,9 @@ import {
   ABILITIES,
   ABILITY_NAMES,
   SKILLS,
+  SPEED_TYPES,
+  EXTRA_SPEED_TYPES,
+  isDruid,
   getModifier,
   getProficiencyBonus,
   formatModifier,
@@ -16,7 +19,7 @@ interface CharacterSheetProps {
   character: Character;
   scores: AbilityScore[];
   onUpdateCharacter: (
-    updates: Partial<Pick<Character, 'name' | 'race' | 'class' | 'level' | 'armor_class' | 'speed' | 'skill_proficiencies' | 'initiative_modifier' | 'passive_perception' | 'image_url' | 'image_position'>>,
+    updates: Partial<Pick<Character, 'name' | 'race' | 'class' | 'level' | 'armor_class' | 'speed' | 'swim_speed' | 'fly_speed' | 'climb_speed' | 'burrow_speed' | 'skill_proficiencies' | 'initiative_modifier' | 'passive_perception' | 'image_url' | 'image_position' | 'wild_shape_active' | 'wild_shape_current_hp' | 'wild_shape_max_hp' | 'wild_shape_beast_name'>>,
   ) => void;
   onUpdateScore: (ability: string, score: number) => void;
   onToggleSavingThrow: (ability: string) => void;
@@ -25,6 +28,7 @@ interface CharacterSheetProps {
   onUploadImage: (file: File) => Promise<string | null>;
   onDeleteImage: () => Promise<void>;
   readOnly?: boolean;
+  onOpenWildShapeModal?: () => void;
 }
 
 export function CharacterSheet({
@@ -38,6 +42,7 @@ export function CharacterSheet({
   onUploadImage,
   onDeleteImage,
   readOnly,
+  onOpenWildShapeModal,
 }: CharacterSheetProps) {
   const [editingField, setEditingField] = useState<string | null>(null);
   const [tappedAbility, setTappedAbility] = useState<Ability | null>(null);
@@ -91,6 +96,21 @@ export function CharacterSheet({
 
   function getScore(ability: Ability): number {
     return scores.find((s) => s.ability === ability)?.score ?? 10;
+  }
+
+  const inBeastForm = character.wild_shape_active;
+  const BEAST_ABILITIES = new Set<Ability>(['STR', 'DEX', 'CON']);
+  const beastScoreMap: Partial<Record<Ability, number>> = inBeastForm ? {
+    STR: character.wild_shape_beast_str ?? undefined,
+    DEX: character.wild_shape_beast_dex ?? undefined,
+    CON: character.wild_shape_beast_con ?? undefined,
+  } : {};
+
+  function getEffectiveScore(ability: Ability): number {
+    if (inBeastForm && BEAST_ABILITIES.has(ability) && beastScoreMap[ability] != null) {
+      return beastScoreMap[ability]!;
+    }
+    return getScore(ability);
   }
 
   function getSaveProficiency(ability: Ability): boolean {
@@ -671,39 +691,121 @@ export function CharacterSheet({
             Speed
           </span>
           {editingField === 'speed' ? (
-            <div className="flex items-center gap-2">
-              <NumericInput
-                min={0}
-                max={120}
-                value={character.speed}
-                onChange={(val) => onUpdateCharacter({ speed: val })}
-                className="w-16 px-2 py-1 rounded-lg text-center text-lg font-bold outline-none"
-                style={{ background: 'var(--code-bg)', color: 'var(--text-h)', border: '1px solid var(--border)', fontFamily: 'var(--mono)' }}
-                autoFocus
-              />
+            <div className="flex flex-col items-center gap-2" onClick={(e) => e.stopPropagation()}>
+              {SPEED_TYPES.map((st) => (
+                <div key={st.key} className="flex items-center gap-2">
+                  <span className="text-xs w-16 text-right" style={{ color: 'var(--text-muted)' }}>
+                    {st.emoji} {st.label}
+                  </span>
+                  <NumericInput
+                    min={0}
+                    max={120}
+                    value={st.key === 'speed' ? character.speed : (character[st.key] ?? 0)}
+                    onChange={(val) => {
+                      if (st.key === 'speed') {
+                        onUpdateCharacter({ speed: val });
+                      } else {
+                        const update: Partial<Pick<Character, 'swim_speed' | 'fly_speed' | 'climb_speed' | 'burrow_speed'>> = {
+                          [st.key]: val === 0 ? null : val,
+                        };
+                        onUpdateCharacter(update);
+                      }
+                    }}
+                    className="w-16 px-2 py-1 rounded-lg text-center text-sm font-bold outline-none"
+                    style={{ background: 'var(--code-bg)', color: 'var(--text-h)', border: '1px solid var(--border)', fontFamily: 'var(--mono)' }}
+                  />
+                  <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>ft</span>
+                </div>
+              ))}
               <button
-                className="px-2 py-1 rounded-lg text-[10px] cursor-pointer font-semibold"
+                className="px-3 py-1 rounded-lg text-[10px] cursor-pointer font-semibold mt-1"
                 style={{ background: 'var(--accent)', color: '#0f0e13', border: 'none' }}
                 onClick={(e) => {
                   e.stopPropagation();
-                  // Blur the input first to trigger NumericInput's onBlur save
                   if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
                   setTimeout(() => setEditingField(null), 0);
                 }}
               >
-                OK
+                Done
               </button>
             </div>
           ) : (
-            <span className="text-xl font-bold" style={{ color: 'var(--text-h)', fontFamily: 'var(--mono)' }}>
-              {character.speed} ft
-            </span>
+            <>
+              <span className="text-xl font-bold" style={{ color: 'var(--text-h)', fontFamily: 'var(--mono)' }}>
+                {character.speed} ft
+              </span>
+              <span className="text-[9px]" style={{ color: 'var(--text-muted)' }}>
+                Walking
+              </span>
+              {EXTRA_SPEED_TYPES.filter((st) => character[st.key] != null && character[st.key]! > 0).length > 0 && (
+                <div className="flex flex-wrap justify-center gap-1 mt-1">
+                  {EXTRA_SPEED_TYPES.filter((st) => character[st.key] != null && character[st.key]! > 0).map((st) => (
+                    <span
+                      key={st.key}
+                      className="text-[9px] px-1.5 py-0.5 rounded-full"
+                      style={{ background: 'var(--bg-raised)', color: 'var(--text)', border: '1px solid var(--border)' }}
+                      title={`${st.label}: ${character[st.key]} ft`}
+                    >
+                      {st.emoji} {character[st.key]} ft
+                    </span>
+                  ))}
+                </div>
+              )}
+            </>
           )}
-          <span className="text-[9px]" style={{ color: 'var(--text-muted)' }}>
-            Walking
-          </span>
         </div>
       </div>
+      {/* Wild Shape Beast Form Banner */}
+      {inBeastForm && (
+        <div
+          className="rounded-xl p-3 animate-fade-in"
+          style={{
+            background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.1), rgba(139, 92, 246, 0.05))',
+            border: '1px solid var(--spell-border)',
+          }}
+        >
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span style={{ fontSize: '16px' }}>🐺</span>
+              <span className="text-sm font-bold" style={{ color: 'var(--spell-violet)', fontFamily: 'var(--heading)' }}>
+                {character.wild_shape_beast_name ?? 'Beast Form'}
+              </span>
+            </div>
+            {!readOnly && (
+              <button
+                className="px-2.5 py-1 rounded-lg text-[10px] cursor-pointer font-semibold"
+                style={{ background: 'var(--hp-crimson)', color: 'white', border: 'none' }}
+                onClick={() => onUpdateCharacter({
+                  wild_shape_active: false,
+                  wild_shape_current_hp: null,
+                  wild_shape_max_hp: null,
+                  wild_shape_beast_name: null,
+                })}
+              >
+                Revert
+              </button>
+            )}
+          </div>
+          <div className="text-[10px] mt-1" style={{ color: 'var(--text-muted)' }}>
+            Physical stats (STR, DEX, CON) replaced by beast form. INT, WIS, CHA unchanged.
+          </div>
+        </div>
+      )}
+      {!inBeastForm && !readOnly && isDruid(character.class) && onOpenWildShapeModal && (
+        <button
+          className="w-full py-2.5 rounded-xl cursor-pointer text-sm font-bold flex items-center justify-center gap-2"
+          style={{
+            background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.15), rgba(139, 92, 246, 0.05))',
+            border: '1px solid var(--spell-border)',
+            color: 'var(--spell-violet)',
+            fontFamily: 'var(--heading)',
+          }}
+          onClick={onOpenWildShapeModal}
+        >
+          🐺 Wild Shape
+        </button>
+      )}
+
       <section className="pt-1">
         <h3
           className="text-xs uppercase tracking-widest mb-3"
@@ -713,9 +815,10 @@ export function CharacterSheet({
         </h3>
         <div className="grid grid-cols-3 md:grid-cols-6 gap-4 md:gap-5">
           {ABILITIES.map((ability) => {
-            const score = getScore(ability);
-            const mod = getModifier(score);
+            const effectiveScore = getEffectiveScore(ability);
+            const mod = getModifier(effectiveScore);
             const isTapped = tappedAbility === ability;
+            const isBeastOverride = inBeastForm && BEAST_ABILITIES.has(ability);
             return (
               <div
                 key={ability}
@@ -725,8 +828,10 @@ export function CharacterSheet({
                 <div
                   className="stat-block w-full flex flex-col items-center justify-center cursor-pointer"
                   style={{
-                    background: 'linear-gradient(180deg, var(--bg-raised) 0%, var(--bg-surface) 100%)',
-                    border: '2px solid var(--border)',
+                    background: isBeastOverride
+                      ? 'linear-gradient(180deg, rgba(139, 92, 246, 0.15) 0%, rgba(139, 92, 246, 0.05) 100%)'
+                      : 'linear-gradient(180deg, var(--bg-raised) 0%, var(--bg-surface) 100%)',
+                    border: isBeastOverride ? '2px solid var(--spell-border)' : '2px solid var(--border)',
                     aspectRatio: '1 / 1.15',
                     maxWidth: '110px',
                   }}
@@ -737,7 +842,7 @@ export function CharacterSheet({
                 >
                   <span
                     className="text-[10px] font-bold tracking-widest"
-                    style={{ color: 'var(--accent)', fontFamily: 'var(--heading)' }}
+                    style={{ color: isBeastOverride ? 'var(--spell-violet)' : 'var(--accent)', fontFamily: 'var(--heading)' }}
                   >
                     {ability}
                   </span>
@@ -747,30 +852,40 @@ export function CharacterSheet({
                   >
                     {formatModifier(mod)}
                   </span>
-                  <NumericInput
-                    min={1}
-                    max={30}
-                    value={score}
-                    onChange={(val) => onUpdateScore(ability, val)}
-                    className="w-10 text-center text-xs px-0.5 py-0.5 rounded outline-none mt-1"
-                    style={{
-                      ...inputStyle,
-                      background: 'rgba(0,0,0,0.3)',
-                      border: '1px solid var(--border)',
-                    }}
-                  />
+                  {isBeastOverride ? (
+                    <span
+                      className="text-xs mt-1 px-1"
+                      style={{ color: 'var(--spell-violet)', fontFamily: 'var(--mono)' }}
+                    >
+                      {effectiveScore}
+                    </span>
+                  ) : (
+                    <NumericInput
+                      min={1}
+                      max={30}
+                      value={effectiveScore}
+                      onChange={(val) => onUpdateScore(ability, val)}
+                      className="w-10 text-center text-xs px-0.5 py-0.5 rounded outline-none mt-1"
+                      style={{
+                        ...inputStyle,
+                        background: 'rgba(0,0,0,0.3)',
+                        border: '1px solid var(--border)',
+                      }}
+                    />
+                  )}
                 </div>
                 {/* Tap formula */}
                 {isTapped && (
                   <div
                     className="text-[10px] mt-1 px-2 py-1 rounded animate-fade-in"
                     style={{
-                      color: 'var(--accent)',
-                      background: 'var(--accent-bg)',
+                      color: isBeastOverride ? 'var(--spell-violet)' : 'var(--accent)',
+                      background: isBeastOverride ? 'rgba(139, 92, 246, 0.1)' : 'var(--accent-bg)',
                       whiteSpace: 'nowrap',
                     }}
                   >
-                    {formatModifier(mod)} = {score} {ABILITY_NAMES[ability]}
+                    {formatModifier(mod)} = {effectiveScore} {ABILITY_NAMES[ability]}
+                    {isBeastOverride && ' 🐺'}
                   </div>
                 )}
               </div>

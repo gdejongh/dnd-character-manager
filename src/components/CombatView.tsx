@@ -11,6 +11,9 @@ import {
   formatWeaponDamage,
   ABILITY_NAMES,
   CONDITIONS,
+  EXTRA_SPEED_TYPES,
+  isDruid,
+  WILD_SHAPE_RULES,
 } from '../constants/dnd';
 import { ActionTypeBadge, ActionTypeFilterBar } from './ActionType';
 import type { ActionTypeFilter } from '../constants/actionTypes';
@@ -25,7 +28,7 @@ interface CombatViewProps {
   spells: Spell[];
   weapons: Weapon[];
   features: Feature[];
-  onUpdateCharacter: (updates: Partial<Pick<Character, 'current_hp' | 'max_hp' | 'temp_hp' | 'armor_class' | 'death_save_successes' | 'death_save_failures' | 'conditions' | 'initiative_modifier' | 'passive_perception' | 'concentration_spell_id'>>) => void;
+  onUpdateCharacter: (updates: Partial<Pick<Character, 'current_hp' | 'max_hp' | 'temp_hp' | 'armor_class' | 'death_save_successes' | 'death_save_failures' | 'conditions' | 'initiative_modifier' | 'passive_perception' | 'concentration_spell_id' | 'wild_shape_active' | 'wild_shape_beast_name' | 'wild_shape_current_hp' | 'wild_shape_max_hp' | 'wild_shape_beast_ac' | 'wild_shape_beast_str' | 'wild_shape_beast_dex' | 'wild_shape_beast_con' | 'wild_shape_beast_speed' | 'wild_shape_beast_swim_speed' | 'wild_shape_beast_fly_speed' | 'wild_shape_beast_climb_speed' | 'wild_shape_beast_burrow_speed'>>) => void;
   onSetSlotUsed: (level: number, used: number) => void;
   onUpdateFeature: (id: string, updates: Partial<Pick<Feature, 'used_uses'>>) => void;
   /** When provided, Cast/Use/Attack buttons trigger this instead of internal animation handlers */
@@ -40,6 +43,7 @@ interface CombatViewProps {
   usedActionTypes?: ReadonlySet<string>;
   /** When true, user is in a combat session but it's not their turn — only reactions allowed */
   offTurn?: boolean;
+  onOpenWildShapeModal?: () => void;
 }
 
 const ORD: Record<number, string> = {
@@ -266,6 +270,7 @@ export function CombatView({
   onActionInitiated,
   usedActionTypes,
   offTurn,
+  onOpenWildShapeModal,
 }: CombatViewProps) {
   const [expandedSpell, setExpandedSpell] = useState<string | null>(null);
   const [expandedFeature, setExpandedFeature] = useState<string | null>(null);
@@ -278,12 +283,24 @@ export function CombatView({
 
   const { display: animatedHp, pulsing } = useAnimatedNumber(character.current_hp);
 
-  const abilityScoreMap = Object.fromEntries(
+  const baseAbilityScoreMap = Object.fromEntries(
     (['STR', 'DEX', 'CON', 'INT', 'WIS', 'CHA'] as const).map((a) => [
       a,
       scores.find((s) => s.ability === a)?.score ?? 10,
     ]),
   ) as Record<Ability, number>;
+
+  const inBeastForm = character.wild_shape_active;
+
+  // Override physical scores when in beast form
+  const abilityScoreMap: Record<Ability, number> = inBeastForm
+    ? {
+        ...baseAbilityScoreMap,
+        STR: character.wild_shape_beast_str ?? baseAbilityScoreMap.STR,
+        DEX: character.wild_shape_beast_dex ?? baseAbilityScoreMap.DEX,
+        CON: character.wild_shape_beast_con ?? baseAbilityScoreMap.CON,
+      }
+    : baseAbilityScoreMap;
 
   const spellSaveDC = getSpellSaveDC(character.class, character.level, abilityScoreMap);
   const spellAtkBonus = getSpellAttackBonus(character.class, character.level, abilityScoreMap);
@@ -657,6 +674,55 @@ export function CombatView({
         </div>
       )}
 
+      {/* Beast Form Banner */}
+      {inBeastForm && (
+        <div
+          className="rounded-xl p-3 animate-fade-in"
+          style={{
+            background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.1), rgba(139, 92, 246, 0.05))',
+            border: '1px solid var(--spell-border)',
+          }}
+        >
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span style={{ fontSize: '16px' }}>🐺</span>
+              <span className="text-sm font-bold" style={{ color: 'var(--spell-violet)', fontFamily: 'var(--heading)' }}>
+                {character.wild_shape_beast_name ?? 'Beast Form'}
+              </span>
+            </div>
+            <button
+              className="px-2.5 py-1 rounded-lg text-[10px] cursor-pointer font-semibold"
+              style={{ background: 'var(--hp-crimson)', color: 'white', border: 'none' }}
+              onClick={() => onUpdateCharacter({
+                wild_shape_active: false,
+                wild_shape_current_hp: null,
+                wild_shape_max_hp: null,
+                wild_shape_beast_name: null,
+              })}
+            >
+              Revert
+            </button>
+          </div>
+          <div className="text-[9px] mt-1" style={{ color: 'var(--text-muted)' }}>
+            {WILD_SHAPE_RULES[0]} · {WILD_SHAPE_RULES[1]}
+          </div>
+        </div>
+      )}
+      {!inBeastForm && isDruid(character.class) && onOpenWildShapeModal && (
+        <button
+          className="w-full py-2.5 rounded-xl cursor-pointer text-sm font-bold flex items-center justify-center gap-2"
+          style={{
+            background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.15), rgba(139, 92, 246, 0.05))',
+            border: '1px solid var(--spell-border)',
+            color: 'var(--spell-violet)',
+            fontFamily: 'var(--heading)',
+          }}
+          onClick={onOpenWildShapeModal}
+        >
+          🐺 Wild Shape
+        </button>
+      )}
+
       {/* ── Combat Stats ───────────────────────────────────────────────── */}
       <div className="grid grid-cols-3 gap-2">
         <StatBox
@@ -666,19 +732,36 @@ export function CombatView({
         />
         <StatBox
           label="AC"
-          value={String(character.armor_class)}
-          color="var(--accent)"
+          value={String(inBeastForm ? (character.wild_shape_beast_ac ?? character.armor_class) : character.armor_class)}
+          color={inBeastForm ? 'var(--spell-violet)' : 'var(--accent)'}
         />
         <StatBox
           label="Initiative"
           value={formatModifier(initiativeValue)}
           color="var(--spell-violet)"
         />
-        <StatBox
-          label="Speed"
-          value={`${character.speed} ft`}
-          color="var(--accent)"
-        />
+        {(() => {
+          const beastSpeed = inBeastForm ? (character.wild_shape_beast_speed ?? character.speed) : character.speed;
+          const speedSubtitle = inBeastForm
+            ? [
+                character.wild_shape_beast_swim_speed ? `🏊${character.wild_shape_beast_swim_speed}` : '',
+                character.wild_shape_beast_fly_speed ? `🪽${character.wild_shape_beast_fly_speed}` : '',
+                character.wild_shape_beast_climb_speed ? `🧗${character.wild_shape_beast_climb_speed}` : '',
+                character.wild_shape_beast_burrow_speed ? `⛏️${character.wild_shape_beast_burrow_speed}` : '',
+              ].filter(Boolean).join(' ') || undefined
+            : EXTRA_SPEED_TYPES
+                .filter((st) => character[st.key] != null && character[st.key]! > 0)
+                .map((st) => `${st.emoji}${character[st.key]}`)
+                .join(' ') || undefined;
+          return (
+            <StatBox
+              label="Speed"
+              value={`${beastSpeed} ft`}
+              color={inBeastForm ? 'var(--spell-violet)' : 'var(--accent)'}
+              subtitle={speedSubtitle}
+            />
+          );
+        })()}
         {spellSaveDC !== null && (
           <StatBox label="Spell DC" value={String(spellSaveDC)} color="var(--spell-indigo)" />
         )}
@@ -742,16 +825,17 @@ export function CombatView({
         {(['STR', 'DEX', 'CON', 'INT', 'WIS', 'CHA'] as const).map((ab) => {
           const mod = getModifier(abilityScoreMap[ab]);
           const isCasting = ab === castingAbility;
+          const isBeastOverride = inBeastForm && (ab === 'STR' || ab === 'DEX' || ab === 'CON');
           return (
             <div
               key={ab}
               className="flex flex-col items-center py-1.5 rounded-lg"
               style={{
-                background: isCasting ? 'var(--spell-bg)' : 'var(--bg-surface)',
-                border: `1px solid ${isCasting ? 'var(--spell-border)' : 'var(--border)'}`,
+                background: isBeastOverride ? 'rgba(139, 92, 246, 0.1)' : isCasting ? 'var(--spell-bg)' : 'var(--bg-surface)',
+                border: `1px solid ${isBeastOverride ? 'var(--spell-border)' : isCasting ? 'var(--spell-border)' : 'var(--border)'}`,
               }}
             >
-              <span className="text-[9px] font-bold" style={{ color: isCasting ? 'var(--spell-indigo)' : 'var(--accent)', fontFamily: 'var(--heading)' }}>
+              <span className="text-[9px] font-bold" style={{ color: isBeastOverride ? 'var(--spell-violet)' : isCasting ? 'var(--spell-indigo)' : 'var(--accent)', fontFamily: 'var(--heading)' }}>
                 {ab}
               </span>
               <span className="text-sm font-bold" style={{ color: 'var(--text-h)' }}>
