@@ -199,12 +199,18 @@ function FeatureCard({
   const [editActionType, setEditActionType] = useState<ActionType>(feature.action_type ?? 'other');
   const [editMaxUses, setEditMaxUses] = useState(feature.max_uses !== null ? String(feature.max_uses) : '');
 
+  function isInteractiveTarget(target: EventTarget | null): boolean {
+    if (!(target instanceof HTMLElement)) return false;
+    return !!target.closest('input, textarea, select, button, a, [contenteditable="true"], [role="button"]');
+  }
+
   function startEdit() {
     setEditTitle(feature.title);
     setEditDescription(feature.description);
     setEditSource(feature.source);
     setEditActionType(feature.action_type ?? 'other');
     setEditMaxUses(feature.max_uses !== null ? String(feature.max_uses) : '');
+    resetSwipe();
     setIsEditing(true);
   }
 
@@ -222,13 +228,17 @@ function FeatureCard({
   }
 
   const handleTouchStart = useCallback((e: ReactTouchEvent) => {
+    if (isEditing || isInteractiveTarget(e.target) || e.touches.length !== 1) {
+      swipingRef.current = false;
+      return;
+    }
     startXRef.current = e.touches[0].clientX;
     currentXRef.current = startXRef.current;
     swipingRef.current = true;
-  }, []);
+  }, [isEditing]);
 
   const handleTouchMove = useCallback((e: ReactTouchEvent) => {
-    if (!swipingRef.current) return;
+    if (!swipingRef.current || isEditing) return;
     const el = cardRef.current;
     if (!el) return;
     currentXRef.current = e.touches[0].clientX;
@@ -237,10 +247,10 @@ function FeatureCard({
       el.style.transform = `translateX(${Math.max(dx, -80)}px)`;
       el.style.transition = 'none';
     }
-  }, []);
+  }, [isEditing]);
 
   const handleTouchEnd = useCallback(() => {
-    if (!swipingRef.current) return;
+    if (!swipingRef.current || isEditing) return;
     swipingRef.current = false;
     const el = cardRef.current;
     if (!el) return;
@@ -254,7 +264,7 @@ function FeatureCard({
       el.style.transform = 'translateX(0)';
       setShowDeleteBtn(false);
     }
-  }, []);
+  }, [isEditing]);
 
   const resetSwipe = useCallback(() => {
     const el = cardRef.current;
@@ -285,9 +295,13 @@ function FeatureCard({
         ref={cardRef}
         className="relative p-4 rounded-xl"
         style={{ background: 'var(--bg-surface)' }}
-        onTouchStart={handleTouchStart}
-        onTouchMove={handleTouchMove}
-        onTouchEnd={handleTouchEnd}
+        onTouchStart={isEditing ? undefined : handleTouchStart}
+        onTouchMove={isEditing ? undefined : handleTouchMove}
+        onTouchEnd={isEditing ? undefined : handleTouchEnd}
+        onTouchCancel={isEditing ? undefined : () => { swipingRef.current = false; resetSwipe(); }}
+        onDragStartCapture={(e) => {
+          if (isInteractiveTarget(e.target)) e.stopPropagation();
+        }}
       >
         <div
           className="flex items-start justify-between cursor-pointer"

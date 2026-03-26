@@ -48,25 +48,17 @@ export function QuickReference({ onClose }: QuickReferenceProps) {
 
   const dialogRef = useRef<HTMLDivElement>(null);
 
-  // Lock background scrolling while the overlay is open.
-  // Uses position:fixed on body to avoid iOS scroll-blocking bugs where
-  // overflow:hidden on body prevents scrolling inside child elements.
+  // Prevent the app's main content from scrolling behind the overlay.
+  // Directly target the scrollable element rather than body to avoid Safari bugs.
   useEffect(() => {
-    const scrollY = window.scrollY;
-    const prevPosition = document.body.style.position;
-    const prevTop = document.body.style.top;
-    const prevWidth = document.body.style.width;
-    const prevOverflow = document.body.style.overflow;
-    document.body.style.position = 'fixed';
-    document.body.style.top = `-${scrollY}px`;
-    document.body.style.width = '100%';
-    document.body.style.overflow = 'hidden';
+    const mainContent = document.getElementById('main-content');
+    if (mainContent) {
+      mainContent.style.overflow = 'hidden';
+    }
     return () => {
-      document.body.style.position = prevPosition;
-      document.body.style.top = prevTop;
-      document.body.style.width = prevWidth;
-      document.body.style.overflow = prevOverflow;
-      window.scrollTo(0, scrollY);
+      if (mainContent) {
+        mainContent.style.overflow = '';
+      }
     };
   }, []);
 
@@ -110,21 +102,24 @@ export function QuickReference({ onClose }: QuickReferenceProps) {
         role="dialog"
         aria-modal="true"
         aria-label="Quick Reference"
-        className="fixed z-50 quick-ref-panel"
+        className="quick-ref-panel"
         style={{
-          background: 'var(--bg)',
+          position: 'fixed',
           top: 0,
-          right: 0,
-          bottom: 0,
           left: 0,
-          display: 'grid',
-          gridTemplateRows: 'auto auto minmax(0, 1fr)',
+          width: '100%',
+          height: '100%',
+          zIndex: 50,
+          display: 'flex',
+          flexDirection: 'column',
+          background: 'var(--bg)',
         }}
       >
       {/* Header */}
       <header
         className="flex items-center gap-3 px-4 py-3"
         style={{
+          flexShrink: 0,
           background: 'linear-gradient(180deg, var(--bg) 0%, rgba(15,14,19,0.95) 100%)',
           borderBottom: '1px solid var(--border)',
         }}
@@ -145,7 +140,7 @@ export function QuickReference({ onClose }: QuickReferenceProps) {
       </header>
 
       {/* Search */}
-      <div className="px-4 pt-3 pb-1">
+      <div className="px-4 pt-3 pb-1" style={{ flexShrink: 0 }}>
         <div className="relative">
           <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2" style={{ color: 'var(--accent)' }} />
           <input
@@ -172,11 +167,21 @@ export function QuickReference({ onClose }: QuickReferenceProps) {
         </div>
       </div>
 
-      {/* Content */}
-      <main
-        className="px-4 py-3 flex flex-col gap-3 pb-8"
-        style={{ overflowY: 'auto', WebkitOverflowScrolling: 'touch', overscrollBehavior: 'contain' }}
-      >
+      {/* Content — relative wrapper + absolute scroll area ensures bounded height in all browsers */}
+      <div style={{ position: 'relative', flex: '1 1 0%', minHeight: 0 }}>
+        <main
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            overflowY: 'scroll',
+            WebkitOverflowScrolling: 'touch',
+            overscrollBehavior: 'contain',
+          }}
+        >
+        <div className="px-4 py-3 flex flex-col gap-3 pb-8">
         {!hasResults && (
           <div className="flex flex-col items-center justify-center py-12 gap-2">
             <span style={{ fontSize: '32px' }}>🔍</span>
@@ -333,7 +338,9 @@ export function QuickReference({ onClose }: QuickReferenceProps) {
             )}
           </section>
         ))}
+        </div>
       </main>
+      </div>
       </div>
     </>
   );
