@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import type { FormEvent } from 'react';
-import { Shield, Mail } from 'lucide-react';
+import { Mail } from 'lucide-react';
 
 interface AuthProps {
   onAuth: (email: string, password: string, isSignUp: boolean, username?: string) => Promise<{ needsEmailVerification?: boolean }>;
@@ -55,38 +55,44 @@ export function Auth({ onAuth, onForgotPassword }: AuthProps) {
       <div
         className="w-full max-w-sm p-8 rounded-2xl animate-fade-in"
         style={{
-          background: 'linear-gradient(180deg, var(--bg-raised) 0%, var(--bg-surface) 100%)',
+          background: 'var(--bg-raised)',
           border: '1px solid var(--border)',
-          boxShadow: 'var(--shadow-lg), 0 0 40px rgba(201,168,76,0.05)',
+          boxShadow: 'var(--shadow)',
         }}
       >
-        <div className="flex flex-col items-center mb-6">
-          <Shield size={40} style={{ color: 'var(--accent)', marginBottom: '12px' }} />
+        <div className="mb-8">
           <h1
-            className="text-2xl font-bold mb-1 text-center animate-shimmer"
-            style={{ fontSize: '1.5rem', letterSpacing: '1px', margin: 0 }}
+            className="text-2xl font-bold mb-1"
+            style={{
+              fontFamily: 'var(--heading)',
+              fontSize: '1.4rem',
+              letterSpacing: '0.5px',
+              color: 'var(--accent)',
+              margin: 0,
+            }}
           >
-            D&D Manager
+            D&D Character Manager
           </h1>
-          <p className="text-sm text-center mt-2" style={{ color: 'var(--text)' }}>
-            {isSignUp ? 'Create your adventurer account' : 'Enter the realm'}
+          <p className="text-sm mt-2" style={{ color: 'var(--text)' }}>
+            {isSignUp ? 'Create an account to get started.' : 'Sign in to your account.'}
           </p>
         </div>
 
         {emailSent ? (
-          <div className="flex flex-col items-center gap-4 py-2">
-            <Mail size={36} style={{ color: 'var(--accent)' }} />
-            <h2
-              className="text-lg font-bold text-center"
-              style={{ color: 'var(--text-h)', fontFamily: 'var(--heading)', margin: 0 }}
-            >
-              Check your email
-            </h2>
-            <p className="text-sm text-center" style={{ color: 'var(--text)', lineHeight: 1.5 }}>
+          <div className="flex flex-col gap-4 py-2">
+            <div className="flex items-center gap-3">
+              <Mail size={20} style={{ color: 'var(--accent)', flexShrink: 0 }} />
+              <h2
+                className="text-base font-bold"
+                style={{ color: 'var(--text-h)', fontFamily: 'var(--heading)', margin: 0 }}
+              >
+                Check your email
+              </h2>
+            </div>
+            <p className="text-sm" style={{ color: 'var(--text)', lineHeight: 1.5 }}>
               We sent a verification link to{' '}
               <strong style={{ color: 'var(--text-h)' }}>{email}</strong>.
-              <br />
-              Click the link to verify your account, then come back and sign in.
+              Click the link to verify, then come back and sign in.
             </p>
             <button
               onClick={() => {
@@ -96,7 +102,7 @@ export function Auth({ onAuth, onForgotPassword }: AuthProps) {
               }}
               className="w-full py-3 rounded-lg font-semibold text-base cursor-pointer"
               style={{
-                background: 'linear-gradient(135deg, var(--accent), var(--accent-bright))',
+                background: 'var(--accent)',
                 color: '#0f0e13',
                 border: 'none',
                 fontFamily: 'var(--heading)',
@@ -110,11 +116,34 @@ export function Auth({ onAuth, onForgotPassword }: AuthProps) {
         <>
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           {isSignUp && (
+            <div>
+              <label className="block text-xs mb-1.5" style={{ color: 'var(--text)', letterSpacing: '0.3px' }}>
+                Username
+              </label>
+              <input
+                type="text"
+                placeholder="e.g. dungeon_delver"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                required
+                className={inputCls}
+                style={{
+                  background: 'var(--code-bg)',
+                  color: 'var(--text-h)',
+                  border: '1px solid var(--border)',
+                }}
+              />
+            </div>
+          )}
+          <div>
+            <label className="block text-xs mb-1.5" style={{ color: 'var(--text)', letterSpacing: '0.3px' }}>
+              Email
+            </label>
             <input
-              type="text"
-              placeholder="Username"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
+              type="email"
+              placeholder="you@example.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
               required
               className={inputCls}
               style={{
@@ -123,83 +152,77 @@ export function Auth({ onAuth, onForgotPassword }: AuthProps) {
                 border: '1px solid var(--border)',
               }}
             />
-          )}
-          <input
-            type="email"
-            placeholder="Email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-            className={inputCls}
-            style={{
-              background: 'var(--code-bg)',
-              color: 'var(--text-h)',
-              border: '1px solid var(--border)',
-            }}
-          />
-          <div className="flex items-center justify-between -mb-2">
-            <span className="text-xs" style={{ color: 'var(--text)', letterSpacing: '0.5px' }}>
-              Password
-            </span>
-            {!isSignUp && (
-              <button
-                type="button"
-                onClick={handleForgotPassword}
-                disabled={resetting}
-                className="text-xs bg-transparent border-none cursor-pointer disabled:opacity-50"
-                style={{ color: 'var(--accent)' }}
-              >
-                {resetting ? 'Sending reset email…' : 'Forgot password?'}
-              </button>
-            )}
           </div>
-          <input
-            type="password"
-            placeholder="Password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-            minLength={6}
-            className={inputCls}
-            style={{
-              background: 'var(--code-bg)',
-              color: 'var(--text-h)',
-              border: '1px solid var(--border)',
-            }}
-          />
+          <div>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="text-xs" style={{ color: 'var(--text)', letterSpacing: '0.3px' }}>
+                Password
+              </label>
+              {!isSignUp && (
+                <button
+                  type="button"
+                  onClick={handleForgotPassword}
+                  disabled={resetting}
+                  className="text-xs bg-transparent border-none cursor-pointer disabled:opacity-50"
+                  style={{ color: 'var(--accent)' }}
+                >
+                  {resetting ? 'Sending…' : 'Forgot?'}
+                </button>
+              )}
+            </div>
+            <input
+              type="password"
+              placeholder="••••••••"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              minLength={6}
+              className={inputCls}
+              style={{
+                background: 'var(--code-bg)',
+                color: 'var(--text-h)',
+                border: '1px solid var(--border)',
+              }}
+            />
+          </div>
 
-          {error && <p className="text-sm text-center" style={{ color: 'var(--danger-bright)' }}>{error}</p>}
-          {info && <p className="text-sm text-center" style={{ color: 'var(--accent)' }}>{info}</p>}
+          {error && <p className="text-sm" style={{ color: 'var(--danger-bright)' }}>{error}</p>}
+          {info && <p className="text-sm" style={{ color: 'var(--accent)' }}>{info}</p>}
 
           <button
             type="submit"
             disabled={loading}
             className="w-full py-3 rounded-lg font-semibold text-base transition-opacity disabled:opacity-50 cursor-pointer"
             style={{
-              background: 'linear-gradient(135deg, var(--accent), var(--accent-bright))',
+              background: 'var(--accent)',
               color: '#0f0e13',
               border: 'none',
               fontFamily: 'var(--heading)',
               letterSpacing: '0.5px',
             }}
           >
-            {loading ? '...' : isSignUp ? 'Create Account' : 'Enter'}
+            {loading ? '...' : isSignUp ? 'Create Account' : 'Sign In'}
           </button>
         </form>
 
-        <button
-          onClick={() => {
-            setIsSignUp(!isSignUp);
-            setError('');
-            setUsername('');
-          }}
-          className="w-full mt-4 text-sm text-center bg-transparent border-none cursor-pointer"
-          style={{ color: 'var(--accent)' }}
+        <div
+          className="mt-6 pt-4 text-center"
+          style={{ borderTop: '1px solid var(--border)' }}
         >
-          {isSignUp
-            ? 'Already have an account? Sign In'
-            : "Don't have an account? Sign Up"}
-        </button>
+          <button
+            onClick={() => {
+              setIsSignUp(!isSignUp);
+              setError('');
+              setUsername('');
+            }}
+            className="text-sm bg-transparent border-none cursor-pointer"
+            style={{ color: 'var(--text)' }}
+          >
+            {isSignUp
+              ? <>Have an account? <span style={{ color: 'var(--accent)' }}>Sign in</span></>
+              : <>No account? <span style={{ color: 'var(--accent)' }}>Create one</span></>}
+          </button>
+        </div>
         </>
         )}
       </div>

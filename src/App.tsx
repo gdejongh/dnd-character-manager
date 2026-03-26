@@ -53,16 +53,16 @@ function SetupScreen() {
       <div
         className="w-full max-w-md p-6 rounded-2xl animate-fade-in"
         style={{
-          background: 'linear-gradient(180deg, var(--bg-raised) 0%, var(--bg-surface) 100%)',
-          border: '1px solid var(--accent-border)',
-          boxShadow: 'var(--shadow-lg), 0 0 30px rgba(201,168,76,0.06)',
+          background: 'var(--bg-raised)',
+          border: '1px solid var(--border)',
+          boxShadow: 'var(--shadow)',
         }}
       >
         <h1
-          className="text-center mb-1 animate-shimmer"
-          style={{ fontSize: '1.6rem', letterSpacing: '1px' }}
+          className="text-center mb-1"
+          style={{ fontSize: '1.4rem', letterSpacing: '0.5px', color: 'var(--accent)' }}
         >
-          ⚔️ D&D Character Manager
+          D&D Character Manager
         </h1>
         <h2
           className="text-center mb-4"
