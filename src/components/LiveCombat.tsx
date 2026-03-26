@@ -179,15 +179,14 @@ function TurnSpotlight({
       }}
     >
       {/* Large image area */}
-      <div className="relative" style={{ minHeight: '200px', maxHeight: '280px', overflow: 'hidden' }}>
+      <div className="relative h-[220px] md:h-[320px]" style={{ overflow: 'hidden' }}>
         {combatant.image_url ? (
           <>
             <img
               src={combatant.image_url}
               alt={combatant.name}
-              className="w-full h-full object-cover"
+              className="w-full h-full object-cover md:object-contain"
               style={{
-                height: '280px',
                 objectPosition: `center ${combatant.image_position ?? 50}%`,
               }}
             />

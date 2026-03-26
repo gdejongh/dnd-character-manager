@@ -463,9 +463,9 @@ export function HomeScreen({
                       tabIndex={0}
                       onKeyDown={(e) => e.key === 'Enter' && onSelectSharedCharacter(item.character.id, item.share.id)}
                     >
-                      <div className="flex items-start justify-between">
+                      <div className="flex items-start justify-between gap-3">
                         <div>
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-start gap-2">
                             <h2 className="text-lg m-0" style={{ color: 'var(--accent)', fontSize: '1rem' }}>
                               {item.character.name}
                             </h2>
