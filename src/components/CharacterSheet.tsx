@@ -414,51 +414,62 @@ export function CharacterSheet({
         )}
 
         {editingField === 'info' ? (
-          <div className="flex gap-2 w-full flex-wrap">
-            <input
-              className="flex-1 min-w-0 px-2 py-1.5 rounded-lg text-base md:text-sm outline-none"
-              style={{ ...inputStyle, fontSize: '16px' }}
-              placeholder="Race"
-              value={character.race}
-              onChange={(e) => onUpdateCharacter({ race: e.target.value })}
-            />
-            <input
-              className="flex-1 min-w-0 px-2 py-1.5 rounded-lg text-base md:text-sm outline-none"
-              style={{ ...inputStyle, fontSize: '16px' }}
-              placeholder="Class"
-              value={character.class}
-              onChange={(e) => onUpdateCharacter({ class: e.target.value })}
-            />
-            <NumericInput
-              className="w-20 md:w-16 px-2 py-1.5 rounded-lg text-base md:text-sm outline-none text-center"
-              style={{ ...inputStyle, fontSize: '16px' }}
-              min={1}
-              max={20}
-              value={character.level}
-              onChange={(val) => onUpdateCharacter({ level: val })}
-            />
-            <NumericInput
-              className="w-20 md:w-16 px-2 py-1.5 rounded-lg text-base md:text-sm outline-none text-center"
-              style={{ ...inputStyle, fontSize: '16px' }}
-              min={1}
-              max={30}
-              value={character.armor_class}
-              onChange={(val) => onUpdateCharacter({ armor_class: val })}
-            />
-            <button
-              className="px-3 py-1.5 rounded-lg text-sm cursor-pointer"
-              style={{
-                background: 'linear-gradient(135deg, var(--accent), var(--accent-bright))',
-                color: '#0f0e13',
-                border: 'none',
-              }}
-              onClick={() => {
-                if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
-                setTimeout(() => setEditingField(null), 0);
-              }}
-            >
-              Done
-            </button>
+          <div className="flex flex-col gap-2 w-full">
+            <div className="flex gap-2">
+              <input
+                className="flex-1 min-w-0 px-3 py-2 rounded-lg text-base outline-none"
+                style={{ ...inputStyle, fontSize: '16px' }}
+                placeholder="Race"
+                value={character.race}
+                onChange={(e) => onUpdateCharacter({ race: e.target.value })}
+              />
+              <input
+                className="flex-1 min-w-0 px-3 py-2 rounded-lg text-base outline-none"
+                style={{ ...inputStyle, fontSize: '16px' }}
+                placeholder="Class"
+                value={character.class}
+                onChange={(e) => onUpdateCharacter({ class: e.target.value })}
+              />
+            </div>
+            <div className="flex gap-2 items-center">
+              <div className="flex flex-col gap-0.5">
+                <label className="text-xs" style={{ color: 'var(--text-secondary)', fontFamily: 'var(--heading)', letterSpacing: '0.3px' }}>Level</label>
+                <NumericInput
+                  className="w-20 px-3 py-2 rounded-lg text-base outline-none text-center"
+                  style={{ ...inputStyle, fontSize: '16px' }}
+                  min={1}
+                  max={20}
+                  value={character.level}
+                  onChange={(val) => onUpdateCharacter({ level: val })}
+                />
+              </div>
+              <div className="flex flex-col gap-0.5">
+                <label className="text-xs" style={{ color: 'var(--text-secondary)', fontFamily: 'var(--heading)', letterSpacing: '0.3px' }}>AC</label>
+                <NumericInput
+                  className="w-20 px-3 py-2 rounded-lg text-base outline-none text-center"
+                  style={{ ...inputStyle, fontSize: '16px' }}
+                  min={1}
+                  max={30}
+                  value={character.armor_class}
+                  onChange={(val) => onUpdateCharacter({ armor_class: val })}
+                />
+              </div>
+              <div className="flex-1" />
+              <button
+                className="px-4 py-2 rounded-lg text-sm cursor-pointer self-end"
+                style={{
+                  background: 'linear-gradient(135deg, var(--accent), var(--accent-bright))',
+                  color: '#0f0e13',
+                  border: 'none',
+                }}
+                onClick={() => {
+                  if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
+                  setTimeout(() => setEditingField(null), 0);
+                }}
+              >
+                Done
+              </button>
+            </div>
           </div>
         ) : (
           <div
