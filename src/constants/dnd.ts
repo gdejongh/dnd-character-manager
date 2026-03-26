@@ -50,14 +50,37 @@ export function formatModifier(mod: number): string {
 }
 
 /** Normalize a class string like "Wizard: Chronurgy Magic" or "Cleric (Light)" to "wizard" */
-function resolveClassKey(className: string): string {
+export function resolveClassKey(className: string): string {
   return className.toLowerCase().trim().split(/[\s:(/–-]/)[0];
+}
+
+/* ── Multiclass helpers ── */
+
+export interface ClassEntry {
+  className: string;
+  level: number;
+}
+
+/** Check if any class in the list matches a target (e.g. "druid") */
+export function hasClass(classes: ClassEntry[], target: string): boolean {
+  return classes.some((c) => resolveClassKey(c.className) === target);
+}
+
+/** Get the level of a specific class, or 0 if not present */
+export function getClassLevel(classes: ClassEntry[], target: string): number {
+  return classes.find((c) => resolveClassKey(c.className) === target)?.level ?? 0;
+}
+
+/** Total character level across all classes */
+export function getTotalLevel(classes: ClassEntry[]): number {
+  return classes.reduce((sum, c) => sum + c.level, 0);
 }
 
 /* ── Wild Shape (Druid) ── */
 
-export function isDruid(className: string): boolean {
-  return resolveClassKey(className) === 'druid';
+export function isDruid(classOrClasses: string | ClassEntry[]): boolean {
+  if (Array.isArray(classOrClasses)) return hasClass(classOrClasses, 'druid');
+  return resolveClassKey(classOrClasses) === 'druid';
 }
 
 export interface WildShapeLimits {
@@ -229,8 +252,9 @@ const WARLOCK_PACT: [number, number][] = [
 const FULL_CASTERS = ['wizard', 'cleric', 'druid', 'bard', 'sorcerer'];
 const HALF_CASTERS = ['paladin', 'ranger'];
 
-export function isWarlock(className: string): boolean {
-  return resolveClassKey(className) === 'warlock';
+export function isWarlock(classOrClasses: string | ClassEntry[]): boolean {
+  if (Array.isArray(classOrClasses)) return hasClass(classOrClasses, 'warlock');
+  return resolveClassKey(classOrClasses) === 'warlock';
 }
 
 /** Returns Warlock pact magic info for a given level */

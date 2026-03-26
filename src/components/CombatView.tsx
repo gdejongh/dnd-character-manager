@@ -44,6 +44,7 @@ interface CombatViewProps {
   /** When true, user is in a combat session but it's not their turn — only reactions allowed */
   offTurn?: boolean;
   onOpenWildShapeModal?: () => void;
+  charIsDruid?: boolean;
 }
 
 const ORD: Record<number, string> = {
@@ -271,6 +272,7 @@ export function CombatView({
   usedActionTypes,
   offTurn,
   onOpenWildShapeModal,
+  charIsDruid,
 }: CombatViewProps) {
   const [expandedSpell, setExpandedSpell] = useState<string | null>(null);
   const [expandedFeature, setExpandedFeature] = useState<string | null>(null);
@@ -708,7 +710,7 @@ export function CombatView({
           </div>
         </div>
       )}
-      {!inBeastForm && isDruid(character.class) && onOpenWildShapeModal && (
+      {!inBeastForm && (charIsDruid ?? isDruid(character.class)) && onOpenWildShapeModal && (
         <button
           className="w-full py-2.5 rounded-xl cursor-pointer text-sm font-bold flex items-center justify-center gap-2"
           style={{

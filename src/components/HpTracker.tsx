@@ -10,6 +10,7 @@ interface HpTrackerProps {
     updates: Partial<Pick<Character, 'current_hp' | 'max_hp' | 'temp_hp' | 'armor_class' | 'death_save_successes' | 'death_save_failures' | 'conditions' | 'wild_shape_active' | 'wild_shape_beast_name' | 'wild_shape_current_hp' | 'wild_shape_max_hp' | 'wild_shape_beast_ac' | 'wild_shape_beast_str' | 'wild_shape_beast_dex' | 'wild_shape_beast_con' | 'wild_shape_beast_speed' | 'wild_shape_beast_swim_speed' | 'wild_shape_beast_fly_speed' | 'wild_shape_beast_climb_speed' | 'wild_shape_beast_burrow_speed'>>,
   ) => void;
   onOpenWildShapeModal?: () => void;
+  charIsDruid?: boolean;
 }
 
 function useAnimatedNumber(target: number, duration = 300) {
@@ -44,7 +45,7 @@ function useAnimatedNumber(target: number, duration = 300) {
   return { display, pulsing };
 }
 
-export function HpTracker({ character, onUpdate, onOpenWildShapeModal }: HpTrackerProps) {
+export function HpTracker({ character, onUpdate, onOpenWildShapeModal, charIsDruid }: HpTrackerProps) {
   const [customAmount, setCustomAmount] = useState('');
   const [editingMax, setEditingMax] = useState(false);
   const [editingTemp, setEditingTemp] = useState(false);
@@ -524,7 +525,7 @@ export function HpTracker({ character, onUpdate, onOpenWildShapeModal }: HpTrack
       </div>
 
       {/* Wild Shape Section (Druids only) */}
-      {isDruid(character.class) && (
+      {(charIsDruid ?? isDruid(character.class)) && (
         <>
           {inBeastForm ? (
             <div

@@ -349,6 +349,7 @@ export function GuestSheetPreview({
                   { icon: Flame, label: 'Combat Tracker' },
                   { icon: Users, label: 'Share & Party' },
                   { icon: Scroll, label: 'HP Tracker' },
+                  { icon: Swords, label: 'Multiplayer Combat' },
                 ].map(({ icon: Icon, label }) => (
                   <div
                     key={label}

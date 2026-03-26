@@ -2,7 +2,7 @@ import { useState, useCallback, useEffect, useRef } from 'react';
 import type { Tab } from './types/database';
 import { isSupabaseConfigured } from './lib/supabase';
 import { supabase } from './lib/supabase';
-import { getPreparedSpellLimit, isWarlock, isDruid } from './constants/dnd';
+import { getPreparedSpellLimit, isWarlock, isDruid, getClassLevel } from './constants/dnd';
 import { showToast } from './lib/toast';
 import { useAuth } from './hooks/useAuth';
 import { useCharacters } from './hooks/useCharacters';
@@ -18,6 +18,7 @@ import { useCharacterImage } from './hooks/useCharacterImage';
 import { useCharacterShares } from './hooks/useCharacterShares';
 import { useSharedWithMe } from './hooks/useSharedWithMe';
 import { useCustomBeasts } from './hooks/useCustomBeasts';
+import { useCharacterClasses } from './hooks/useCharacterClasses';
 import { createCombatSession, joinCombatSession, findActiveSession } from './hooks/useCombatSession';
 import type { ActiveSessionInfo } from './hooks/useCombatSession';
 import { Auth } from './components/Auth';
@@ -314,6 +315,7 @@ function App() {
   const { uploading: imageUploading, error: imageError, uploadImage, deleteImage } =
     useCharacterImage(user?.id, selectedCharacterId);
   const { customBeasts, addCustomBeast, deleteCustomBeast } = useCustomBeasts(selectedCharacterId);
+  const { classes: characterClasses, addClass, migrateToMulticlass, updateClassLevel, updateClassName, removeClass } = useCharacterClasses(selectedCharacterId);
 
   // Wild Shape modal state
   const [showWildShapeModal, setShowWildShapeModal] = useState(false);
@@ -547,7 +549,13 @@ function App() {
     : null;
 
 
-  const charIsWarlock = character ? isWarlock(character.class) : false;
+  const classEntries = characterClasses.length > 0
+    ? characterClasses.map((c) => ({ className: c.class_name, level: c.level }))
+    : character ? [{ className: character.class, level: character.level }] : [];
+
+  const charIsWarlock = character ? isWarlock(classEntries) : false;
+  const charIsDruid = character ? isDruid(classEntries) : false;
+  const druidLevel = getClassLevel(classEntries, 'druid');
 
   // Find the share info for the read-only banner
   const currentShareInfo = isReadOnly
@@ -707,6 +715,13 @@ function App() {
               onDeleteImage={isReadOnly ? noOpAsync : deleteImage}
               readOnly={isReadOnly}
               onOpenWildShapeModal={isReadOnly ? undefined : () => setShowWildShapeModal(true)}
+              characterClasses={characterClasses}
+              onAddClass={isReadOnly ? undefined : addClass}
+              onUpdateClassLevel={isReadOnly ? undefined : updateClassLevel}
+              onUpdateClassName={isReadOnly ? undefined : updateClassName}
+              onRemoveClass={isReadOnly ? undefined : removeClass}
+              onMigrateToMulticlass={isReadOnly ? undefined : migrateToMulticlass}
+              onUpdatePrimaryCastingClass={isReadOnly ? undefined : (cls) => updateCharacter({ primary_casting_class: cls })}
             />
           )}
           {activeTab === 'hp' && (
@@ -714,6 +729,7 @@ function App() {
               character={character}
               onUpdate={isReadOnly ? noOpUpdate : updateCharacter}
               onOpenWildShapeModal={isReadOnly ? undefined : () => setShowWildShapeModal(true)}
+              charIsDruid={charIsDruid}
             />
           )}
           {activeTab === 'spells' && (
@@ -775,6 +791,7 @@ function App() {
               onSetSlotUsed={isReadOnly ? noOpAsync : setSlotUsed}
               onUpdateFeature={isReadOnly ? noOpAsync : updateFeature}
               onOpenWildShapeModal={isReadOnly ? undefined : () => setShowWildShapeModal(true)}
+              charIsDruid={charIsDruid}
             />
           )}
         </div>
@@ -823,9 +840,9 @@ function App() {
       {showQuickRef && (
         <QuickReference onClose={() => setShowQuickRef(false)} />
       )}
-      {showWildShapeModal && character && isDruid(character.class) && (
+      {showWildShapeModal && character && charIsDruid && (
         <WildShapeModal
-          druidLevel={character.level}
+          druidLevel={druidLevel}
           customBeasts={customBeasts}
           onSelect={handleActivateWildShape}
           onAddCustomBeast={addCustomBeast}

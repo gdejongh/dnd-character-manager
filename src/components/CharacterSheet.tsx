@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import type { Character, AbilityScore, Ability } from '../types/database';
+import type { Character, AbilityScore, Ability, CharacterClass } from '../types/database';
 import {
   ABILITIES,
   ABILITY_NAMES,
@@ -11,9 +11,10 @@ import {
   getModifier,
   getProficiencyBonus,
   formatModifier,
+  getSpellcastingAbility,
 } from '../constants/dnd';
 import { NumericInput } from './NumericInput';
-import { Camera, Trash2, Loader, Move, X, Pencil, Shield, Zap, Eye, RotateCcw } from 'lucide-react';
+import { Camera, Trash2, Loader, Move, X, Pencil, Shield, Zap, Eye, RotateCcw, Plus } from 'lucide-react';
 
 interface CharacterSheetProps {
   character: Character;
@@ -29,6 +30,13 @@ interface CharacterSheetProps {
   onDeleteImage: () => Promise<void>;
   readOnly?: boolean;
   onOpenWildShapeModal?: () => void;
+  characterClasses?: CharacterClass[];
+  onAddClass?: (className: string, level?: number) => void;
+  onUpdateClassLevel?: (classId: string, level: number) => void;
+  onUpdateClassName?: (classId: string, name: string) => void;
+  onRemoveClass?: (classId: string) => void;
+  onMigrateToMulticlass?: (existingClassName: string, existingLevel: number) => void;
+  onUpdatePrimaryCastingClass?: (className: string) => void;
 }
 
 export function CharacterSheet({
@@ -43,6 +51,13 @@ export function CharacterSheet({
   onDeleteImage,
   readOnly,
   onOpenWildShapeModal,
+  characterClasses = [],
+  onAddClass,
+  onUpdateClassLevel,
+  onUpdateClassName,
+  onRemoveClass,
+  onMigrateToMulticlass,
+  onUpdatePrimaryCastingClass,
 }: CharacterSheetProps) {
   const [editingField, setEditingField] = useState<string | null>(null);
   const [tappedAbility, setTappedAbility] = useState<Ability | null>(null);
@@ -55,6 +70,12 @@ export function CharacterSheet({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dragStartRef = useRef<{ startY: number; startPos: number } | null>(null);
   const profBonus = getProficiencyBonus(character.level);
+  const useMulticlass = characterClasses.length > 0;
+  const classEntries = characterClasses.map((c) => ({ className: c.class_name, level: c.level }));
+  const totalLevel = useMulticlass ? classEntries.reduce((s, c) => s + c.level, 0) : character.level;
+
+  // For the primary casting class selector, find which classes have spellcasting
+  const spellcastingClasses = characterClasses.filter((c) => getSpellcastingAbility(c.class_name) !== null);
 
   const imagePosition = dragPos ?? character.image_position ?? 50;
   // When adjusting a new upload, show the new URL; the position starts at 50
@@ -441,34 +462,112 @@ export function CharacterSheet({
 
         {editingField === 'info' ? (
           <div className="flex flex-col gap-2 w-full">
-            <div className="flex gap-2">
-              <input
-                className="flex-1 min-w-0 px-3 py-2 rounded-lg text-base outline-none"
-                style={{ ...inputStyle, fontSize: '16px' }}
-                placeholder="Race"
-                value={character.race}
-                onChange={(e) => onUpdateCharacter({ race: e.target.value })}
-              />
-              <input
-                className="flex-1 min-w-0 px-3 py-2 rounded-lg text-base outline-none"
-                style={{ ...inputStyle, fontSize: '16px' }}
-                placeholder="Class"
-                value={character.class}
-                onChange={(e) => onUpdateCharacter({ class: e.target.value })}
-              />
-            </div>
-            <div className="flex gap-2 items-center">
-              <div className="flex flex-col gap-0.5">
-                <label className="text-xs" style={{ color: 'var(--text-secondary)', fontFamily: 'var(--heading)', letterSpacing: '0.3px' }}>Level</label>
-                <NumericInput
-                  className="w-20 px-3 py-2 rounded-lg text-base outline-none text-center"
-                  style={{ ...inputStyle, fontSize: '16px' }}
-                  min={1}
-                  max={20}
-                  value={character.level}
-                  onChange={(val) => onUpdateCharacter({ level: val })}
-                />
+            <input
+              className="w-full px-3 py-2 rounded-lg text-base outline-none"
+              style={{ ...inputStyle, fontSize: '16px' }}
+              placeholder="Race"
+              value={character.race}
+              onChange={(e) => onUpdateCharacter({ race: e.target.value })}
+            />
+
+            {/* Multiclass editor */}
+            {useMulticlass && onAddClass ? (
+              <div className="flex flex-col gap-1.5">
+                {characterClasses.map((cc) => (
+                  <div key={cc.id} className="flex gap-1.5 items-center">
+                    <input
+                      className="flex-1 min-w-0 px-2.5 py-1.5 rounded-lg text-sm outline-none"
+                      style={{ ...inputStyle }}
+                      placeholder="Class"
+                      value={cc.class_name}
+                      onChange={(e) => onUpdateClassName?.(cc.id, e.target.value)}
+                    />
+                    <NumericInput
+                      className="w-16 px-2 py-1.5 rounded-lg text-sm outline-none text-center"
+                      style={inputStyle}
+                      min={1}
+                      max={20 - (totalLevel - cc.level)}
+                      value={cc.level}
+                      onChange={(val) => onUpdateClassLevel?.(cc.id, val)}
+                    />
+                    {characterClasses.length > 1 && (
+                      <button
+                        className="p-1 rounded cursor-pointer"
+                        style={{ background: 'transparent', border: 'none', color: 'var(--hp-crimson)' }}
+                        onClick={() => onRemoveClass?.(cc.id)}
+                        title="Remove class"
+                      >
+                        <X size={14} />
+                      </button>
+                    )}
+                  </div>
+                ))}
+                {totalLevel < 20 && (
+                  <button
+                    className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs cursor-pointer self-start"
+                    style={{ background: 'var(--bg-raised)', border: '1px solid var(--border)', color: 'var(--accent)' }}
+                    onClick={() => onAddClass?.('', 1)}
+                  >
+                    <Plus size={12} /> Add Class
+                  </button>
+                )}
+                {/* Primary casting class selector */}
+                {spellcastingClasses.length >= 2 && (
+                  <div className="flex items-center gap-2 mt-1">
+                    <label className="text-[10px]" style={{ color: 'var(--text-secondary)', fontFamily: 'var(--heading)' }}>Primary Casting:</label>
+                    <select
+                      className="px-2 py-1 rounded-lg text-xs outline-none"
+                      style={{ ...inputStyle, fontSize: '12px' }}
+                      value={character.primary_casting_class ?? ''}
+                      onChange={(e) => onUpdatePrimaryCastingClass?.(e.target.value)}
+                    >
+                      {spellcastingClasses.map((c) => (
+                        <option key={c.id} value={c.class_name}>{c.class_name}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
               </div>
+            ) : (
+              /* Single-class mode with Add Class shortcut */
+              <div className="flex flex-col gap-1.5">
+                <div className="flex gap-2">
+                  <input
+                    className="flex-1 min-w-0 px-3 py-2 rounded-lg text-base outline-none"
+                    style={{ ...inputStyle, fontSize: '16px' }}
+                    placeholder="Class"
+                    value={character.class}
+                    onChange={(e) => onUpdateCharacter({ class: e.target.value })}
+                  />
+                </div>
+                {onMigrateToMulticlass && totalLevel < 20 && (
+                  <button
+                    className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs cursor-pointer self-start"
+                    style={{ background: 'var(--bg-raised)', border: '1px solid var(--border)', color: 'var(--accent)' }}
+                    onClick={() => {
+                      if (character.class) onMigrateToMulticlass(character.class, character.level);
+                    }}
+                  >
+                    <Plus size={12} /> Add Class
+                  </button>
+                )}
+              </div>
+            )}
+
+            <div className="flex gap-2 items-center">
+              {!useMulticlass && (
+                <div className="flex flex-col gap-0.5">
+                  <label className="text-xs" style={{ color: 'var(--text-secondary)', fontFamily: 'var(--heading)', letterSpacing: '0.3px' }}>Level</label>
+                  <NumericInput
+                    className="w-20 px-3 py-2 rounded-lg text-base outline-none text-center"
+                    style={{ ...inputStyle, fontSize: '16px' }}
+                    min={1}
+                    max={20}
+                    value={character.level}
+                    onChange={(val) => onUpdateCharacter({ level: val })}
+                  />
+                </div>
+              )}
               <div className="flex flex-col gap-0.5">
                 <label className="text-xs" style={{ color: 'var(--text-secondary)', fontFamily: 'var(--heading)', letterSpacing: '0.3px' }}>AC</label>
                 <NumericInput
@@ -505,7 +604,7 @@ export function CharacterSheet({
             {[
               character.race || 'Race',
               character.class || 'Class',
-              `Level ${character.level}`,
+              `Level ${totalLevel}`,
               `Prof. ${formatModifier(profBonus)}`,
             ].map((tag) => (
               <span
@@ -791,7 +890,7 @@ export function CharacterSheet({
           </div>
         </div>
       )}
-      {!inBeastForm && !readOnly && isDruid(character.class) && onOpenWildShapeModal && (
+      {!inBeastForm && !readOnly && (useMulticlass ? isDruid(classEntries) : isDruid(character.class)) && onOpenWildShapeModal && (
         <button
           className="w-full py-2.5 rounded-xl cursor-pointer text-sm font-bold flex items-center justify-center gap-2"
           style={{

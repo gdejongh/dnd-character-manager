@@ -11,6 +11,7 @@ create table characters (
   race        text not null default '',
   class       text not null default '',
   level       integer not null default 1 check (level between 1 and 20),
+  primary_casting_class text,
   current_hp  integer not null default 10,
   max_hp      integer not null default 10,
   temp_hp     integer not null default 0,
@@ -290,6 +291,31 @@ create policy "Update own custom beasts"
   using (character_id in (select id from characters where user_id = auth.uid()));
 create policy "Delete own custom beasts"
   on custom_beasts for delete
+  using (character_id in (select id from characters where user_id = auth.uid()));
+
+-- 7d. Character Classes (Multiclass) ---------------------------------
+create table character_classes (
+  id              uuid primary key default gen_random_uuid(),
+  character_id    uuid references characters(id) on delete cascade not null,
+  class_name      text not null,
+  level           integer not null default 1 check (level between 1 and 20),
+  sort_order      integer not null default 0,
+  created_at      timestamptz not null default now()
+);
+
+alter table character_classes enable row level security;
+
+create policy "View own character classes"
+  on character_classes for select
+  using (character_id in (select id from characters where user_id = auth.uid()));
+create policy "Insert own character classes"
+  on character_classes for insert
+  with check (character_id in (select id from characters where user_id = auth.uid()));
+create policy "Update own character classes"
+  on character_classes for update
+  using (character_id in (select id from characters where user_id = auth.uid()));
+create policy "Delete own character classes"
+  on character_classes for delete
   using (character_id in (select id from characters where user_id = auth.uid()));
 
 -- =================================================================
@@ -744,3 +770,11 @@ grant execute on function public.copy_shared_character(uuid) to authenticated;
 --
 --   -- Create custom_beasts table (run full CREATE TABLE + RLS from above)
 --
+-- =================================================================
+--  MIGRATION: Multiclass Support
+-- =================================================================
+-- Run these statements if upgrading an existing database:
+--
+--   ALTER TABLE characters ADD COLUMN IF NOT EXISTS primary_casting_class text;
+--
+--   -- Create character_classes table (run full CREATE TABLE + RLS from above)

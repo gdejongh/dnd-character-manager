@@ -5,6 +5,7 @@ export interface Character {
   race: string;
   class: string;
   level: number;
+  primary_casting_class: string | null;
   current_hp: number;
   max_hp: number;
   temp_hp: number;
@@ -133,6 +134,15 @@ export interface CustomBeast {
   senses: string;
   attacks: { name: string; toHitBonus: number; damage: string; damageType: string }[];
   special_traits: string[];
+  created_at: string;
+}
+
+export interface CharacterClass {
+  id: string;
+  character_id: string;
+  class_name: string;
+  level: number;
+  sort_order: number;
   created_at: string;
 }
 
