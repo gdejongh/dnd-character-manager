@@ -170,8 +170,12 @@ export function HpTracker({ character, onUpdate }: HpTrackerProps) {
             ) : (
               <button
                 onClick={() => setEditingMax(true)}
-                className="text-2xl font-bold cursor-pointer bg-transparent"
-                style={{ color: 'var(--text-h)', fontFamily: 'var(--mono)', border: 'none', padding: 0 }}
+                className="text-2xl font-bold cursor-pointer bg-transparent rounded-lg px-2 py-0.5"
+                style={{
+                  color: 'var(--text-h)',
+                  fontFamily: 'var(--mono)',
+                  border: '1px dashed var(--border-light)',
+                }}
                 title="Edit max HP"
               >
                 {character.max_hp}
