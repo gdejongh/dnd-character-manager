@@ -416,30 +416,30 @@ export function CharacterSheet({
         {editingField === 'info' ? (
           <div className="flex gap-2 w-full flex-wrap">
             <input
-              className="flex-1 min-w-0 px-2 py-1.5 rounded-lg text-sm outline-none"
-              style={inputStyle}
+              className="flex-1 min-w-0 px-2 py-1.5 rounded-lg text-base md:text-sm outline-none"
+              style={{ ...inputStyle, fontSize: '16px' }}
               placeholder="Race"
               value={character.race}
               onChange={(e) => onUpdateCharacter({ race: e.target.value })}
             />
             <input
-              className="flex-1 min-w-0 px-2 py-1.5 rounded-lg text-sm outline-none"
-              style={inputStyle}
+              className="flex-1 min-w-0 px-2 py-1.5 rounded-lg text-base md:text-sm outline-none"
+              style={{ ...inputStyle, fontSize: '16px' }}
               placeholder="Class"
               value={character.class}
               onChange={(e) => onUpdateCharacter({ class: e.target.value })}
             />
             <NumericInput
-              className="w-16 px-2 py-1.5 rounded-lg text-sm outline-none text-center"
-              style={inputStyle}
+              className="w-20 md:w-16 px-2 py-1.5 rounded-lg text-base md:text-sm outline-none text-center"
+              style={{ ...inputStyle, fontSize: '16px' }}
               min={1}
               max={20}
               value={character.level}
               onChange={(val) => onUpdateCharacter({ level: val })}
             />
             <NumericInput
-              className="w-16 px-2 py-1.5 rounded-lg text-sm outline-none text-center"
-              style={inputStyle}
+              className="w-20 md:w-16 px-2 py-1.5 rounded-lg text-base md:text-sm outline-none text-center"
+              style={{ ...inputStyle, fontSize: '16px' }}
               min={1}
               max={30}
               value={character.armor_class}
