@@ -4,7 +4,9 @@
       "Bash(xargs ls:*)",
       "Bash(grep -r \"CREATE TABLE\\\\|spell\\\\|combat\\\\|ability\" /Users/gabedejongh/workspace/DnD/dnd-character-manager --include=*.sql)",
       "Bash(git:*)",
-      "Bash(npm run:*)"
+      "Bash(npm run:*)",
+      "Bash(find /Users/gabedejongh/workspace/DnD/dnd-character-manager/src -type f \\\\\\(-name *.tsx -o -name *.ts -o -name *.sql \\\\\\))",
+      "Bash(grep -r \"shareUrl\\\\|shared-url\\\\|share-id\\\\|?share\" /Users/gabedejongh/workspace/DnD/dnd-character-manager/src --include=*.tsx --include=*.ts)"
     ]
   }
 }

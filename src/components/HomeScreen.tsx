@@ -1,12 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
-import type { Character, CharacterShare } from '../types/database';
+import type { Character, CharacterShare, Campaign } from '../types/database';
 import type { ActiveSessionInfo } from '../hooks/useCombatSession';
 import type { SharedCharacterInfo } from '../hooks/useSharedWithMe';
-import { LogOut, Trash2, Heart, Plus, Shield, Swords, Users, Settings, Share2, Check, X, Eye, UserMinus } from 'lucide-react';
+import { LogOut, Trash2, Heart, Plus, Shield, Swords, Users, Settings, Share2, Check, X, Eye, UserMinus, Map, Copy, DoorOpen } from 'lucide-react';
 import { lookupSession } from '../hooks/useCombatSession';
 import { AccountSettings } from './AccountSettings';
 import { ShareModal } from './ShareModal';
+import { showToast } from '../lib/toast';
 
 interface HomeScreenProps {
   characters: Character[];
@@ -35,6 +36,14 @@ interface HomeScreenProps {
   onDeclineShare: (shareId: string) => Promise<void>;
   onUnfollowShare: (shareId: string) => Promise<void>;
   onSelectSharedCharacter: (characterId: string, shareId: string) => void;
+  // Campaigns
+  dmCampaigns: Campaign[];
+  memberCampaigns: Campaign[];
+  onCreateCampaign: (name: string) => Promise<Campaign | null>;
+  onDeleteCampaign: (id: string) => Promise<void>;
+  onJoinCampaign: (joinCode: string) => Promise<boolean>;
+  onLeaveCampaign: (id: string) => Promise<void>;
+  onSelectCampaign: (id: string) => void;
 }
 
 export function HomeScreen({
@@ -62,6 +71,13 @@ export function HomeScreen({
   onDeclineShare,
   onUnfollowShare,
   onSelectSharedCharacter,
+  dmCampaigns,
+  memberCampaigns,
+  onCreateCampaign,
+  onDeleteCampaign,
+  onJoinCampaign,
+  onLeaveCampaign,
+  onSelectCampaign,
 }: HomeScreenProps) {
   const [showForm, setShowForm] = useState(false);
   const [name, setName] = useState('');
@@ -90,6 +106,14 @@ export function HomeScreen({
   const [shareModalCharId, setShareModalCharId] = useState<string | null>(null);
   const shareModalChar = shareModalCharId ? characters.find((c) => c.id === shareModalCharId) : null;
 
+  // Campaign state
+  const [showCampaignForm, setShowCampaignForm] = useState(false);
+  const [campaignName, setCampaignName] = useState('');
+  const [creatingCampaign, setCreatingCampaign] = useState(false);
+  const [showJoinCampaign, setShowJoinCampaign] = useState(false);
+  const [campaignCode, setCampaignCode] = useState('');
+  const [joiningCampaign, setJoiningCampaign] = useState(false);
+
   async function handleCreate(e: FormEvent) {
     e.preventDefault();
     if (!name.trim()) return;
@@ -104,6 +128,40 @@ export function HomeScreen({
       onSelect(character.id);
     }
   }
+
+  async function handleCreateCampaign(e: FormEvent) {
+    e.preventDefault();
+    if (!campaignName.trim()) return;
+    setCreatingCampaign(true);
+    const campaign = await onCreateCampaign(campaignName.trim());
+    setCreatingCampaign(false);
+    if (campaign) {
+      setCampaignName('');
+      setShowCampaignForm(false);
+      onSelectCampaign(campaign.id);
+    }
+  }
+
+  async function handleJoinCampaign(e: FormEvent) {
+    e.preventDefault();
+    if (!campaignCode.trim()) return;
+    setJoiningCampaign(true);
+    const success = await onJoinCampaign(campaignCode.trim());
+    setJoiningCampaign(false);
+    if (success) {
+      setCampaignCode('');
+      setShowJoinCampaign(false);
+    }
+  }
+
+  const handleCopyCampaignCode = async (code: string) => {
+    try {
+      await navigator.clipboard.writeText(code);
+      showToast('Join code copied!');
+    } catch {
+      showToast(code);
+    }
+  };
 
   const inputStyle = {
     background: 'var(--code-bg)',
@@ -520,6 +578,257 @@ export function HomeScreen({
                     </div>
                   ))}
                 </div>
+              </div>
+            )}
+
+            {/* ── My Campaigns (DM) ── */}
+            {dmCampaigns.length > 0 && (
+              <div className="mt-6">
+                <h3
+                  className="text-xs mb-3 px-1"
+                  style={{ color: 'var(--accent)', fontFamily: 'var(--heading)', letterSpacing: '1.5px' }}
+                >
+                  ✦ MY CAMPAIGNS
+                </h3>
+                <div className="flex flex-col gap-2">
+                  {dmCampaigns.map((campaign, i) => (
+                    <div
+                      key={campaign.id}
+                      className="p-3.5 rounded-xl cursor-pointer transition-all active:scale-[0.98] animate-fade-in"
+                      style={{
+                        background: 'linear-gradient(135deg, var(--bg-raised) 0%, var(--bg-surface) 100%)',
+                        border: '1px solid var(--accent-border)',
+                        boxShadow: 'var(--shadow)',
+                        animationDelay: `${i * 60}ms`,
+                      }}
+                      onClick={() => onSelectCampaign(campaign.id)}
+                      role="button"
+                      tabIndex={0}
+                      onKeyDown={(e) => e.key === 'Enter' && onSelectCampaign(campaign.id)}
+                    >
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                          <Map size={16} style={{ color: 'var(--accent)' }} />
+                          <div className="min-w-0">
+                            <h2 className="text-sm m-0 truncate" style={{ color: 'var(--accent)', fontFamily: 'var(--heading)' }}>
+                              {campaign.name}
+                            </h2>
+                            <p className="text-xs mt-0.5" style={{ color: 'var(--text)', fontSize: '0.65rem' }}>
+                              DM · Code: {campaign.join_code}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleCopyCampaignCode(campaign.join_code);
+                            }}
+                            className="p-2 rounded-lg bg-transparent cursor-pointer"
+                            style={{ color: 'var(--text)', border: '1px solid var(--border)' }}
+                            aria-label="Copy join code"
+                          >
+                            <Copy size={12} />
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onDeleteCampaign(campaign.id);
+                            }}
+                            className="p-2 rounded-lg bg-transparent cursor-pointer"
+                            style={{ color: 'var(--text)', border: '1px solid var(--border)' }}
+                            aria-label={`Delete ${campaign.name}`}
+                          >
+                            <Trash2 size={12} />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* ── Joined Campaigns ── */}
+            {memberCampaigns.length > 0 && (
+              <div className="mt-6">
+                <h3
+                  className="text-xs mb-3 px-1"
+                  style={{ color: 'var(--text)', fontFamily: 'var(--heading)', letterSpacing: '1.5px' }}
+                >
+                  JOINED CAMPAIGNS
+                </h3>
+                <div className="flex flex-col gap-2">
+                  {memberCampaigns.map((campaign, i) => (
+                    <div
+                      key={campaign.id}
+                      className="p-3.5 rounded-xl cursor-pointer transition-all active:scale-[0.98] animate-fade-in"
+                      style={{
+                        background: 'linear-gradient(135deg, var(--bg-raised) 0%, var(--bg-surface) 100%)',
+                        border: '1px solid var(--border)',
+                        boxShadow: 'var(--shadow)',
+                        animationDelay: `${i * 60}ms`,
+                      }}
+                      onClick={() => onSelectCampaign(campaign.id)}
+                      role="button"
+                      tabIndex={0}
+                      onKeyDown={(e) => e.key === 'Enter' && onSelectCampaign(campaign.id)}
+                    >
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                          <Map size={16} style={{ color: 'var(--text)' }} />
+                          <div className="min-w-0">
+                            <h2 className="text-sm m-0 truncate" style={{ color: 'var(--text-h)', fontFamily: 'var(--heading)' }}>
+                              {campaign.name}
+                            </h2>
+                            <p className="text-xs mt-0.5" style={{ color: 'var(--text)', fontSize: '0.65rem' }}>
+                              Player · Code: {campaign.join_code}
+                            </p>
+                          </div>
+                        </div>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onLeaveCampaign(campaign.id);
+                          }}
+                          className="p-2 rounded-lg bg-transparent cursor-pointer shrink-0"
+                          style={{
+                            color: '#f87171',
+                            border: '1px solid rgba(239,68,68,0.25)',
+                          }}
+                          aria-label={`Leave ${campaign.name}`}
+                          title="Leave campaign"
+                        >
+                          <DoorOpen size={13} />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* ── Campaign Create/Join Forms ── */}
+            {showCampaignForm && (
+              <div className="mt-4 p-4 rounded-xl animate-fade-in" style={{ background: 'var(--bg-surface)', border: '1px solid var(--accent-border)' }}>
+                <h3
+                  className="text-center mb-3"
+                  style={{ fontFamily: 'var(--heading)', color: 'var(--accent)', fontSize: '0.85rem', letterSpacing: '1px' }}
+                >
+                  ✦ CREATE CAMPAIGN ✦
+                </h3>
+                <form onSubmit={handleCreateCampaign} className="flex flex-col gap-3">
+                  <input
+                    type="text"
+                    placeholder="Campaign Name"
+                    value={campaignName}
+                    onChange={(e) => setCampaignName(e.target.value)}
+                    required
+                    className="w-full px-4 py-3 rounded-lg text-base outline-none text-center"
+                    style={{ ...inputStyle, fontFamily: 'var(--heading)', fontSize: '1rem', letterSpacing: '0.5px' }}
+                    autoFocus
+                  />
+                  <div className="flex gap-3">
+                    <button
+                      type="button"
+                      onClick={() => { setShowCampaignForm(false); setCampaignName(''); }}
+                      className="flex-1 py-2.5 rounded-lg cursor-pointer"
+                      style={{ color: 'var(--text)', background: 'transparent', border: '1px solid var(--border)' }}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={creatingCampaign}
+                      className="flex-1 py-2.5 rounded-lg cursor-pointer font-semibold disabled:opacity-50"
+                      style={{
+                        background: 'linear-gradient(135deg, var(--accent), var(--accent-bright))',
+                        color: '#0f0e13',
+                        border: 'none',
+                        fontFamily: 'var(--heading)',
+                        letterSpacing: '0.5px',
+                      }}
+                    >
+                      {creatingCampaign ? 'Creating…' : 'Create'}
+                    </button>
+                  </div>
+                </form>
+              </div>
+            )}
+
+            {showJoinCampaign && (
+              <div className="mt-4 p-4 rounded-xl animate-fade-in" style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)' }}>
+                <h3
+                  className="text-center mb-3"
+                  style={{ fontFamily: 'var(--heading)', color: 'var(--accent)', fontSize: '0.85rem', letterSpacing: '1px' }}
+                >
+                  JOIN CAMPAIGN
+                </h3>
+                <form onSubmit={handleJoinCampaign} className="flex flex-col gap-3">
+                  <input
+                    type="text"
+                    placeholder="e.g. DRAGON-42"
+                    value={campaignCode}
+                    onChange={(e) => setCampaignCode(e.target.value.toUpperCase())}
+                    className="w-full px-4 py-3 rounded-lg text-center text-lg outline-none tracking-widest"
+                    style={{ ...inputStyle, fontFamily: 'var(--mono)', fontSize: '1.1rem', letterSpacing: '3px' }}
+                    autoFocus
+                  />
+                  <div className="flex gap-3">
+                    <button
+                      type="button"
+                      onClick={() => { setShowJoinCampaign(false); setCampaignCode(''); }}
+                      className="flex-1 py-2.5 rounded-lg cursor-pointer"
+                      style={{ color: 'var(--text)', background: 'transparent', border: '1px solid var(--border)' }}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={!campaignCode.trim() || joiningCampaign}
+                      className="flex-1 py-2.5 rounded-lg cursor-pointer font-semibold disabled:opacity-30"
+                      style={{
+                        background: 'linear-gradient(135deg, var(--accent), var(--accent-bright))',
+                        color: '#0f0e13',
+                        border: 'none',
+                        fontFamily: 'var(--heading)',
+                      }}
+                    >
+                      {joiningCampaign ? 'Joining…' : 'Join'}
+                    </button>
+                  </div>
+                </form>
+              </div>
+            )}
+
+            {!showCampaignForm && !showJoinCampaign && (
+              <div className="mt-6 flex gap-3">
+                <button
+                  onClick={() => { setShowCampaignForm(true); setShowJoinCampaign(false); }}
+                  className="flex-1 py-2.5 rounded-xl font-semibold text-sm cursor-pointer flex items-center justify-center gap-2"
+                  style={{
+                    background: 'rgba(201,168,76,0.08)',
+                    color: 'var(--accent)',
+                    border: '1px solid var(--accent-border)',
+                    fontFamily: 'var(--heading)',
+                    letterSpacing: '0.5px',
+                  }}
+                >
+                  <Map size={14} /> New Campaign
+                </button>
+                <button
+                  onClick={() => { setShowJoinCampaign(true); setShowCampaignForm(false); }}
+                  className="flex-1 py-2.5 rounded-xl font-semibold text-sm cursor-pointer flex items-center justify-center gap-2"
+                  style={{
+                    background: 'rgba(255,255,255,0.03)',
+                    color: 'var(--text)',
+                    border: '1px solid var(--border)',
+                    fontFamily: 'var(--heading)',
+                    letterSpacing: '0.5px',
+                  }}
+                >
+                  <DoorOpen size={14} /> Join Campaign
+                </button>
               </div>
             )}
           </>

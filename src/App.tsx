@@ -21,8 +21,11 @@ import { useCustomBeasts } from './hooks/useCustomBeasts';
 import { useCharacterClasses } from './hooks/useCharacterClasses';
 import { createCombatSession, joinCombatSession, findActiveSession } from './hooks/useCombatSession';
 import type { ActiveSessionInfo } from './hooks/useCombatSession';
+import { useCampaigns } from './hooks/useCampaigns';
+import { useCampaignView } from './hooks/useCampaignView';
 import { Auth } from './components/Auth';
 import { HomeScreen } from './components/HomeScreen';
+import { CampaignView } from './components/CampaignView';
 import { GuestCharacterBuilder } from './components/GuestCharacterBuilder';
 import type { GuestCharacterData, GuestScoreData } from './components/GuestCharacterBuilder';
 import { GuestSheetPreview } from './components/GuestSheetPreview';
@@ -41,7 +44,7 @@ import { LiveCombat } from './components/LiveCombat';
 import { ExportPdfButton } from './components/ExportPdf';
 import { exportCharacterPdf } from './lib/exportPdf';
 import type { PdfStyle } from './lib/exportPdf';
-import { Users, Copy, Eye, ScrollText, HelpCircle } from 'lucide-react';
+import { Users, Copy, Eye, ScrollText, HelpCircle, Map } from 'lucide-react';
 import { QuickReference } from './components/QuickReference';
 import { DiceRoller } from './components/DiceRoller';
 import { WildShapeModal } from './components/WildShapeModal';
@@ -145,7 +148,12 @@ function App() {
 
   // Shared character viewing state
   const [sharedViewShareId, setSharedViewShareId] = useState<string | null>(null);
-  const isReadOnly = sharedViewShareId !== null;
+
+  // Campaign state
+  const [activeCampaignId, setActiveCampaignId] = useState<string | null>(null);
+  const [campaignViewCharacterId, setCampaignViewCharacterId] = useState<string | null>(null);
+
+  const isReadOnly = sharedViewShareId !== null || campaignViewCharacterId !== null;
 
   // Guest mode state
   const GUEST_STORAGE_KEY = 'dnd-guest-character';
@@ -360,6 +368,27 @@ function App() {
   const { pendingShares, acceptedShares, acceptShare, declineShare, copyCharacter, unfollowShare } =
     useSharedWithMe(user?.id);
 
+  // Campaigns
+  const {
+    dmCampaigns,
+    memberCampaigns,
+    createCampaign: createCampaignFn,
+    deleteCampaign,
+    joinCampaign,
+    leaveCampaign,
+  } = useCampaigns(user?.id);
+
+  const {
+    campaign: activeCampaign,
+    partyCharacters: campaignParty,
+    allyCharacters: campaignAllies,
+    enemyCharacters: campaignEnemies,
+    npcCharacters: campaignNpcs,
+    loading: campaignViewLoading,
+    addCharacterToCampaign,
+    removeCharacterFromCampaign,
+  } = useCampaignView(activeCampaignId);
+
   async function handleAuth(email: string, password: string, isSignUp: boolean, username?: string) {
     if (isSignUp) {
       return await signUp(email, password, username ?? '');
@@ -454,6 +483,34 @@ function App() {
     );
   }
 
+  // Campaign View (when viewing a campaign but not a specific character)
+  if (activeCampaignId && !selectedCharacterId && activeCampaign) {
+    return (
+      <CampaignView
+        campaignName={activeCampaign.name}
+        joinCode={activeCampaign.join_code}
+        isDM={activeCampaign.dm_user_id === user.id}
+        userId={user.id}
+        partyCharacters={campaignParty}
+        allyCharacters={campaignAllies}
+        enemyCharacters={campaignEnemies}
+        npcCharacters={campaignNpcs}
+        userCharacters={characters}
+        onBack={() => setActiveCampaignId(null)}
+        onSelectCharacter={(charId) => {
+          setSelectedCharacterId(charId);
+          setCampaignViewCharacterId(charId);
+          setActiveTab('sheet');
+        }}
+        onAddCharacter={async (charId, role) => {
+          await addCharacterToCampaign(charId, role, user.id);
+        }}
+        onRemoveCharacter={removeCharacterFromCampaign}
+        loading={campaignViewLoading}
+      />
+    );
+  }
+
   // Home screen
   if (!selectedCharacterId) {
     return (
@@ -469,6 +526,7 @@ function App() {
           onSelect={(id) => {
             setSelectedCharacterId(id);
             setSharedViewShareId(null);
+            setCampaignViewCharacterId(null);
             setActiveTab('sheet');
           }}
           onCreate={createCharacter}
@@ -524,6 +582,13 @@ function App() {
           setSharedViewShareId(shareId);
           setActiveTab('sheet');
         }}
+        dmCampaigns={dmCampaigns}
+        memberCampaigns={memberCampaigns}
+        onCreateCampaign={createCampaignFn}
+        onDeleteCampaign={deleteCampaign}
+        onJoinCampaign={joinCampaign}
+        onLeaveCampaign={leaveCampaign}
+        onSelectCampaign={(id) => setActiveCampaignId(id)}
       />
     );
   }
@@ -602,7 +667,17 @@ function App() {
         }}
       >
         <button
-          onClick={() => { setSelectedCharacterId(null); setSharedViewShareId(null); applyTheme(getThemeById(DEFAULT_THEME)); }}
+          onClick={() => {
+            if (campaignViewCharacterId) {
+              setSelectedCharacterId(null);
+              setCampaignViewCharacterId(null);
+            } else {
+              setSelectedCharacterId(null);
+              setSharedViewShareId(null);
+              setActiveCampaignId(null);
+            }
+            applyTheme(getThemeById(DEFAULT_THEME));
+          }}
           className="p-2 rounded-lg bg-transparent cursor-pointer shrink-0 flex items-center gap-1"
           style={{
             color: 'var(--accent)',
@@ -611,7 +686,11 @@ function App() {
             fontFamily: 'var(--heading)',
           }}
         >
-          <Users size={14} /> All Characters
+          {campaignViewCharacterId ? (
+            <><Map size={14} /> Back to Campaign</>
+          ) : (
+            <><Users size={14} /> All Characters</>
+          )}
         </button>
         <div className="flex-1" />
 
@@ -642,7 +721,7 @@ function App() {
         >
           <ScrollText size={16} />
         </button>
-        {isReadOnly ? (
+        {isReadOnly && sharedViewShareId ? (
           <button
             onClick={async () => {
               try {
@@ -666,7 +745,7 @@ function App() {
           >
             <Copy size={13} /> Copy
           </button>
-        ) : (
+        ) : !isReadOnly ? (
           <ExportPdfButton
             onExport={(pdfStyle: PdfStyle) => {
               exportCharacterPdf({
@@ -680,7 +759,7 @@ function App() {
               }, pdfStyle);
             }}
           />
-        )}
+        ) : null}
       </header>
 
       {/* Read-only banner */}
@@ -688,17 +767,32 @@ function App() {
         <div
           className="flex items-center justify-center gap-2 px-4 py-2"
           style={{
-            background: 'linear-gradient(135deg, rgba(147,130,220,0.1) 0%, rgba(147,130,220,0.05) 100%)',
-            borderBottom: '1px solid rgba(147,130,220,0.2)',
+            background: campaignViewCharacterId
+              ? 'linear-gradient(135deg, rgba(201,168,76,0.1) 0%, rgba(201,168,76,0.05) 100%)'
+              : 'linear-gradient(135deg, rgba(147,130,220,0.1) 0%, rgba(147,130,220,0.05) 100%)',
+            borderBottom: campaignViewCharacterId
+              ? '1px solid rgba(201,168,76,0.2)'
+              : '1px solid rgba(147,130,220,0.2)',
           }}
         >
-          <Eye size={13} style={{ color: '#a78bfa' }} />
-          <span className="text-xs" style={{ color: '#a78bfa' }}>
-            Read Only
-            {currentShareInfo && (
-              <> · Shared by {currentShareInfo.share.sender_username || currentShareInfo.share.sender_email}</>
-            )}
-          </span>
+          {campaignViewCharacterId ? (
+            <>
+              <Map size={13} style={{ color: 'var(--accent)' }} />
+              <span className="text-xs" style={{ color: 'var(--accent)' }}>
+                Campaign: {activeCampaign?.name ?? 'Campaign'} · Read Only
+              </span>
+            </>
+          ) : (
+            <>
+              <Eye size={13} style={{ color: '#a78bfa' }} />
+              <span className="text-xs" style={{ color: '#a78bfa' }}>
+                Read Only
+                {currentShareInfo && (
+                  <> · Shared by {currentShareInfo.share.sender_username || currentShareInfo.share.sender_email}</>
+                )}
+              </span>
+            </>
+          )}
         </div>
       )}
 

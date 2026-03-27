@@ -227,3 +227,31 @@ export interface CharacterShare {
   status: ShareStatus;
   created_at: string;
 }
+
+/* ── Campaigns ── */
+
+export type CampaignCharacterRole = 'party' | 'ally' | 'enemy' | 'npc';
+
+export interface Campaign {
+  id: string;
+  name: string;
+  dm_user_id: string;
+  join_code: string;
+  created_at: string;
+}
+
+export interface CampaignMember {
+  id: string;
+  campaign_id: string;
+  user_id: string;
+  joined_at: string;
+}
+
+export interface CampaignCharacter {
+  id: string;
+  campaign_id: string;
+  character_id: string;
+  role: CampaignCharacterRole;
+  added_by: string;
+  created_at: string;
+}

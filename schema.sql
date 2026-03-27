@@ -767,6 +767,202 @@ $$;
 revoke all on function public.copy_shared_character(uuid) from public;
 grant execute on function public.copy_shared_character(uuid) to authenticated;
 
+-- 16. Campaigns -------------------------------------------------------
+-- Tables created first, then policies (cross-table references require all tables to exist)
+
+create table campaigns (
+  id          uuid primary key default gen_random_uuid(),
+  name        text not null,
+  dm_user_id  uuid references auth.users(id) on delete cascade not null,
+  join_code   text not null unique,
+  created_at  timestamptz not null default now()
+);
+
+alter table campaigns enable row level security;
+
+-- 17. Campaign Members ------------------------------------------------
+
+create table campaign_members (
+  id           uuid primary key default gen_random_uuid(),
+  campaign_id  uuid references campaigns(id) on delete cascade not null,
+  user_id      uuid references auth.users(id) on delete cascade not null,
+  joined_at    timestamptz not null default now(),
+  unique (campaign_id, user_id)
+);
+
+alter table campaign_members enable row level security;
+
+-- 18. Campaign Characters ---------------------------------------------
+
+create table campaign_characters (
+  id           uuid primary key default gen_random_uuid(),
+  campaign_id  uuid references campaigns(id) on delete cascade not null,
+  character_id uuid references characters(id) on delete cascade not null,
+  role         text not null check (role in ('party', 'ally', 'enemy', 'npc')),
+  added_by     uuid references auth.users(id) on delete cascade not null,
+  created_at   timestamptz not null default now(),
+  unique (campaign_id, character_id)
+);
+
+alter table campaign_characters enable row level security;
+
+-- 19. Campaign RLS Policies -------------------------------------------
+
+-- campaigns: DM has full access
+create policy "DM full access to own campaigns"
+  on campaigns for all
+  using (dm_user_id = auth.uid())
+  with check (dm_user_id = auth.uid());
+
+-- campaigns: Members can view campaigns they belong to
+create policy "Members can view joined campaigns"
+  on campaigns for select
+  using (
+    id in (select campaign_id from campaign_members where user_id = auth.uid())
+  );
+
+-- campaigns: Any authenticated user can look up by join_code (for joining)
+create policy "Authenticated users can lookup by join_code"
+  on campaigns for select
+  using (auth.uid() is not null);
+
+-- campaign_members: Members and DM can view all members
+create policy "View campaign members"
+  on campaign_members for select
+  using (
+    campaign_id in (
+      select id from campaigns where dm_user_id = auth.uid()
+      union
+      select campaign_id from campaign_members cm2 where cm2.user_id = auth.uid()
+    )
+  );
+
+-- campaign_members: Users can join (insert themselves)
+create policy "Users can join campaigns"
+  on campaign_members for insert
+  with check (user_id = auth.uid());
+
+-- campaign_members: Users can leave (delete themselves)
+create policy "Users can leave campaigns"
+  on campaign_members for delete
+  using (user_id = auth.uid());
+
+-- campaign_members: DM can remove any member
+create policy "DM can remove members"
+  on campaign_members for delete
+  using (
+    campaign_id in (select id from campaigns where dm_user_id = auth.uid())
+  );
+
+-- campaign_characters: Members and DM can view
+create policy "View campaign characters"
+  on campaign_characters for select
+  using (
+    campaign_id in (
+      select id from campaigns where dm_user_id = auth.uid()
+      union
+      select campaign_id from campaign_members where user_id = auth.uid()
+    )
+  );
+
+-- campaign_characters: DM can manage all
+create policy "DM manages campaign characters"
+  on campaign_characters for all
+  using (
+    campaign_id in (select id from campaigns where dm_user_id = auth.uid())
+  )
+  with check (
+    campaign_id in (select id from campaigns where dm_user_id = auth.uid())
+  );
+
+-- campaign_characters: Players can add own characters with role='party'
+create policy "Players add own party characters"
+  on campaign_characters for insert
+  with check (
+    added_by = auth.uid()
+    and role = 'party'
+    and character_id in (select id from characters where user_id = auth.uid())
+    and campaign_id in (select campaign_id from campaign_members where user_id = auth.uid())
+  );
+
+-- campaign_characters: Players can remove own party characters
+create policy "Players remove own party characters"
+  on campaign_characters for delete
+  using (
+    added_by = auth.uid()
+    and role = 'party'
+  );
+
+-- 20. Campaign helper function + child-table read policies ------------
+-- SECURITY DEFINER function bypasses RLS on campaign tables, avoiding
+-- circular policy evaluation (campaign_members ↔ campaigns).
+
+create or replace function public.is_campaign_character(char_id uuid)
+returns boolean
+language sql
+security definer
+stable
+as $$
+  select exists (
+    select 1 from campaign_characters cc
+    where cc.character_id = char_id
+      and (
+        cc.campaign_id in (select c.id from campaigns c where c.dm_user_id = auth.uid())
+        or cc.campaign_id in (select cm.campaign_id from campaign_members cm where cm.user_id = auth.uid())
+      )
+  );
+$$;
+
+create or replace function public.is_campaign_weapon(wpn_id uuid)
+returns boolean
+language sql
+security definer
+stable
+as $$
+  select exists (
+    select 1 from weapons w
+    join campaign_characters cc on cc.character_id = w.character_id
+    where w.id = wpn_id
+      and (
+        cc.campaign_id in (select c.id from campaigns c where c.dm_user_id = auth.uid())
+        or cc.campaign_id in (select cm.campaign_id from campaign_members cm where cm.user_id = auth.uid())
+      )
+  );
+$$;
+
+create policy "Campaign members view characters"
+  on characters for select using (public.is_campaign_character(id));
+
+create policy "Campaign members view ability_scores"
+  on ability_scores for select using (public.is_campaign_character(character_id));
+
+create policy "Campaign members view spell_slots"
+  on spell_slots for select using (public.is_campaign_character(character_id));
+
+create policy "Campaign members view spells"
+  on spells for select using (public.is_campaign_character(character_id));
+
+create policy "Campaign members view weapons"
+  on weapons for select using (public.is_campaign_character(character_id));
+
+create policy "Campaign members view weapon_damage_components"
+  on weapon_damage_components for select using (public.is_campaign_weapon(weapon_id));
+
+create policy "Campaign members view inventory_items"
+  on inventory_items for select using (public.is_campaign_character(character_id));
+
+create policy "Campaign members view features"
+  on features for select using (public.is_campaign_character(character_id));
+
+create policy "Campaign members view notes"
+  on notes for select using (public.is_campaign_character(character_id));
+
+create policy "Campaign members view custom_beasts"
+  on custom_beasts for select using (public.is_campaign_character(character_id));
+
+create policy "Campaign members view character_classes"
+  on character_classes for select using (public.is_campaign_character(character_id));
+
 -- =================================================================
 --  MIGRATION: AC, Death Saves, Conditions
 -- =================================================================
