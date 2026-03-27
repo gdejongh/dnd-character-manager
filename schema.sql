@@ -806,7 +806,22 @@ create table campaign_characters (
 
 alter table campaign_characters enable row level security;
 
--- 19. Campaign RLS Policies -------------------------------------------
+-- 19. Campaign helper functions (SECURITY DEFINER to bypass RLS) ------
+-- These break the circular RLS chain: campaigns ↔ campaign_members.
+
+create or replace function public.get_user_campaign_ids()
+returns setof uuid language sql security definer stable as $$
+  select id from campaigns where dm_user_id = auth.uid()
+  union
+  select campaign_id from campaign_members where user_id = auth.uid();
+$$;
+
+create or replace function public.get_dm_campaign_ids()
+returns setof uuid language sql security definer stable as $$
+  select id from campaigns where dm_user_id = auth.uid();
+$$;
+
+-- 19b. Campaign RLS Policies ------------------------------------------
 
 -- campaigns: DM has full access
 create policy "DM full access to own campaigns"
@@ -817,9 +832,7 @@ create policy "DM full access to own campaigns"
 -- campaigns: Members can view campaigns they belong to
 create policy "Members can view joined campaigns"
   on campaigns for select
-  using (
-    id in (select campaign_id from campaign_members where user_id = auth.uid())
-  );
+  using (id in (select public.get_user_campaign_ids()));
 
 -- campaigns: Any authenticated user can look up by join_code (for joining)
 create policy "Authenticated users can lookup by join_code"
@@ -829,13 +842,7 @@ create policy "Authenticated users can lookup by join_code"
 -- campaign_members: Members and DM can view all members
 create policy "View campaign members"
   on campaign_members for select
-  using (
-    campaign_id in (
-      select id from campaigns where dm_user_id = auth.uid()
-      union
-      select campaign_id from campaign_members cm2 where cm2.user_id = auth.uid()
-    )
-  );
+  using (campaign_id in (select public.get_user_campaign_ids()));
 
 -- campaign_members: Users can join (insert themselves)
 create policy "Users can join campaigns"
@@ -850,30 +857,18 @@ create policy "Users can leave campaigns"
 -- campaign_members: DM can remove any member
 create policy "DM can remove members"
   on campaign_members for delete
-  using (
-    campaign_id in (select id from campaigns where dm_user_id = auth.uid())
-  );
+  using (campaign_id in (select public.get_dm_campaign_ids()));
 
 -- campaign_characters: Members and DM can view
 create policy "View campaign characters"
   on campaign_characters for select
-  using (
-    campaign_id in (
-      select id from campaigns where dm_user_id = auth.uid()
-      union
-      select campaign_id from campaign_members where user_id = auth.uid()
-    )
-  );
+  using (campaign_id in (select public.get_user_campaign_ids()));
 
 -- campaign_characters: DM can manage all
 create policy "DM manages campaign characters"
   on campaign_characters for all
-  using (
-    campaign_id in (select id from campaigns where dm_user_id = auth.uid())
-  )
-  with check (
-    campaign_id in (select id from campaigns where dm_user_id = auth.uid())
-  );
+  using (campaign_id in (select public.get_dm_campaign_ids()))
+  with check (campaign_id in (select public.get_dm_campaign_ids()));
 
 -- campaign_characters: Players can add own characters with role='party'
 create policy "Players add own party characters"
@@ -882,7 +877,7 @@ create policy "Players add own party characters"
     added_by = auth.uid()
     and role = 'party'
     and character_id in (select id from characters where user_id = auth.uid())
-    and campaign_id in (select campaign_id from campaign_members where user_id = auth.uid())
+    and campaign_id in (select public.get_user_campaign_ids())
   );
 
 -- campaign_characters: Players can remove own party characters
