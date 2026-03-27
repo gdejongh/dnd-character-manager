@@ -8,6 +8,7 @@ import { lookupSession } from '../hooks/useCombatSession';
 import { AccountSettings } from './AccountSettings';
 import { ShareModal } from './ShareModal';
 import { showToast } from '../lib/toast';
+import { NumericInput } from './NumericInput';
 
 interface HomeScreenProps {
   characters: Character[];
@@ -15,7 +16,7 @@ interface HomeScreenProps {
   username: string;
   loading: boolean;
   onSelect: (id: string) => void;
-  onCreate: (name: string, race: string, charClass: string) => Promise<Character | null>;
+  onCreate: (name: string, race: string, charClass: string, classes?: { className: string; level: number }[]) => Promise<Character | null>;
   onDelete: (id: string) => Promise<void>;
   onSignOut: () => void;
   onUpdateUsername: (username: string) => Promise<void>;
@@ -82,8 +83,9 @@ export function HomeScreen({
   const [showForm, setShowForm] = useState(false);
   const [name, setName] = useState('');
   const [race, setRace] = useState('');
-  const [charClass, setCharClass] = useState('');
+  const [classes, setClasses] = useState<{ className: string; level: number }[]>([{ className: '', level: 1 }]);
   const [creating, setCreating] = useState(false);
+  const totalLevel = classes.reduce((sum, c) => sum + c.level, 0);
 
   // Join combat state
   const [joinStep, setJoinStep] = useState<'idle' | 'code' | 'pick'>('idle');
@@ -114,16 +116,24 @@ export function HomeScreen({
   const [campaignCode, setCampaignCode] = useState('');
   const [joiningCampaign, setJoiningCampaign] = useState(false);
 
+  function buildClassDisplayString(): string {
+    const filled = classes.filter((c) => c.className.trim());
+    if (filled.length === 0) return '';
+    if (filled.length === 1) return filled[0].className.trim();
+    return filled.map((c) => `${c.className.trim()} ${c.level}`).join(' / ');
+  }
+
   async function handleCreate(e: FormEvent) {
     e.preventDefault();
     if (!name.trim()) return;
     setCreating(true);
-    const character = await onCreate(name.trim(), race.trim(), charClass.trim());
+    const classDisplay = buildClassDisplayString();
+    const character = await onCreate(name.trim(), race.trim(), classDisplay, classes);
     setCreating(false);
     if (character) {
       setName('');
       setRace('');
-      setCharClass('');
+      setClasses([{ className: '', level: 1 }]);
       setShowForm(false);
       onSelect(character.id);
     }
@@ -1048,23 +1058,77 @@ export function HomeScreen({
               }}
               autoFocus
             />
-            <div className="flex gap-3">
-              <input
-                type="text"
-                placeholder="Race"
-                value={race}
-                onChange={(e) => setRace(e.target.value)}
-                className="flex-1 px-4 py-3 rounded-lg text-base outline-none"
-                style={inputStyle}
-              />
-              <input
-                type="text"
-                placeholder="Class"
-                value={charClass}
-                onChange={(e) => setCharClass(e.target.value)}
-                className="flex-1 px-4 py-3 rounded-lg text-base outline-none"
-                style={inputStyle}
-              />
+            <input
+              type="text"
+              placeholder="Race"
+              value={race}
+              onChange={(e) => setRace(e.target.value)}
+              className="w-full px-4 py-3 rounded-lg text-base outline-none"
+              style={inputStyle}
+            />
+
+            {/* Multiclass picker */}
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="text-[10px] font-bold uppercase" style={{ color: 'var(--text)', letterSpacing: '1px' }}>
+                  Classes
+                </label>
+                <span className="text-[10px]" style={{ color: totalLevel >= 20 ? 'var(--accent)' : 'var(--text)' }}>
+                  Level {totalLevel} / 20
+                </span>
+              </div>
+              <div
+                className="flex flex-col gap-2 p-2.5 rounded-xl"
+                style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)' }}
+              >
+                {classes.map((entry, index) => (
+                  <div key={index} className="flex gap-1.5 items-center">
+                    <input
+                      className="flex-1 min-w-0 px-3 py-2 rounded-lg text-sm outline-none"
+                      style={inputStyle}
+                      placeholder={index === 0 ? 'e.g. Wizard' : 'e.g. Druid'}
+                      value={entry.className}
+                      onChange={(e) => setClasses((prev) => prev.map((c, i) => i === index ? { ...c, className: e.target.value } : c))}
+                    />
+                    <div className="flex items-center gap-1">
+                      <label className="text-[10px] shrink-0" style={{ color: 'var(--text)' }}>Lvl</label>
+                      <NumericInput
+                        className="w-14 px-2 py-2 rounded-lg text-sm outline-none text-center"
+                        style={inputStyle}
+                        min={1}
+                        max={20 - (totalLevel - entry.level)}
+                        value={entry.level}
+                        onChange={(val) => setClasses((prev) => {
+                          const otherTotal = prev.reduce((sum, c, i) => i === index ? sum : sum + c.level, 0);
+                          const clamped = Math.max(1, Math.min(20 - otherTotal, val));
+                          return prev.map((c, i) => i === index ? { ...c, level: clamped } : c);
+                        })}
+                      />
+                    </div>
+                    {classes.length > 1 && (
+                      <button
+                        type="button"
+                        className="p-1 rounded cursor-pointer shrink-0"
+                        style={{ background: 'transparent', border: 'none', color: 'var(--danger-bright)' }}
+                        onClick={() => setClasses((prev) => prev.filter((_, i) => i !== index))}
+                        title="Remove class"
+                      >
+                        <X size={14} />
+                      </button>
+                    )}
+                  </div>
+                ))}
+                {totalLevel < 20 && (
+                  <button
+                    type="button"
+                    className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs cursor-pointer self-start"
+                    style={{ background: 'var(--bg-raised)', border: '1px solid var(--border)', color: 'var(--accent)' }}
+                    onClick={() => setClasses((prev) => [...prev, { className: '', level: 1 }])}
+                  >
+                    <Plus size={12} /> Add Class
+                  </button>
+                )}
+              </div>
             </div>
             <div className="flex gap-3 mt-1">
               <button

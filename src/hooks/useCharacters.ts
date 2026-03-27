@@ -47,7 +47,7 @@ export function useCharacters(userId: string | undefined) {
     [userId],
   );
 
-  async function createCharacter(name: string, race: string, charClass: string) {
+  async function createCharacter(name: string, race: string, charClass: string, classes?: { className: string; level: number }[]) {
     if (!userId) return null;
 
     const { data: character, error } = await supabase
@@ -81,6 +81,26 @@ export function useCharacters(userId: string | undefined) {
 
     // Seed empty notes
     await supabase.from('notes').insert({ character_id: character.id, content: '' });
+
+    // Save multiclass entries and update level
+    if (classes?.length) {
+      const classRows = classes
+        .filter((c) => c.className.trim())
+        .map((c, i) => ({
+          character_id: character.id,
+          class_name: c.className.trim(),
+          level: c.level,
+          sort_order: i,
+        }));
+      if (classRows.length > 0) {
+        const totalLevel = classRows.reduce((sum, c) => sum + c.level, 0);
+        await supabase.from('character_classes').insert(classRows);
+        await supabase.from('characters').update({
+          level: Math.max(1, Math.min(20, totalLevel)),
+          primary_casting_class: classRows[0].class_name,
+        }).eq('id', character.id);
+      }
+    }
 
     refresh();
     return character as Character;
