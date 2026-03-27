@@ -276,7 +276,9 @@ export function GuestSheetPreview({
               {character.name}
             </h1>
             <p className="text-sm mt-1" style={{ color: 'var(--text)' }}>
-              {[character.race, character.class, `Level ${character.level}`].filter(Boolean).join(' · ')}
+              {(character.classes?.length ?? 0) > 1
+                ? [character.race, character.class].filter(Boolean).join(' · ')
+                : [character.race, character.class, `Level ${character.level}`].filter(Boolean).join(' · ')}
             </p>
           </div>
           <div className="flex gap-2">

@@ -2,14 +2,20 @@ import { useState } from 'react';
 import type { FormEvent } from 'react';
 import type { Ability } from '../types/database';
 import { ABILITIES, ABILITY_NAMES, getModifier, formatModifier, getHitDie } from '../constants/dnd';
-import { Shield, Swords, ChevronRight, ChevronLeft, Sparkles } from 'lucide-react';
+import { Shield, Swords, ChevronRight, ChevronLeft, Sparkles, Plus, X } from 'lucide-react';
 import { NumericInput } from './NumericInput';
+
+export interface GuestClassEntry {
+  className: string;
+  level: number;
+}
 
 export interface GuestCharacterData {
   name: string;
   race: string;
   class: string;
   level: number;
+  classes: GuestClassEntry[];
   max_hp: number;
   armor_class: number;
   speed: number;
@@ -31,7 +37,7 @@ const inputStyle = {
   border: '1px solid var(--border)',
 };
 
-const STEPS = ['Identity', 'Ability Scores', 'Vitals'] as const;
+const STEPS = ['Identity', 'Ability Scores', 'Class & Vitals'] as const;
 
 export function GuestCharacterBuilder({ onComplete, onSignIn }: GuestCharacterBuilderProps) {
   const [step, setStep] = useState(0);
@@ -39,7 +45,6 @@ export function GuestCharacterBuilder({ onComplete, onSignIn }: GuestCharacterBu
   // Step 1 — Identity
   const [name, setName] = useState('');
   const [race, setRace] = useState('');
-  const [charClass, setCharClass] = useState('');
 
   // Step 2 — Ability Scores
   const [scores, setScores] = useState<Record<Ability, number>>({
@@ -51,17 +56,54 @@ export function GuestCharacterBuilder({ onComplete, onSignIn }: GuestCharacterBu
     STR: '10', DEX: '10', CON: '10', INT: '10', WIS: '10', CHA: '10',
   });
 
-  // Step 3 — Vitals
-  const [level, setLevel] = useState(1);
+  // Step 3 — Classes & Vitals
+  const [classes, setClasses] = useState<GuestClassEntry[]>([{ className: '', level: 1 }]);
   const [maxHp, setMaxHp] = useState(10);
   const [armorClass, setArmorClass] = useState(10);
   const [speed, setSpeed] = useState(30);
 
-  // Auto-suggest HP when class or level changes
+  const totalLevel = classes.reduce((sum, c) => sum + c.level, 0);
+
   function suggestHp() {
-    const die = getHitDie(charClass);
     const conMod = getModifier(scores.CON);
-    return die + conMod + (level - 1) * (Math.ceil(die / 2) + 1 + conMod);
+    if (classes.length === 0) return 10 + conMod;
+
+    let hp = 0;
+    classes.forEach((entry, idx) => {
+      const die = getHitDie(entry.className);
+      if (idx === 0) {
+        // First class: max hit die at level 1, average for remaining levels
+        hp += die + conMod;
+        hp += (entry.level - 1) * (Math.ceil(die / 2) + 1 + conMod);
+      } else {
+        // Additional classes: average for all levels
+        hp += entry.level * (Math.ceil(die / 2) + 1 + conMod);
+      }
+    });
+
+    return Math.max(1, hp);
+  }
+
+  function updateClassName(index: number, value: string) {
+    setClasses((prev) => prev.map((c, i) => i === index ? { ...c, className: value } : c));
+  }
+
+  function updateClassLevel(index: number, value: number) {
+    setClasses((prev) => {
+      const otherTotal = prev.reduce((sum, c, i) => i === index ? sum : sum + c.level, 0);
+      const clamped = Math.max(1, Math.min(20 - otherTotal, value));
+      return prev.map((c, i) => i === index ? { ...c, level: clamped } : c);
+    });
+  }
+
+  function addClass() {
+    if (totalLevel >= 20) return;
+    setClasses((prev) => [...prev, { className: '', level: 1 }]);
+  }
+
+  function removeClass(index: number) {
+    if (classes.length <= 1) return;
+    setClasses((prev) => prev.filter((_, i) => i !== index));
   }
 
   function updateScore(ability: Ability, raw: string) {
@@ -78,11 +120,27 @@ export function GuestCharacterBuilder({ onComplete, onSignIn }: GuestCharacterBu
     setRawScores((prev) => ({ ...prev, [ability]: String(clamped) }));
   }
 
+  function buildClassDisplayString(): string {
+    const filled = classes.filter((c) => c.className.trim());
+    if (filled.length === 0) return '';
+    if (filled.length === 1) return filled[0].className.trim();
+    return filled.map((c) => `${c.className.trim()} ${c.level}`).join(' / ');
+  }
+
   function handleFinish(e: FormEvent) {
     e.preventDefault();
     const scoreArray: GuestScoreData[] = ABILITIES.map((a) => ({ ability: a, score: scores[a] }));
     onComplete(
-      { name: name.trim(), race: race.trim(), class: charClass.trim(), level, max_hp: maxHp, armor_class: armorClass, speed },
+      {
+        name: name.trim(),
+        race: race.trim(),
+        class: buildClassDisplayString(),
+        level: totalLevel,
+        classes: classes.map((c) => ({ className: c.className.trim(), level: c.level })),
+        max_hp: maxHp,
+        armor_class: armorClass,
+        speed,
+      },
       scoreArray,
     );
   }
@@ -157,29 +215,16 @@ export function GuestCharacterBuilder({ onComplete, onSignIn }: GuestCharacterBu
                   style={inputStyle}
                 />
               </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs mb-1.5" style={{ color: 'var(--text)', letterSpacing: '0.3px' }}>Race</label>
-                  <input
-                    type="text"
-                    placeholder="e.g. Half-Elf"
-                    value={race}
-                    onChange={(e) => setRace(e.target.value)}
-                    className="w-full px-4 py-3 rounded-lg text-base outline-none"
-                    style={inputStyle}
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs mb-1.5" style={{ color: 'var(--text)', letterSpacing: '0.3px' }}>Class</label>
-                  <input
-                    type="text"
-                    placeholder="e.g. Wizard"
-                    value={charClass}
-                    onChange={(e) => setCharClass(e.target.value)}
-                    className="w-full px-4 py-3 rounded-lg text-base outline-none"
-                    style={inputStyle}
-                  />
-                </div>
+              <div>
+                <label className="block text-xs mb-1.5" style={{ color: 'var(--text)', letterSpacing: '0.3px' }}>Race</label>
+                <input
+                  type="text"
+                  placeholder="e.g. Half-Elf"
+                  value={race}
+                  onChange={(e) => setRace(e.target.value)}
+                  className="w-full px-4 py-3 rounded-lg text-base outline-none"
+                  style={inputStyle}
+                />
               </div>
             </div>
           )}
@@ -232,25 +277,77 @@ export function GuestCharacterBuilder({ onComplete, onSignIn }: GuestCharacterBu
             </div>
           )}
 
-          {/* Step 3 — Vitals */}
+          {/* Step 3 — Class & Vitals */}
           {step === 2 && (
             <div className="flex flex-col gap-4 animate-fade-in">
               <h2 className="text-base font-bold" style={{ color: 'var(--text-h)', fontFamily: 'var(--heading)' }}>
                 <Swords size={16} className="inline mr-1" style={{ color: 'var(--accent)' }} />
-                Vitals
+                Class & Vitals
               </h2>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs mb-1.5" style={{ color: 'var(--text)', letterSpacing: '0.3px' }}>Level</label>
-                  <NumericInput
-                    min={1}
-                    max={20}
-                    value={level}
-                    onChange={setLevel}
-                    className="w-full px-4 py-3 rounded-lg text-base outline-none"
-                    style={inputStyle}
-                  />
+
+              {/* Multiclass picker */}
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="text-xs font-bold uppercase" style={{ color: 'var(--text)', letterSpacing: '1px' }}>
+                    Classes
+                  </label>
+                  <span className="text-xs" style={{ color: totalLevel >= 20 ? 'var(--accent)' : 'var(--text)' }}>
+                    Total Level: {totalLevel} / 20
+                  </span>
                 </div>
+                <div
+                  className="flex flex-col gap-2 p-3 rounded-xl"
+                  style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)' }}
+                >
+                  {classes.map((entry, index) => (
+                    <div key={index} className="flex gap-1.5 items-center">
+                      <input
+                        className="flex-1 min-w-0 px-3 py-2 rounded-lg text-sm outline-none"
+                        style={inputStyle}
+                        placeholder={index === 0 ? 'e.g. Wizard' : 'e.g. Druid'}
+                        value={entry.className}
+                        onChange={(e) => updateClassName(index, e.target.value)}
+                        autoFocus={index === classes.length - 1 && classes.length > 1}
+                      />
+                      <div className="flex items-center gap-1">
+                        <label className="text-[10px] shrink-0" style={{ color: 'var(--text)' }}>Lvl</label>
+                        <NumericInput
+                          className="w-14 px-2 py-2 rounded-lg text-sm outline-none text-center"
+                          style={inputStyle}
+                          min={1}
+                          max={20 - (totalLevel - entry.level)}
+                          value={entry.level}
+                          onChange={(val) => updateClassLevel(index, val)}
+                        />
+                      </div>
+                      {classes.length > 1 && (
+                        <button
+                          type="button"
+                          className="p-1 rounded cursor-pointer shrink-0"
+                          style={{ background: 'transparent', border: 'none', color: 'var(--danger-bright)' }}
+                          onClick={() => removeClass(index)}
+                          title="Remove class"
+                        >
+                          <X size={16} />
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                  {totalLevel < 20 && (
+                    <button
+                      type="button"
+                      className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs cursor-pointer self-start"
+                      style={{ background: 'var(--bg-raised)', border: '1px solid var(--border)', color: 'var(--accent)' }}
+                      onClick={addClass}
+                    >
+                      <Plus size={12} /> Add Class
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Vitals */}
+              <div className="grid grid-cols-2 gap-3">
                 <div>
                   <div className="flex items-center gap-1.5 mb-1.5">
                     <label className="text-xs" style={{ color: 'var(--text)', letterSpacing: '0.3px' }}>Max HP</label>

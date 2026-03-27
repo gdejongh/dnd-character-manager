@@ -200,6 +200,24 @@ function App() {
           speed: guestCharacter.speed,
         }).eq('id', created.id);
 
+        // Save multiclass entries
+        if (guestCharacter.classes?.length) {
+          const classRows = guestCharacter.classes
+            .filter((c: { className: string }) => c.className.trim())
+            .map((c: { className: string; level: number }, i: number) => ({
+              character_id: created.id,
+              class_name: c.className.trim(),
+              level: c.level,
+              sort_order: i,
+            }));
+          if (classRows.length > 0) {
+            await supabase.from('character_classes').insert(classRows);
+            await supabase.from('characters').update({
+              primary_casting_class: classRows[0].class_name,
+            }).eq('id', created.id);
+          }
+        }
+
         // Update seeded ability scores to match guest values
         for (const s of guestScores) {
           await supabase.from('ability_scores').update({ score: s.score })
