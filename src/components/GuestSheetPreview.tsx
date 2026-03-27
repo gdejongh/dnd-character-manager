@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import type { Ability, AbilityScore, SpellSlot, Spell, Weapon, Feature, ActionType, FeatureRestType } from '../types/database';
+import type { Ability, AbilityScore, SpellSlot, Spell, Weapon, Feature, ActionType, FeatureRestType, RechargeType, WeaponDamageComponent } from '../types/database';
 import type { GuestCharacterData, GuestScoreData } from './GuestCharacterBuilder';
 import { ABILITIES, ABILITY_NAMES, getModifier, formatModifier, getProficiencyBonus, getPreparedSpellLimit } from '../constants/dnd';
 import { SpellSlots } from './SpellSlots';
@@ -146,7 +146,7 @@ export function GuestSheetPreview({
   }, []);
 
   // ── Weapon mutations ──
-  const addWeapon = useCallback(async (name: string, damageDice: string, damageType: string, abilityMod: 'STR' | 'DEX', proficient: boolean, actionType: ActionType = 'action') => {
+  const addWeapon = useCallback(async (name: string, damageDice: string, damageType: string, abilityMod: 'STR' | 'DEX', proficient: boolean, actionType: ActionType = 'action', maxCharges?: number | null, rechargeType?: RechargeType | null) => {
     const weapon: Weapon = {
       id: crypto.randomUUID(),
       character_id: 'guest',
@@ -156,12 +156,16 @@ export function GuestSheetPreview({
       ability_mod: abilityMod,
       proficient,
       action_type: actionType,
+      max_charges: maxCharges ?? null,
+      used_charges: 0,
+      recharge_type: maxCharges ? (rechargeType ?? null) : null,
+      damage_components: [],
       created_at: new Date().toISOString(),
     };
     setExtras((prev) => ({ ...prev, weapons: [...prev.weapons, weapon] }));
   }, []);
 
-  const updateWeapon = useCallback(async (id: string, updates: Partial<Pick<Weapon, 'name' | 'damage_dice' | 'damage_type' | 'ability_mod' | 'proficient' | 'action_type'>>) => {
+  const updateWeapon = useCallback(async (id: string, updates: Partial<Pick<Weapon, 'name' | 'damage_dice' | 'damage_type' | 'ability_mod' | 'proficient' | 'action_type' | 'max_charges' | 'used_charges' | 'recharge_type'>>) => {
     setExtras((prev) => ({
       ...prev,
       weapons: prev.weapons.map((w) => w.id === id ? { ...w, ...updates } : w),
@@ -170,6 +174,33 @@ export function GuestSheetPreview({
 
   const deleteWeapon = useCallback(async (id: string) => {
     setExtras((prev) => ({ ...prev, weapons: prev.weapons.filter((w) => w.id !== id) }));
+  }, []);
+
+  const addDamageComponent = useCallback(async (weaponId: string, damageDice: string, damageType: string) => {
+    const comp: WeaponDamageComponent = {
+      id: crypto.randomUUID(),
+      weapon_id: weaponId,
+      damage_dice: damageDice,
+      damage_type: damageType,
+      created_at: new Date().toISOString(),
+    };
+    setExtras((prev) => ({
+      ...prev,
+      weapons: prev.weapons.map((w) =>
+        w.id === weaponId ? { ...w, damage_components: [...(w.damage_components ?? []), comp] } : w,
+      ),
+    }));
+  }, []);
+
+  const removeDamageComponent = useCallback(async (weaponId: string, componentId: string) => {
+    setExtras((prev) => ({
+      ...prev,
+      weapons: prev.weapons.map((w) =>
+        w.id === weaponId
+          ? { ...w, damage_components: (w.damage_components ?? []).filter((c) => c.id !== componentId) }
+          : w,
+      ),
+    }));
   }, []);
 
   // ── Feature mutations ──
@@ -399,6 +430,8 @@ export function GuestSheetPreview({
             onAdd={addWeapon}
             onUpdate={updateWeapon}
             onDelete={deleteWeapon}
+            onAddDamageComponent={addDamageComponent}
+            onRemoveDamageComponent={removeDamageComponent}
           />
         )}
 

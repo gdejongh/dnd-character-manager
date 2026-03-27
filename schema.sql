@@ -79,6 +79,8 @@ create table inventory_items (
   max_charges   integer,
   used_charges  integer not null default 0,
   recharge_type text check (recharge_type in ('short_rest','long_rest')),
+  resistances   text[] not null default '{}',
+  immunities    text[] not null default '{}',
   created_at    timestamptz not null default now()
 );
 
@@ -243,8 +245,35 @@ create table weapons (
   ability_mod   text not null default 'STR' check (ability_mod in ('STR','DEX')),
   proficient    boolean not null default true,
   action_type   text not null default 'action' check (action_type in ('action','bonus_action','reaction','other')),
+  max_charges   integer,
+  used_charges  integer not null default 0,
+  recharge_type text check (recharge_type in ('short_rest','long_rest')),
   created_at    timestamptz not null default now()
 );
+
+-- 7b-ii. Weapon Damage Components (additional damage dice) ----------
+create table weapon_damage_components (
+  id            uuid primary key default gen_random_uuid(),
+  weapon_id     uuid references weapons(id) on delete cascade not null,
+  damage_dice   text not null,
+  damage_type   text not null,
+  created_at    timestamptz not null default now()
+);
+
+alter table weapon_damage_components enable row level security;
+
+create policy "View own weapon damage components"
+  on weapon_damage_components for select
+  using (weapon_id in (select w.id from weapons w join characters c on w.character_id = c.id where c.user_id = auth.uid()));
+create policy "Insert own weapon damage components"
+  on weapon_damage_components for insert
+  with check (weapon_id in (select w.id from weapons w join characters c on w.character_id = c.id where c.user_id = auth.uid()));
+create policy "Update own weapon damage components"
+  on weapon_damage_components for update
+  using (weapon_id in (select w.id from weapons w join characters c on w.character_id = c.id where c.user_id = auth.uid()));
+create policy "Delete own weapon damage components"
+  on weapon_damage_components for delete
+  using (weapon_id in (select w.id from weapons w join characters c on w.character_id = c.id where c.user_id = auth.uid()));
 
 alter table weapons enable row level security;
 
@@ -607,6 +636,15 @@ create policy "View shared weapons"
     )
   );
 
+create policy "View shared weapon damage components"
+  on weapon_damage_components for select using (
+    weapon_id in (
+      select w.id from weapons w
+      join character_shares cs on w.character_id = cs.character_id
+      where cs.recipient_id = auth.uid() and cs.status = 'accepted'
+    )
+  );
+
 -- RPC: Share a character (resolves email to user_id server-side)
 create or replace function public.share_character(p_character_id uuid, p_recipient_email text)
 returns uuid
@@ -698,17 +736,25 @@ begin
   select v_new_char_id, name, description, level, prepared, concentration, action_type
   from spells where character_id = v_source_char_id;
 
-  insert into inventory_items (character_id, name, quantity, weight, notes)
-  select v_new_char_id, name, quantity, weight, notes
+  insert into inventory_items (character_id, name, quantity, weight, notes, max_charges, recharge_type, resistances, immunities)
+  select v_new_char_id, name, quantity, weight, notes, max_charges, recharge_type, resistances, immunities
   from inventory_items where character_id = v_source_char_id;
 
   insert into features (character_id, title, description, source, action_type, max_uses, used_uses, rest_type)
   select v_new_char_id, title, description, source, action_type, max_uses, 0, rest_type
   from features where character_id = v_source_char_id;
 
-  insert into weapons (character_id, name, damage_dice, damage_type, ability_mod, proficient, action_type)
-  select v_new_char_id, name, damage_dice, damage_type, ability_mod, proficient, action_type
+  insert into weapons (character_id, name, damage_dice, damage_type, ability_mod, proficient, action_type, max_charges, recharge_type)
+  select v_new_char_id, name, damage_dice, damage_type, ability_mod, proficient, action_type, max_charges, recharge_type
   from weapons where character_id = v_source_char_id;
+
+  -- Copy weapon damage components for duplicated weapons
+  insert into weapon_damage_components (weapon_id, damage_dice, damage_type)
+  select nw.id, wdc.damage_dice, wdc.damage_type
+  from weapons ow
+  join weapons nw on nw.character_id = v_new_char_id and nw.name = ow.name
+  join weapon_damage_components wdc on wdc.weapon_id = ow.id
+  where ow.character_id = v_source_char_id;
 
   insert into notes (character_id, content)
   select v_new_char_id, content
@@ -813,3 +859,49 @@ grant execute on function public.copy_shared_character(uuid) to authenticated;
 --   ALTER TABLE inventory_items ADD COLUMN IF NOT EXISTS max_charges integer;
 --   ALTER TABLE inventory_items ADD COLUMN IF NOT EXISTS used_charges integer NOT NULL DEFAULT 0;
 --   ALTER TABLE inventory_items ADD COLUMN IF NOT EXISTS recharge_type text CHECK (recharge_type IN ('short_rest', 'long_rest'));
+--
+-- =================================================================
+--  MIGRATION: Weapon Charges, Multi-Damage, Inventory Resistances
+-- =================================================================
+-- Run these statements if upgrading an existing database:
+--
+--   -- Weapon charges
+--   ALTER TABLE weapons ADD COLUMN IF NOT EXISTS max_charges integer;
+--   ALTER TABLE weapons ADD COLUMN IF NOT EXISTS used_charges integer NOT NULL DEFAULT 0;
+--   ALTER TABLE weapons ADD COLUMN IF NOT EXISTS recharge_type text CHECK (recharge_type IN ('short_rest', 'long_rest'));
+--
+--   -- Weapon damage components (additional damage dice)
+--   CREATE TABLE IF NOT EXISTS weapon_damage_components (
+--     id            uuid primary key default gen_random_uuid(),
+--     weapon_id     uuid references weapons(id) on delete cascade not null,
+--     damage_dice   text not null,
+--     damage_type   text not null,
+--     created_at    timestamptz not null default now()
+--   );
+--   ALTER TABLE weapon_damage_components ENABLE ROW LEVEL SECURITY;
+--   CREATE POLICY "View own weapon damage components"
+--     ON weapon_damage_components FOR SELECT
+--     USING (weapon_id IN (SELECT w.id FROM weapons w JOIN characters c ON w.character_id = c.id WHERE c.user_id = auth.uid()));
+--   CREATE POLICY "Insert own weapon damage components"
+--     ON weapon_damage_components FOR INSERT
+--     WITH CHECK (weapon_id IN (SELECT w.id FROM weapons w JOIN characters c ON w.character_id = c.id WHERE c.user_id = auth.uid()));
+--   CREATE POLICY "Update own weapon damage components"
+--     ON weapon_damage_components FOR UPDATE
+--     USING (weapon_id IN (SELECT w.id FROM weapons w JOIN characters c ON w.character_id = c.id WHERE c.user_id = auth.uid()));
+--   CREATE POLICY "Delete own weapon damage components"
+--     ON weapon_damage_components FOR DELETE
+--     USING (weapon_id IN (SELECT w.id FROM weapons w JOIN characters c ON w.character_id = c.id WHERE c.user_id = auth.uid()));
+--   CREATE POLICY "View shared weapon damage components"
+--     ON weapon_damage_components FOR SELECT USING (
+--       weapon_id IN (
+--         SELECT w.id FROM weapons w
+--         JOIN character_shares cs ON w.character_id = cs.character_id
+--         WHERE cs.recipient_id = auth.uid() AND cs.status = 'accepted'
+--       )
+--     );
+--
+--   -- Inventory item resistances & immunities
+--   ALTER TABLE inventory_items ADD COLUMN IF NOT EXISTS resistances text[] NOT NULL DEFAULT '{}';
+--   ALTER TABLE inventory_items ADD COLUMN IF NOT EXISTS immunities text[] NOT NULL DEFAULT '{}';
+--
+--   -- Update copy_shared_character function (re-run the CREATE OR REPLACE above)

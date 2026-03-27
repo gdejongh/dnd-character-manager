@@ -1,13 +1,15 @@
 import { useState } from 'react';
 import type { FormEvent } from 'react';
-import type { Weapon, ActionType, AbilityScore, Ability } from '../types/database';
+import type { Weapon, ActionType, AbilityScore, Ability, RechargeType } from '../types/database';
 import {
   getWeaponAttackBonus,
   formatWeaponDamage,
   formatModifier,
+  DAMAGE_TYPES,
+  DAMAGE_TYPE_COLORS,
 } from '../constants/dnd';
 import { ActionTypePicker, ActionTypeBadge } from './ActionType';
-import { Swords, Trash2, Pencil } from 'lucide-react';
+import { Swords, Trash2, Pencil, Plus, X } from 'lucide-react';
 
 interface WeaponsProps {
   weapons: Weapon[];
@@ -20,20 +22,17 @@ interface WeaponsProps {
     abilityMod: 'STR' | 'DEX',
     proficient: boolean,
     actionType: ActionType,
+    maxCharges?: number | null,
+    rechargeType?: RechargeType | null,
   ) => void;
   onUpdate: (
     id: string,
-    updates: Partial<Pick<Weapon, 'name' | 'damage_dice' | 'damage_type' | 'ability_mod' | 'proficient' | 'action_type'>>,
+    updates: Partial<Pick<Weapon, 'name' | 'damage_dice' | 'damage_type' | 'ability_mod' | 'proficient' | 'action_type' | 'max_charges' | 'used_charges' | 'recharge_type'>>,
   ) => void;
   onDelete: (id: string) => void;
+  onAddDamageComponent: (weaponId: string, damageDice: string, damageType: string) => void;
+  onRemoveDamageComponent: (weaponId: string, componentId: string) => void;
 }
-
-const DAMAGE_TYPES = [
-  'slashing', 'piercing', 'bludgeoning',
-  'fire', 'cold', 'lightning', 'thunder',
-  'acid', 'poison', 'necrotic', 'radiant',
-  'force', 'psychic',
-];
 
 const inputStyle = {
   background: 'var(--code-bg)',
@@ -41,7 +40,7 @@ const inputStyle = {
   border: '1px solid var(--border)',
 };
 
-export function Weapons({ weapons, scores, level, onAdd, onUpdate, onDelete }: WeaponsProps) {
+export function Weapons({ weapons, scores, level, onAdd, onUpdate, onDelete, onAddDamageComponent, onRemoveDamageComponent }: WeaponsProps) {
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
 
@@ -52,6 +51,9 @@ export function Weapons({ weapons, scores, level, onAdd, onUpdate, onDelete }: W
   const [abilityMod, setAbilityMod] = useState<'STR' | 'DEX'>('STR');
   const [proficient, setProficient] = useState(true);
   const [actionType, setActionType] = useState<ActionType>('action');
+  const [isMagicWeapon, setIsMagicWeapon] = useState(false);
+  const [maxCharges, setMaxCharges] = useState('');
+  const [rechargeType, setRechargeType] = useState<RechargeType | null>(null);
 
   const abilityScoreMap = Object.fromEntries(
     (['STR', 'DEX', 'CON', 'INT', 'WIS', 'CHA'] as const).map((a) => [
@@ -63,13 +65,18 @@ export function Weapons({ weapons, scores, level, onAdd, onUpdate, onDelete }: W
   function handleAdd(e: FormEvent) {
     e.preventDefault();
     if (!name.trim()) return;
-    onAdd(name.trim(), damageDice.trim() || '1d4', damageType, abilityMod, proficient, actionType);
+    const charges = isMagicWeapon && maxCharges ? parseInt(maxCharges) || null : null;
+    const recharge = isMagicWeapon && charges ? rechargeType : null;
+    onAdd(name.trim(), damageDice.trim() || '1d4', damageType, abilityMod, proficient, actionType, charges, recharge);
     setName('');
     setDamageDice('1d8');
     setDamageType('slashing');
     setAbilityMod('STR');
     setProficient(true);
     setActionType('action');
+    setIsMagicWeapon(false);
+    setMaxCharges('');
+    setRechargeType(null);
     setShowForm(false);
   }
 
@@ -111,6 +118,8 @@ export function Weapons({ weapons, scores, level, onAdd, onUpdate, onDelete }: W
             onUpdate={onUpdate}
             onDelete={() => { onDelete(weapon.id); setEditingId(null); }}
             onDone={() => setEditingId(null)}
+            onAddDamageComponent={onAddDamageComponent}
+            onRemoveDamageComponent={onRemoveDamageComponent}
           />
         ) : (
           <WeaponCard
@@ -119,6 +128,7 @@ export function Weapons({ weapons, scores, level, onAdd, onUpdate, onDelete }: W
             abilityScoreMap={abilityScoreMap}
             level={level}
             onEdit={() => setEditingId(weapon.id)}
+            onUpdate={onUpdate}
           />
         )
       ))}
@@ -222,10 +232,53 @@ export function Weapons({ weapons, scores, level, onAdd, onUpdate, onDelete }: W
             <ActionTypePicker value={actionType} onChange={setActionType} />
           </div>
 
+          {/* Magic Weapon / Charges */}
+          <button
+            type="button"
+            onClick={() => setIsMagicWeapon(!isMagicWeapon)}
+            className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs cursor-pointer transition-all"
+            style={{
+              background: isMagicWeapon ? 'rgba(139,92,246,0.15)' : 'var(--code-bg)',
+              color: isMagicWeapon ? '#a78bfa' : 'var(--text)',
+              border: isMagicWeapon ? '1px solid rgba(139,92,246,0.4)' : '1px solid var(--border)',
+              fontFamily: 'var(--heading)',
+            }}
+          >
+            ✦ Charges
+          </button>
+
+          {isMagicWeapon && (
+            <div className="flex gap-3">
+              <div className="flex flex-col gap-1 flex-1">
+                <label className="text-[10px] uppercase tracking-wider" style={{ color: '#a78bfa', fontFamily: 'var(--heading)' }}>Max Charges</label>
+                <input
+                  className="w-full px-3 py-2 rounded-lg text-sm outline-none"
+                  style={inputStyle}
+                  type="number" min="1" placeholder="e.g. 3"
+                  value={maxCharges}
+                  onChange={(e) => setMaxCharges(e.target.value)}
+                />
+              </div>
+              <div className="flex flex-col gap-1 flex-1">
+                <label className="text-[10px] uppercase tracking-wider" style={{ color: '#a78bfa', fontFamily: 'var(--heading)' }}>Recharges On</label>
+                <select
+                  className="w-full px-3 py-2 rounded-lg text-sm outline-none cursor-pointer"
+                  style={inputStyle}
+                  value={rechargeType ?? ''}
+                  onChange={(e) => setRechargeType((e.target.value || null) as RechargeType | null)}
+                >
+                  <option value="">No recharge</option>
+                  <option value="short_rest">Short Rest</option>
+                  <option value="long_rest">Long Rest</option>
+                </select>
+              </div>
+            </div>
+          )}
+
           <div className="flex gap-3">
             <button
               type="button"
-              onClick={() => setShowForm(false)}
+              onClick={() => { setShowForm(false); setIsMagicWeapon(false); setMaxCharges(''); setRechargeType(null); }}
               className="flex-1 py-3 rounded-lg text-sm cursor-pointer"
               style={{ color: 'var(--text)', background: 'transparent', border: '1px solid var(--border)' }}
             >
@@ -261,14 +314,21 @@ function WeaponCard({
   abilityScoreMap,
   level,
   onEdit,
+  onUpdate,
 }: {
   weapon: Weapon;
   abilityScoreMap: Record<Ability, number>;
   level: number;
   onEdit: () => void;
+  onUpdate: WeaponsProps['onUpdate'];
 }) {
   const atkBonus = getWeaponAttackBonus(level, abilityScoreMap, weapon.ability_mod, weapon.proficient);
   const dmgStr = formatWeaponDamage(weapon.damage_dice, abilityScoreMap, weapon.ability_mod, weapon.damage_type);
+
+  // Build additional damage string from components
+  const extraDmg = (weapon.damage_components ?? [])
+    .map((c) => `${c.damage_dice} ${c.damage_type}`)
+    .join(' + ');
 
   return (
     <div
@@ -286,7 +346,7 @@ function WeaponCard({
             </span>
             <ActionTypeBadge type={weapon.action_type} small />
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 flex-wrap">
             <span className="text-xs" style={{ color: 'var(--text)' }}>
               <span style={{ color: 'var(--accent)', fontFamily: 'var(--heading)', fontSize: '10px' }}>ATK </span>
               <span style={{ color: 'var(--text-h)', fontFamily: 'var(--mono)', fontWeight: 700 }}>
@@ -297,6 +357,9 @@ function WeaponCard({
               <span style={{ color: 'var(--hp-crimson)', fontFamily: 'var(--heading)', fontSize: '10px' }}>DMG </span>
               <span style={{ color: 'var(--text-h)', fontFamily: 'var(--mono)', fontWeight: 700 }}>
                 {dmgStr}
+                {extraDmg && (
+                  <span style={{ color: 'var(--accent)' }}> + {extraDmg}</span>
+                )}
               </span>
             </span>
           </div>
@@ -325,6 +388,18 @@ function WeaponCard({
           </button>
         </div>
       </div>
+
+      {/* Charge Dots */}
+      {weapon.max_charges != null && weapon.max_charges > 0 && (
+        <div className="px-4 pb-3">
+          <ChargeDots
+            maxCharges={weapon.max_charges}
+            usedCharges={weapon.used_charges}
+            rechargeType={weapon.recharge_type}
+            onToggle={(newUsed) => onUpdate(weapon.id, { used_charges: newUsed })}
+          />
+        </div>
+      )}
     </div>
   );
 }
@@ -336,12 +411,20 @@ function WeaponEditCard({
   onUpdate,
   onDelete,
   onDone,
+  onAddDamageComponent,
+  onRemoveDamageComponent,
 }: {
   weapon: Weapon;
   onUpdate: WeaponsProps['onUpdate'];
   onDelete: () => void;
   onDone: () => void;
+  onAddDamageComponent: WeaponsProps['onAddDamageComponent'];
+  onRemoveDamageComponent: WeaponsProps['onRemoveDamageComponent'];
 }) {
+  const [newDmgDice, setNewDmgDice] = useState('1d4');
+  const [newDmgType, setNewDmgType] = useState('fire');
+  const [showAddDamage, setShowAddDamage] = useState(false);
+
   return (
     <div
       className="rounded-xl p-4 animate-fade-in flex flex-col gap-3"
@@ -355,6 +438,7 @@ function WeaponEditCard({
         placeholder="Weapon name"
       />
 
+      {/* Primary Damage */}
       <div className="flex gap-3">
         <div className="flex flex-col gap-1 flex-1">
           <label className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--accent)', fontFamily: 'var(--heading)' }}>
@@ -384,6 +468,106 @@ function WeaponEditCard({
           </select>
         </div>
       </div>
+
+      {/* Additional Damage Components */}
+      {(weapon.damage_components ?? []).length > 0 && (
+        <div className="flex flex-col gap-2">
+          <label className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--hp-crimson)', fontFamily: 'var(--heading)' }}>
+            Additional Damage
+          </label>
+          {(weapon.damage_components ?? []).map((comp) => (
+            <div key={comp.id} className="flex items-center gap-2">
+              <span className="text-xs px-2 py-1 rounded" style={{
+                background: `${DAMAGE_TYPE_COLORS[comp.damage_type] ?? 'var(--border)'}22`,
+                color: DAMAGE_TYPE_COLORS[comp.damage_type] ?? 'var(--text)',
+                border: `1px solid ${DAMAGE_TYPE_COLORS[comp.damage_type] ?? 'var(--border)'}44`,
+                fontFamily: 'var(--mono)',
+              }}>
+                {comp.damage_dice} {comp.damage_type}
+              </span>
+              <button
+                type="button"
+                onClick={() => onRemoveDamageComponent(weapon.id, comp.id)}
+                className="p-1 rounded cursor-pointer bg-transparent"
+                style={{ color: 'var(--danger)', border: 'none' }}
+              >
+                <X size={12} />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Add Damage Component — collapsed behind a button */}
+      {!showAddDamage ? (
+        <button
+          type="button"
+          onClick={() => setShowAddDamage(true)}
+          className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs cursor-pointer self-start"
+          style={{
+            background: 'rgba(239,68,68,0.08)',
+            color: 'var(--hp-crimson)',
+            border: '1px solid rgba(239,68,68,0.2)',
+            fontFamily: 'var(--heading)',
+          }}
+        >
+          <Plus size={12} /> Add Extra Damage
+        </button>
+      ) : (
+        <div className="flex flex-col gap-2 animate-fade-in">
+          <label className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--hp-crimson)', fontFamily: 'var(--heading)' }}>
+            Extra Damage
+          </label>
+          <div className="flex items-end gap-2">
+            <input
+              className="flex-1 px-3 py-2 rounded-lg text-sm outline-none"
+              style={inputStyle}
+              value={newDmgDice}
+              onChange={(e) => setNewDmgDice(e.target.value)}
+              placeholder="1d4"
+              autoFocus
+            />
+            <select
+              className="flex-1 px-3 py-2 rounded-lg text-sm outline-none cursor-pointer"
+              style={inputStyle}
+              value={newDmgType}
+              onChange={(e) => setNewDmgType(e.target.value)}
+            >
+              {DAMAGE_TYPES.map((dt) => (
+                <option key={dt} value={dt}>{dt.charAt(0).toUpperCase() + dt.slice(1)}</option>
+              ))}
+            </select>
+            <button
+              type="button"
+              onClick={() => {
+                if (newDmgDice.trim()) {
+                  onAddDamageComponent(weapon.id, newDmgDice.trim(), newDmgType);
+                  setNewDmgDice('1d4');
+                  setNewDmgType('fire');
+                  setShowAddDamage(false);
+                }
+              }}
+              className="px-3 py-2 rounded-lg text-xs cursor-pointer flex items-center gap-1"
+              style={{
+                background: 'rgba(239,68,68,0.15)',
+                color: '#ef4444',
+                border: '1px solid rgba(239,68,68,0.3)',
+                fontFamily: 'var(--heading)',
+              }}
+            >
+              <Plus size={12} /> Add
+            </button>
+          </div>
+          <button
+            type="button"
+            onClick={() => setShowAddDamage(false)}
+            className="text-[10px] cursor-pointer self-start px-2 py-1 rounded"
+            style={{ color: 'var(--text)', background: 'transparent', border: 'none' }}
+          >
+            Cancel
+          </button>
+        </div>
+      )}
 
       <div className="flex gap-3">
         <div className="flex flex-col gap-1">
@@ -436,6 +620,47 @@ function WeaponEditCard({
         <ActionTypePicker value={weapon.action_type} onChange={(v) => onUpdate(weapon.id, { action_type: v })} />
       </div>
 
+      {/* Charges editing */}
+      <div className="flex flex-col gap-2">
+        <label className="text-[10px] uppercase tracking-wider" style={{ color: '#a78bfa', fontFamily: 'var(--heading)' }}>
+          Charges
+        </label>
+        <div className="flex gap-3">
+          <div className="flex flex-col gap-1 flex-1">
+            <input
+              className="w-full px-3 py-2 rounded-lg text-sm outline-none"
+              style={inputStyle}
+              type="number" min="0" placeholder="Max charges (0 = none)"
+              value={weapon.max_charges ?? ''}
+              onChange={(e) => {
+                const val = e.target.value ? parseInt(e.target.value) || null : null;
+                onUpdate(weapon.id, { max_charges: val, ...(val ? {} : { used_charges: 0, recharge_type: null as unknown as undefined }) });
+              }}
+            />
+          </div>
+          <div className="flex flex-col gap-1 flex-1">
+            <select
+              className="w-full px-3 py-2 rounded-lg text-sm outline-none cursor-pointer"
+              style={inputStyle}
+              value={weapon.recharge_type ?? ''}
+              onChange={(e) => onUpdate(weapon.id, { recharge_type: (e.target.value || null) as RechargeType | null })}
+            >
+              <option value="">No recharge</option>
+              <option value="short_rest">Short Rest</option>
+              <option value="long_rest">Long Rest</option>
+            </select>
+          </div>
+        </div>
+        {weapon.max_charges != null && weapon.max_charges > 0 && (
+          <ChargeDots
+            maxCharges={weapon.max_charges}
+            usedCharges={weapon.used_charges}
+            rechargeType={weapon.recharge_type}
+            onToggle={(newUsed) => onUpdate(weapon.id, { used_charges: newUsed })}
+          />
+        )}
+      </div>
+
       <div className="flex gap-2">
         <button
           className="flex-1 py-2 rounded-lg text-sm cursor-pointer"
@@ -452,6 +677,67 @@ function WeaponEditCard({
           <Trash2 size={12} /> Delete
         </button>
       </div>
+    </div>
+  );
+}
+
+/* ── Charge Dots (reusable) ── */
+
+function ChargeDots({
+  maxCharges,
+  usedCharges,
+  rechargeType,
+  onToggle,
+}: {
+  maxCharges: number;
+  usedCharges: number;
+  rechargeType: RechargeType | null;
+  onToggle: (newUsed: number) => void;
+}) {
+  const remaining = maxCharges - usedCharges;
+  const restLabel = rechargeType === 'short_rest' ? 'SR' : rechargeType === 'long_rest' ? 'LR' : null;
+
+  return (
+    <div className="flex items-center gap-1.5 flex-wrap">
+      {Array.from({ length: maxCharges }, (_, i) => {
+        const isAvailable = i < remaining;
+        return (
+          <button
+            key={i}
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onToggle(isAvailable ? usedCharges + 1 : usedCharges - 1);
+            }}
+            className="w-7 h-7 rounded-full cursor-pointer flex items-center justify-center transition-all"
+            style={{
+              background: isAvailable ? 'linear-gradient(135deg, var(--accent), var(--accent-bright))' : 'var(--bg-raised)',
+              border: isAvailable ? '2px solid var(--accent)' : '2px solid var(--border)',
+              boxShadow: isAvailable ? '0 0 6px rgba(201,168,76,0.4)' : 'none',
+            }}
+            aria-label={isAvailable ? `Use charge ${i + 1}` : `Restore charge ${i + 1}`}
+          >
+            <span style={{ color: isAvailable ? '#0f0e13' : 'var(--border-light)', fontSize: '11px', fontWeight: 'bold' }}>
+              {isAvailable ? '◆' : '○'}
+            </span>
+          </button>
+        );
+      })}
+      <span className="text-[10px] ml-0.5" style={{ color: 'var(--text)', fontFamily: 'var(--mono)' }}>
+        {remaining}/{maxCharges}
+      </span>
+      {restLabel && (
+        <span
+          className="text-[9px] px-1 py-0.5 rounded"
+          style={{
+            background: 'var(--spell-bg)',
+            color: 'var(--spell-indigo)',
+            border: '1px solid var(--spell-border)',
+          }}
+        >
+          {restLabel}
+        </span>
+      )}
     </div>
   );
 }

@@ -314,7 +314,7 @@ function App() {
     useSpells(selectedCharacterId);
   const { items, addItem, updateItem, deleteItem, resetAllCharges, resetChargesByRestType } = useInventory(selectedCharacterId);
   const { features, addFeature, updateFeature, resetAllUses, resetUsesByRestType, deleteFeature } = useFeatures(selectedCharacterId);
-  const { weapons, addWeapon, updateWeapon, deleteWeapon } = useWeapons(selectedCharacterId);
+  const { weapons, addWeapon, updateWeapon, deleteWeapon, addDamageComponent, removeDamageComponent, resetAllCharges: resetAllWeaponCharges, resetChargesByRestType: resetWeaponChargesByRestType } = useWeapons(selectedCharacterId);
   const { notes, loading: notesLoading, updateContent } = useNotes(selectedCharacterId);
   const { uploading: imageUploading, error: imageError, uploadImage, deleteImage } =
     useCharacterImage(user?.id, selectedCharacterId);
@@ -769,6 +769,8 @@ function App() {
               onAdd={isReadOnly ? noOpAsync : addWeapon}
               onUpdate={isReadOnly ? noOpAsync : updateWeapon}
               onDelete={isReadOnly ? noOpAsync : deleteWeapon}
+              onAddDamageComponent={isReadOnly ? noOpAsync : addDamageComponent}
+              onRemoveDamageComponent={isReadOnly ? noOpAsync : removeDamageComponent}
             />
           )}
           {activeTab === 'features' && (
@@ -815,10 +817,10 @@ function App() {
           }}
           onRestoreWarlockSlots={charIsWarlock ? resetAll : undefined}
           onRestoreShortRestUses={() => resetUsesByRestType('short_rest')}
-          onRestoreShortRestCharges={() => resetChargesByRestType('short_rest')}
+          onRestoreShortRestCharges={() => { resetChargesByRestType('short_rest'); resetWeaponChargesByRestType('short_rest'); }}
           onRestoreSlots={resetAll}
           onRestoreUses={resetAllUses}
-          onRestoreCharges={resetAllCharges}
+          onRestoreCharges={() => { resetAllCharges(); resetAllWeaponCharges(); }}
           onResetDeathSaves={() => updateCharacter({ death_save_successes: 0, death_save_failures: 0 })}
           onClearConditions={() => updateCharacter({ conditions: [] })}
           onDropConcentration={() => updateCharacter({ concentration_spell_id: null })}

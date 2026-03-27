@@ -72,6 +72,8 @@ export interface InventoryItem {
   max_charges: number | null;
   used_charges: number;
   recharge_type: RechargeType | null;
+  resistances: string[];
+  immunities: string[];
   created_at: string;
 }
 
@@ -119,6 +121,18 @@ export interface Weapon {
   ability_mod: 'STR' | 'DEX';
   proficient: boolean;
   action_type: ActionType;
+  max_charges: number | null;
+  used_charges: number;
+  recharge_type: RechargeType | null;
+  created_at: string;
+  damage_components?: WeaponDamageComponent[];
+}
+
+export interface WeaponDamageComponent {
+  id: string;
+  weapon_id: string;
+  damage_dice: string;
+  damage_type: string;
   created_at: string;
 }
 

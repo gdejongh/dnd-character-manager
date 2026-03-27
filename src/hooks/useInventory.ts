@@ -35,6 +35,8 @@ export function useInventory(characterId: string | null) {
     notes: string,
     maxCharges?: number | null,
     rechargeType?: RechargeType | null,
+    resistances?: string[],
+    immunities?: string[],
   ) {
     if (!characterId) return;
     const { data, error } = await supabase
@@ -47,6 +49,8 @@ export function useInventory(characterId: string | null) {
         notes,
         max_charges: maxCharges ?? null,
         recharge_type: maxCharges ? (rechargeType ?? null) : null,
+        resistances: resistances ?? [],
+        immunities: immunities ?? [],
       })
       .select()
       .single();
@@ -57,7 +61,7 @@ export function useInventory(characterId: string | null) {
 
   async function updateItem(
     id: string,
-    updates: Partial<Pick<InventoryItem, 'name' | 'quantity' | 'weight' | 'notes' | 'max_charges' | 'used_charges' | 'recharge_type'>>,
+    updates: Partial<Pick<InventoryItem, 'name' | 'quantity' | 'weight' | 'notes' | 'max_charges' | 'used_charges' | 'recharge_type' | 'resistances' | 'immunities'>>,
   ) {
     const { data, error } = await supabase
       .from('inventory_items')

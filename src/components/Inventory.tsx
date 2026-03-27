@@ -1,16 +1,17 @@
 import { useState, useRef, useCallback } from 'react';
 import type { FormEvent, TouchEvent as ReactTouchEvent } from 'react';
 import type { InventoryItem, RechargeType } from '../types/database';
+import { DAMAGE_TYPES, DAMAGE_TYPE_COLORS } from '../constants/dnd';
 import { NumericInput } from './NumericInput';
-import { Backpack, Trash2, Sparkles, ChevronDown } from 'lucide-react';
+import { Backpack, Trash2, Sparkles, ChevronDown, Shield } from 'lucide-react';
 
 interface InventoryProps {
   items: InventoryItem[];
   strScore: number;
-  onAdd: (name: string, quantity: number, weight: number, notes: string, maxCharges?: number | null, rechargeType?: RechargeType | null) => void;
+  onAdd: (name: string, quantity: number, weight: number, notes: string, maxCharges?: number | null, rechargeType?: RechargeType | null, resistances?: string[], immunities?: string[]) => void;
   onUpdate: (
     id: string,
-    updates: Partial<Pick<InventoryItem, 'name' | 'quantity' | 'weight' | 'notes' | 'max_charges' | 'used_charges' | 'recharge_type'>>,
+    updates: Partial<Pick<InventoryItem, 'name' | 'quantity' | 'weight' | 'notes' | 'max_charges' | 'used_charges' | 'recharge_type' | 'resistances' | 'immunities'>>,
   ) => void;
   onDelete: (id: string) => void;
 }
@@ -28,6 +29,11 @@ export function Inventory({ items, strScore, onAdd, onUpdate, onDelete }: Invent
   const [maxCharges, setMaxCharges] = useState('');
   const [rechargeType, setRechargeType] = useState<RechargeType | null>(null);
 
+  // Resistance/immunity fields
+  const [showDefenses, setShowDefenses] = useState(false);
+  const [resistances, setResistances] = useState<string[]>([]);
+  const [immunities, setImmunities] = useState<string[]>([]);
+
   const carryCapacity = strScore * 15;
   const totalWeight = items.reduce((sum, item) => sum + item.weight * item.quantity, 0);
   const isEncumbered = totalWeight > carryCapacity;
@@ -37,7 +43,7 @@ export function Inventory({ items, strScore, onAdd, onUpdate, onDelete }: Invent
     if (!name.trim()) return;
     const charges = isMagicItem && maxCharges ? parseInt(maxCharges) || null : null;
     const recharge = isMagicItem && charges ? rechargeType : null;
-    onAdd(name.trim(), parseInt(quantity) || 1, parseFloat(weight) || 0, notes.trim(), charges, recharge);
+    onAdd(name.trim(), parseInt(quantity) || 1, parseFloat(weight) || 0, notes.trim(), charges, recharge, resistances, immunities);
     setName('');
     setQuantity('1');
     setWeight('0');
@@ -45,6 +51,9 @@ export function Inventory({ items, strScore, onAdd, onUpdate, onDelete }: Invent
     setIsMagicItem(false);
     setMaxCharges('');
     setRechargeType(null);
+    setShowDefenses(false);
+    setResistances([]);
+    setImmunities([]);
     setShowForm(false);
   }
 
@@ -261,10 +270,46 @@ export function Inventory({ items, strScore, onAdd, onUpdate, onDelete }: Invent
             </div>
           )}
 
+          {/* Resistances & Immunities Toggle */}
+          <button
+            type="button"
+            onClick={() => setShowDefenses(!showDefenses)}
+            className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs cursor-pointer self-start"
+            style={{
+              background: showDefenses ? 'rgba(56,189,248,0.1)' : 'transparent',
+              color: showDefenses ? '#38bdf8' : 'var(--text)',
+              border: showDefenses ? '1px solid rgba(56,189,248,0.3)' : '1px solid var(--border)',
+            }}
+          >
+            <Shield size={12} />
+            Resistances / Immunities
+            <ChevronDown
+              size={12}
+              style={{ transform: showDefenses ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s' }}
+            />
+          </button>
+
+          {showDefenses && (
+            <div className="flex flex-col gap-3 animate-fade-in">
+              <DamageTypeTagPicker
+                label="Resistances"
+                labelColor="#38bdf8"
+                selected={resistances}
+                onChange={setResistances}
+              />
+              <DamageTypeTagPicker
+                label="Immunities"
+                labelColor="#fbbf24"
+                selected={immunities}
+                onChange={setImmunities}
+              />
+            </div>
+          )}
+
           <div className="flex gap-3">
             <button
               type="button"
-              onClick={() => { setShowForm(false); setIsMagicItem(false); setMaxCharges(''); setRechargeType(null); }}
+              onClick={() => { setShowForm(false); setIsMagicItem(false); setMaxCharges(''); setRechargeType(null); setShowDefenses(false); setResistances([]); setImmunities([]); }}
               className="flex-1 py-3 rounded-lg text-sm cursor-pointer"
               style={{ color: 'var(--text)', background: 'transparent', border: '1px solid var(--border)' }}
             >
@@ -493,6 +538,20 @@ function InventoryRow({
             )}
           </div>
 
+          {/* Resistances & Immunities editing */}
+          <DamageTypeTagPicker
+            label="Resistances"
+            labelColor="#38bdf8"
+            selected={item.resistances ?? []}
+            onChange={(vals) => onUpdate(item.id, { resistances: vals })}
+          />
+          <DamageTypeTagPicker
+            label="Immunities"
+            labelColor="#fbbf24"
+            selected={item.immunities ?? []}
+            onChange={(vals) => onUpdate(item.id, { immunities: vals })}
+          />
+
           <div className="flex gap-2">
             <button
               className="flex-1 py-2 rounded-lg text-sm cursor-pointer"
@@ -556,6 +615,8 @@ function InventoryRow({
               onToggle={(newUsed) => onUpdate(item.id, { used_charges: Math.max(0, Math.min(newUsed, item.max_charges!)) })}
             />
           )}
+          {/* Resistance/Immunity tags */}
+          <DefenseTags resistances={item.resistances} immunities={item.immunities} />
         </div>
         <span
           className="text-xs text-center font-bold px-2 py-0.5 rounded-full"
@@ -569,6 +630,95 @@ function InventoryRow({
         >
           {(item.weight * item.quantity).toFixed(1)} lb
         </span>
+      </div>
+    </div>
+  );
+}
+
+/* ── Defense Tags Display ── */
+
+function DefenseTags({ resistances, immunities }: { resistances?: string[]; immunities?: string[] }) {
+  const hasResistances = resistances && resistances.length > 0;
+  const hasImmunities = immunities && immunities.length > 0;
+  if (!hasResistances && !hasImmunities) return null;
+
+  return (
+    <div className="flex items-center gap-1 mt-1 flex-wrap">
+      {hasResistances && resistances.map((r) => (
+        <span
+          key={`res-${r}`}
+          className="text-[9px] px-1.5 py-0.5 rounded-full"
+          style={{
+            background: `${DAMAGE_TYPE_COLORS[r] ?? 'var(--border)'}22`,
+            color: DAMAGE_TYPE_COLORS[r] ?? 'var(--text)',
+            border: `1px solid ${DAMAGE_TYPE_COLORS[r] ?? 'var(--border)'}44`,
+            fontFamily: 'var(--heading)',
+          }}
+        >
+          🛡️ {r}
+        </span>
+      ))}
+      {hasImmunities && immunities.map((im) => (
+        <span
+          key={`imm-${im}`}
+          className="text-[9px] px-1.5 py-0.5 rounded-full"
+          style={{
+            background: `${DAMAGE_TYPE_COLORS[im] ?? 'var(--border)'}22`,
+            color: DAMAGE_TYPE_COLORS[im] ?? 'var(--text)',
+            border: `1px solid ${DAMAGE_TYPE_COLORS[im] ?? 'var(--border)'}44`,
+            fontFamily: 'var(--heading)',
+            fontWeight: 700,
+          }}
+        >
+          ⚡ {im}
+        </span>
+      ))}
+    </div>
+  );
+}
+
+/* ── Damage Type Tag Picker ── */
+
+function DamageTypeTagPicker({
+  label,
+  labelColor,
+  selected,
+  onChange,
+}: {
+  label: string;
+  labelColor: string;
+  selected: string[];
+  onChange: (vals: string[]) => void;
+}) {
+  return (
+    <div className="flex flex-col gap-1">
+      <label className="text-[10px] uppercase tracking-wider" style={{ color: labelColor, fontFamily: 'var(--heading)' }}>
+        {label}
+      </label>
+      <div className="flex flex-wrap gap-1">
+        {DAMAGE_TYPES.map((dt) => {
+          const isActive = selected.includes(dt);
+          const color = DAMAGE_TYPE_COLORS[dt] ?? 'var(--text)';
+          return (
+            <button
+              key={dt}
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onChange(isActive ? selected.filter((s) => s !== dt) : [...selected, dt]);
+              }}
+              className="px-2 py-1 rounded-full text-[10px] cursor-pointer transition-all"
+              style={{
+                background: isActive ? `${color}22` : 'var(--code-bg)',
+                color: isActive ? color : 'var(--text)',
+                border: isActive ? `1px solid ${color}66` : '1px solid var(--border)',
+                fontFamily: 'var(--heading)',
+              }}
+            >
+              {dt.charAt(0).toUpperCase() + dt.slice(1)}
+            </button>
+          );
+        })}
       </div>
     </div>
   );

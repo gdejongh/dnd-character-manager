@@ -305,6 +305,33 @@ export const SPEED_TYPES: SpeedType[] = [
 
 export const EXTRA_SPEED_TYPES = SPEED_TYPES.filter(s => s.key !== 'speed');
 
+/* ── Standard 5e Damage Types ── */
+
+export const DAMAGE_TYPES = [
+  'slashing', 'piercing', 'bludgeoning',
+  'fire', 'cold', 'lightning', 'thunder',
+  'acid', 'poison', 'necrotic', 'radiant',
+  'force', 'psychic',
+] as const;
+
+export type DamageType = (typeof DAMAGE_TYPES)[number];
+
+export const DAMAGE_TYPE_COLORS: Record<string, string> = {
+  slashing: '#a3a3a3',
+  piercing: '#a3a3a3',
+  bludgeoning: '#a3a3a3',
+  fire: '#ef4444',
+  cold: '#38bdf8',
+  lightning: '#facc15',
+  thunder: '#a78bfa',
+  acid: '#22c55e',
+  poison: '#4ade80',
+  necrotic: '#6b7280',
+  radiant: '#fbbf24',
+  force: '#818cf8',
+  psychic: '#e879f9',
+};
+
 /* ── Standard 5e Conditions ── */
 
 export interface ConditionInfo {
