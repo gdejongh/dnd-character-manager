@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import type { Ability, AbilityScore, SpellSlot, Spell, Weapon, Feature, ActionType } from '../types/database';
+import type { Ability, AbilityScore, SpellSlot, Spell, Weapon, Feature, ActionType, FeatureRestType } from '../types/database';
 import type { GuestCharacterData, GuestScoreData } from './GuestCharacterBuilder';
 import { ABILITIES, ABILITY_NAMES, getModifier, formatModifier, getProficiencyBonus, getPreparedSpellLimit } from '../constants/dnd';
 import { SpellSlots } from './SpellSlots';
@@ -173,7 +173,14 @@ export function GuestSheetPreview({
   }, []);
 
   // ── Feature mutations ──
-  const addFeature = useCallback(async (title: string, description: string, source: string, actionType: ActionType = 'other', maxUses: number | null = null) => {
+  const addFeature = useCallback(async (
+    title: string,
+    description: string,
+    source: string,
+    actionType: ActionType = 'other',
+    maxUses: number | null = null,
+    restType: FeatureRestType = 'long_rest',
+  ) => {
     const feature: Feature = {
       id: crypto.randomUUID(),
       character_id: 'guest',
@@ -183,12 +190,13 @@ export function GuestSheetPreview({
       action_type: actionType,
       max_uses: maxUses,
       used_uses: 0,
+      rest_type: restType,
       created_at: new Date().toISOString(),
     };
     setExtras((prev) => ({ ...prev, features: [...prev.features, feature] }));
   }, []);
 
-  const updateFeature = useCallback(async (id: string, updates: Partial<Pick<Feature, 'title' | 'description' | 'source' | 'action_type' | 'max_uses' | 'used_uses'>>) => {
+  const updateFeature = useCallback(async (id: string, updates: Partial<Pick<Feature, 'title' | 'description' | 'source' | 'action_type' | 'max_uses' | 'used_uses' | 'rest_type'>>) => {
     setExtras((prev) => ({
       ...prev,
       features: prev.features.map((f) => f.id === id ? { ...f, ...updates } : f),

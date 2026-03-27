@@ -88,6 +88,7 @@ create table features (
   action_type   text not null default 'other' check (action_type in ('action','bonus_action','reaction','other')),
   max_uses      integer default null,
   used_uses     integer not null default 0,
+  rest_type     text not null default 'long_rest' check (rest_type in ('long_rest','short_rest')),
   created_at    timestamptz not null default now()
 );
 
@@ -697,8 +698,8 @@ begin
   select v_new_char_id, name, quantity, weight, notes
   from inventory_items where character_id = v_source_char_id;
 
-  insert into features (character_id, title, description, source, action_type, max_uses, used_uses)
-  select v_new_char_id, title, description, source, action_type, max_uses, 0
+  insert into features (character_id, title, description, source, action_type, max_uses, used_uses, rest_type)
+  select v_new_char_id, title, description, source, action_type, max_uses, 0, rest_type
   from features where character_id = v_source_char_id;
 
   insert into weapons (character_id, name, damage_dice, damage_type, ability_mod, proficient, action_type)
@@ -778,3 +779,17 @@ grant execute on function public.copy_shared_character(uuid) to authenticated;
 --   ALTER TABLE characters ADD COLUMN IF NOT EXISTS primary_casting_class text;
 --
 --   -- Create character_classes table (run full CREATE TABLE + RLS from above)
+--
+-- =================================================================
+--  MIGRATION: Feature Rest Type
+-- =================================================================
+-- Run these statements if upgrading an existing database:
+--
+--   ALTER TABLE features ADD COLUMN IF NOT EXISTS rest_type text;
+--   UPDATE features SET rest_type = 'long_rest' WHERE rest_type IS NULL;
+--   ALTER TABLE features ALTER COLUMN rest_type SET DEFAULT 'long_rest';
+--   ALTER TABLE features ALTER COLUMN rest_type SET NOT NULL;
+--   ALTER TABLE features DROP CONSTRAINT IF EXISTS features_rest_type_check;
+--   ALTER TABLE features ADD CONSTRAINT features_rest_type_check CHECK (rest_type in ('long_rest','short_rest'));
+--
+--   -- Update copy_shared_character function (re-run the CREATE OR REPLACE above)

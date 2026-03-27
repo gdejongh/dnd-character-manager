@@ -70,6 +70,7 @@ export interface InventoryItem {
 }
 
 export type ActionType = 'action' | 'bonus_action' | 'reaction' | 'other';
+export type FeatureRestType = 'long_rest' | 'short_rest';
 
 export interface Feature {
   id: string;
@@ -80,6 +81,7 @@ export interface Feature {
   action_type: ActionType;
   max_uses: number | null;
   used_uses: number;
+  rest_type: FeatureRestType;
   created_at: string;
 }
 

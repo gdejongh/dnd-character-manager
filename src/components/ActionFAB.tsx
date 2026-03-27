@@ -11,6 +11,7 @@ interface ActionFABProps {
   maxHp: number;
   onRestoreHp?: (amount: number) => Promise<void> | void;
   onRestoreWarlockSlots?: () => Promise<void> | void;
+  onRestoreShortRestUses?: () => Promise<void> | void;
   // Long rest
   onRestoreSlots: () => Promise<void> | void;
   onRestoreUses: () => Promise<void> | void;
@@ -26,6 +27,7 @@ export function ActionFAB({
   maxHp,
   onRestoreHp,
   onRestoreWarlockSlots,
+  onRestoreShortRestUses,
   onRestoreSlots,
   onRestoreUses,
   onResetDeathSaves,
@@ -49,10 +51,12 @@ export function ActionFAB({
 
       if (healed > 0 && onRestoreHp) await onRestoreHp(healed);
       if (isWarlock && onRestoreWarlockSlots) await onRestoreWarlockSlots();
+      if (onRestoreShortRestUses) await onRestoreShortRestUses();
 
       const updates: string[] = [];
       if (healed > 0) updates.push(`restored ${healed} HP`);
       if (isWarlock) updates.push('pact slots restored');
+      if (onRestoreShortRestUses) updates.push('short-rest features restored');
       showToast(updates.length > 0 ? `Short Rest complete — ${updates.join(' · ')} ✓` : 'Short Rest complete ✓');
     } finally {
       setResting(false);

@@ -233,7 +233,7 @@ function App() {
 
             if (extras.features?.length) {
               await supabase.from('features').insert(
-                extras.features.map((f: { title: string; description: string; source: string; action_type: string; max_uses: number | null; used_uses: number }) => ({
+                extras.features.map((f: { title: string; description: string; source: string; action_type: string; max_uses: number | null; used_uses: number; rest_type?: 'long_rest' | 'short_rest' }) => ({
                   character_id: created.id,
                   title: f.title,
                   description: f.description,
@@ -241,6 +241,7 @@ function App() {
                   action_type: f.action_type,
                   max_uses: f.max_uses,
                   used_uses: f.used_uses,
+                  rest_type: f.rest_type ?? 'long_rest',
                 })),
               );
             }
@@ -309,7 +310,7 @@ function App() {
   const { spells, addSpell, updateSpell, deleteSpell } =
     useSpells(selectedCharacterId);
   const { items, addItem, updateItem, deleteItem } = useInventory(selectedCharacterId);
-  const { features, addFeature, updateFeature, resetAllUses, deleteFeature } = useFeatures(selectedCharacterId);
+  const { features, addFeature, updateFeature, resetAllUses, resetUsesByRestType, deleteFeature } = useFeatures(selectedCharacterId);
   const { weapons, addWeapon, updateWeapon, deleteWeapon } = useWeapons(selectedCharacterId);
   const { notes, loading: notesLoading, updateContent } = useNotes(selectedCharacterId);
   const { uploading: imageUploading, error: imageError, uploadImage, deleteImage } =
@@ -811,6 +812,7 @@ function App() {
             return updateCharacter({ current_hp: nextHp });
           }}
           onRestoreWarlockSlots={charIsWarlock ? resetAll : undefined}
+          onRestoreShortRestUses={() => resetUsesByRestType('short_rest')}
           onRestoreSlots={resetAll}
           onRestoreUses={resetAllUses}
           onResetDeathSaves={() => updateCharacter({ death_save_successes: 0, death_save_failures: 0 })}

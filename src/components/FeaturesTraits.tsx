@@ -1,14 +1,14 @@
 import { useState, useRef, useCallback } from 'react';
 import type { FormEvent, TouchEvent as ReactTouchEvent } from 'react';
-import type { Feature, ActionType } from '../types/database';
+import type { Feature, ActionType, FeatureRestType } from '../types/database';
 import { ActionTypePicker, ActionTypeBadge, ActionTypeFilterBar } from './ActionType';
 import type { ActionTypeFilter } from '../constants/actionTypes';
 import { Swords, Trash2, Pencil } from 'lucide-react';
 
 interface FeaturesTraitsProps {
   features: Feature[];
-  onAdd: (title: string, description: string, source: string, actionType: ActionType, maxUses: number | null) => void;
-  onUpdate: (id: string, updates: Partial<Pick<Feature, 'title' | 'description' | 'source' | 'action_type' | 'max_uses' | 'used_uses'>>) => void;
+  onAdd: (title: string, description: string, source: string, actionType: ActionType, maxUses: number | null, restType: FeatureRestType) => void;
+  onUpdate: (id: string, updates: Partial<Pick<Feature, 'title' | 'description' | 'source' | 'action_type' | 'max_uses' | 'used_uses' | 'rest_type'>>) => void;
   onDelete: (id: string) => void;
 }
 
@@ -19,6 +19,7 @@ export function FeaturesTraits({ features, onAdd, onUpdate, onDelete }: Features
   const [source, setSource] = useState('');
   const [actionType, setActionType] = useState<ActionType>('other');
   const [maxUses, setMaxUses] = useState('');
+  const [restType, setRestType] = useState<FeatureRestType>('long_rest');
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [actionFilter, setActionFilter] = useState<ActionTypeFilter>('all');
 
@@ -31,12 +32,13 @@ export function FeaturesTraits({ features, onAdd, onUpdate, onDelete }: Features
     e.preventDefault();
     if (!title.trim()) return;
     const parsedUses = maxUses.trim() ? parseInt(maxUses, 10) : null;
-    onAdd(title.trim(), description.trim(), source.trim(), actionType, parsedUses && parsedUses > 0 ? parsedUses : null);
+    onAdd(title.trim(), description.trim(), source.trim(), actionType, parsedUses && parsedUses > 0 ? parsedUses : null, restType);
     setTitle('');
     setDescription('');
     setSource('');
     setActionType('other');
     setMaxUses('');
+    setRestType('long_rest');
     setShowForm(false);
   }
 
@@ -139,8 +141,41 @@ export function FeaturesTraits({ features, onAdd, onUpdate, onDelete }: Features
               value={maxUses}
               onChange={(e) => setMaxUses(e.target.value)}
               min={1}
-              max={99}
-            />
+                max={99}
+              />
+          </div>
+          <div>
+            <span className="text-[10px] uppercase tracking-wider font-semibold mb-1 block" style={{ color: 'var(--text)', fontFamily: 'var(--heading)' }}>
+              Refills On
+            </span>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setRestType('long_rest')}
+                className="px-3 py-2 rounded-lg text-xs cursor-pointer"
+                style={{
+                  background: restType === 'long_rest' ? 'var(--accent-bg)' : 'transparent',
+                  color: restType === 'long_rest' ? 'var(--accent)' : 'var(--text)',
+                  border: `1px solid ${restType === 'long_rest' ? 'var(--accent-border)' : 'var(--border)'}`,
+                  fontFamily: 'var(--heading)',
+                }}
+              >
+                Long Rest
+              </button>
+              <button
+                type="button"
+                onClick={() => setRestType('short_rest')}
+                className="px-3 py-2 rounded-lg text-xs cursor-pointer"
+                style={{
+                  background: restType === 'short_rest' ? 'var(--accent-bg)' : 'transparent',
+                  color: restType === 'short_rest' ? 'var(--accent)' : 'var(--text)',
+                  border: `1px solid ${restType === 'short_rest' ? 'var(--accent-border)' : 'var(--border)'}`,
+                  fontFamily: 'var(--heading)',
+                }}
+              >
+                Short Rest
+              </button>
+            </div>
           </div>
           <div className="flex gap-3">
             <button
@@ -184,7 +219,7 @@ function FeatureCard({
   feature: Feature;
   isExpanded: boolean;
   onToggle: () => void;
-  onUpdate: (updates: Partial<Pick<Feature, 'title' | 'description' | 'source' | 'action_type' | 'max_uses' | 'used_uses'>>) => void;
+  onUpdate: (updates: Partial<Pick<Feature, 'title' | 'description' | 'source' | 'action_type' | 'max_uses' | 'used_uses' | 'rest_type'>>) => void;
   onDelete: () => void;
 }) {
   const cardRef = useRef<HTMLDivElement>(null);
@@ -198,6 +233,7 @@ function FeatureCard({
   const [editSource, setEditSource] = useState(feature.source);
   const [editActionType, setEditActionType] = useState<ActionType>(feature.action_type ?? 'other');
   const [editMaxUses, setEditMaxUses] = useState(feature.max_uses !== null ? String(feature.max_uses) : '');
+  const [editRestType, setEditRestType] = useState<FeatureRestType>(feature.rest_type ?? 'long_rest');
 
   function isInteractiveTarget(target: EventTarget | null): boolean {
     if (!(target instanceof HTMLElement)) return false;
@@ -210,6 +246,7 @@ function FeatureCard({
     setEditSource(feature.source);
     setEditActionType(feature.action_type ?? 'other');
     setEditMaxUses(feature.max_uses !== null ? String(feature.max_uses) : '');
+    setEditRestType(feature.rest_type ?? 'long_rest');
     resetSwipe();
     setIsEditing(true);
   }
@@ -223,6 +260,7 @@ function FeatureCard({
       source: editSource.trim(),
       action_type: editActionType,
       max_uses: parsedUses && parsedUses > 0 ? parsedUses : null,
+      rest_type: editRestType,
     });
     setIsEditing(false);
   }
@@ -450,6 +488,39 @@ function FeatureCard({
                 min={1}
                 max={99}
               />
+            </div>
+            <div>
+              <span className="text-[10px] uppercase tracking-wider font-semibold mb-1 block" style={{ color: 'var(--text)', fontFamily: 'var(--heading)' }}>
+                Refills On
+              </span>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setEditRestType('long_rest')}
+                  className="px-3 py-2 rounded-lg text-xs cursor-pointer"
+                  style={{
+                    background: editRestType === 'long_rest' ? 'var(--accent-bg)' : 'transparent',
+                    color: editRestType === 'long_rest' ? 'var(--accent)' : 'var(--text)',
+                    border: `1px solid ${editRestType === 'long_rest' ? 'var(--accent-border)' : 'var(--border)'}`,
+                    fontFamily: 'var(--heading)',
+                  }}
+                >
+                  Long Rest
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setEditRestType('short_rest')}
+                  className="px-3 py-2 rounded-lg text-xs cursor-pointer"
+                  style={{
+                    background: editRestType === 'short_rest' ? 'var(--accent-bg)' : 'transparent',
+                    color: editRestType === 'short_rest' ? 'var(--accent)' : 'var(--text)',
+                    border: `1px solid ${editRestType === 'short_rest' ? 'var(--accent-border)' : 'var(--border)'}`,
+                    fontFamily: 'var(--heading)',
+                  }}
+                >
+                  Short Rest
+                </button>
+              </div>
             </div>
             <div className="flex gap-2">
               <button

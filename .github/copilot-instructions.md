@@ -39,6 +39,10 @@ Every data hook (`useAbilityScores`, `useSpellSlots`, `useInventory`, etc.) foll
 
 `src/types/database.ts` contains hand-written interfaces that mirror the Supabase table schemas exactly (snake_case column names). When modifying `schema.sql`, update these types to match.
 
+### SQL Change Responses
+
+When a change introduces or modifies SQL (schema changes, migrations, functions, policies, triggers, indexes, or seed data), always include the exact runnable SQL in the response. Provide copy/paste-ready statements in a fenced `sql` code block so the user can run them directly in Supabase SQL Editor.
+
 ### Styling
 
 The app uses a **dark fantasy theme** with gold accents. Theming is done through CSS custom properties defined in `src/index.css` (e.g., `--bg`, `--text`, `--accent`, `--border`). Components apply these via inline `style` props:
