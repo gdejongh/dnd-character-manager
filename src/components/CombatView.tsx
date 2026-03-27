@@ -806,21 +806,7 @@ export function CombatView({
         );
       })()}
 
-      {/* ── Inspiration ────────────────────────────────────────────────── */}
-      {character.inspiration && (
-        <div
-          className="flex items-center gap-2 px-3 py-1.5 rounded-lg"
-          style={{
-            background: 'rgba(250, 204, 21, 0.08)',
-            border: '1px solid rgba(250, 204, 21, 0.3)',
-          }}
-        >
-          <Sparkles size={14} style={{ color: '#facc15' }} />
-          <span className="text-xs font-semibold" style={{ color: '#facc15', fontFamily: 'var(--heading)' }}>
-            Inspired
-          </span>
-        </div>
-      )}
+ 
 
       {/* ── Ability Scores Quick Ref ───────────────────────────────────── */}
       <div className="grid grid-cols-6 gap-1.5">

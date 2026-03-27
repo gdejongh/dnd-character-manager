@@ -41,7 +41,7 @@ import { LiveCombat } from './components/LiveCombat';
 import { ExportPdfButton } from './components/ExportPdf';
 import { exportCharacterPdf } from './lib/exportPdf';
 import type { PdfStyle } from './lib/exportPdf';
-import { Users, Copy, Eye, ScrollText, Sparkles, HelpCircle } from 'lucide-react';
+import { Users, Copy, Eye, ScrollText, HelpCircle } from 'lucide-react';
 import { QuickReference } from './components/QuickReference';
 import { DiceRoller } from './components/DiceRoller';
 import { WildShapeModal } from './components/WildShapeModal';
@@ -601,21 +601,7 @@ function App() {
           <Users size={14} /> All Characters
         </button>
         <div className="flex-1" />
-        {!isReadOnly && (
-          <button
-            onClick={() => updateCharacter({ inspiration: !character.inspiration })}
-            className="p-2 rounded-lg bg-transparent cursor-pointer shrink-0 flex items-center justify-center transition-all"
-            style={{
-              color: character.inspiration ? '#facc15' : 'var(--text-muted)',
-              border: `1px solid ${character.inspiration ? 'rgba(250, 204, 21, 0.4)' : 'var(--border)'}`,
-              background: character.inspiration ? 'rgba(250, 204, 21, 0.08)' : 'transparent',
-              boxShadow: character.inspiration ? '0 0 12px rgba(250, 204, 21, 0.2)' : 'none',
-            }}
-            title={character.inspiration ? 'Has Inspiration — tap to remove' : 'No Inspiration — tap to grant'}
-          >
-            <Sparkles size={16} />
-          </button>
-        )}
+ 
         <button
           onClick={() => setShowQuickRef(true)}
           className="p-2 rounded-lg bg-transparent cursor-pointer shrink-0 flex items-center justify-center"
