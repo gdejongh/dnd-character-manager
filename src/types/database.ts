@@ -39,6 +39,7 @@ export interface Character {
   wild_shape_beast_burrow_speed: number | null;
   image_url: string | null;
   image_position: number;
+  theme: string | null;
   created_at: string;
   updated_at: string;
 }

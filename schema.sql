@@ -43,6 +43,7 @@ create table characters (
   wild_shape_beast_fly_speed integer,
   wild_shape_beast_climb_speed integer,
   wild_shape_beast_burrow_speed integer,
+  theme       text,
   created_at  timestamptz not null default now(),
   updated_at  timestamptz not null default now()
 );
@@ -677,8 +678,8 @@ begin
     raise exception 'Share not found or not accepted';
   end if;
 
-  insert into characters (user_id, name, race, class, level, current_hp, max_hp, temp_hp, armor_class, skill_proficiencies, initiative_modifier, passive_perception, hit_dice_remaining, inspiration, speed, image_url, image_position)
-  select v_user_id, name || ' (Copy)', race, class, level, current_hp, max_hp, temp_hp, armor_class, skill_proficiencies, initiative_modifier, passive_perception, null, false, speed, image_url, image_position
+  insert into characters (user_id, name, race, class, level, current_hp, max_hp, temp_hp, armor_class, skill_proficiencies, initiative_modifier, passive_perception, hit_dice_remaining, inspiration, speed, image_url, image_position, theme)
+  select v_user_id, name || ' (Copy)', race, class, level, current_hp, max_hp, temp_hp, armor_class, skill_proficiencies, initiative_modifier, passive_perception, null, false, speed, image_url, image_position, theme
   from characters where id = v_source_char_id
   returning id into v_new_char_id;
 
@@ -793,3 +794,10 @@ grant execute on function public.copy_shared_character(uuid) to authenticated;
 --   ALTER TABLE features ADD CONSTRAINT features_rest_type_check CHECK (rest_type in ('long_rest','short_rest'));
 --
 --   -- Update copy_shared_character function (re-run the CREATE OR REPLACE above)
+--
+-- =================================================================
+--  MIGRATION: Character Themes
+-- =================================================================
+-- Run this statement if upgrading an existing database:
+--
+--   ALTER TABLE characters ADD COLUMN IF NOT EXISTS theme text;

@@ -48,6 +48,9 @@ import { WildShapeModal } from './components/WildShapeModal';
 import { ActionFAB } from './components/ActionFAB';
 import { useDiceRoller } from './hooks/useDiceRoller';
 import { buildQuickRolls } from './constants/dice';
+import { getThemeById, applyTheme, DEFAULT_THEME } from './constants/themes';
+import type { ThemeId } from './constants/themes';
+import { ThemePicker, ThemePickerButton } from './components/ThemePicker';
 import type { Ability } from './types/database';
 import type { Beast } from './constants/beasts';
 import './App.css';
@@ -321,6 +324,16 @@ function App() {
   // Wild Shape modal state
   const [showWildShapeModal, setShowWildShapeModal] = useState(false);
 
+  // Theme picker modal state
+  const [showThemePicker, setShowThemePicker] = useState(false);
+
+  // Apply theme when character loads or changes
+  useEffect(() => {
+    if (character) {
+      applyTheme(getThemeById(character.theme));
+    }
+  }, [character?.theme]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const handleActivateWildShape = useCallback((beast: Beast) => {
     updateCharacter({
       wild_shape_active: true,
@@ -589,7 +602,7 @@ function App() {
         }}
       >
         <button
-          onClick={() => { setSelectedCharacterId(null); setSharedViewShareId(null); }}
+          onClick={() => { setSelectedCharacterId(null); setSharedViewShareId(null); applyTheme(getThemeById(DEFAULT_THEME)); }}
           className="p-2 rounded-lg bg-transparent cursor-pointer shrink-0 flex items-center gap-1"
           style={{
             color: 'var(--accent)',
@@ -601,7 +614,10 @@ function App() {
           <Users size={14} /> All Characters
         </button>
         <div className="flex-1" />
- 
+
+        {!isReadOnly && (
+          <ThemePickerButton onClick={() => setShowThemePicker(true)} />
+        )}
         <button
           onClick={() => setShowQuickRef(true)}
           className="p-2 rounded-lg bg-transparent cursor-pointer shrink-0 flex items-center justify-center"
@@ -827,6 +843,18 @@ function App() {
       {/* Quick Reference Overlay */}
       {showQuickRef && (
         <QuickReference onClose={() => setShowQuickRef(false)} />
+      )}
+      {showThemePicker && character && (
+        <ThemePicker
+          currentTheme={character.theme}
+          onSelect={async (themeId: ThemeId) => {
+            applyTheme(getThemeById(themeId));
+            await updateCharacter({ theme: themeId });
+            setShowThemePicker(false);
+            showToast(`Theme: ${getThemeById(themeId).name}`);
+          }}
+          onClose={() => setShowThemePicker(false)}
+        />
       )}
       {showWildShapeModal && character && charIsDruid && (
         <WildShapeModal
