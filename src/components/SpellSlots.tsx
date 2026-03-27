@@ -22,6 +22,7 @@ interface SpellSlotsProps {
   onUpdateSpell: (id: string, updates: Partial<Pick<Spell, 'name' | 'description' | 'level' | 'prepared' | 'concentration' | 'action_type'>>) => void;
   onDeleteSpell: (id: string) => void;
   onSetConcentration: (spellId: string | null) => void;
+  readOnly?: boolean;
 }
 
 const LEVEL_LABELS: Record<number, string> = {
@@ -57,6 +58,7 @@ export function SpellSlots({
   onUpdateSpell,
   onDeleteSpell,
   onSetConcentration,
+  readOnly,
 }: SpellSlotsProps) {
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<'all' | 'prepared'>('all');
@@ -161,7 +163,7 @@ export function SpellSlots({
   return (
     <div className="flex flex-col gap-4 p-4 md:p-6 lg:p-8 animate-fade-in">
       <div className="max-w-5xl mx-auto w-full flex flex-col gap-4">
-      {hasSuggestedSlots && (
+      {hasSuggestedSlots && !readOnly && (
         <div
           className="flex items-center justify-between p-3 rounded-xl"
           style={{
@@ -196,19 +198,21 @@ export function SpellSlots({
       )}
 
       {/* Browse SRD Spells Button */}
-      <button
-        onClick={() => setShowSrdBrowser(true)}
-        className="flex items-center justify-center gap-2 w-full py-3 rounded-xl text-sm font-semibold cursor-pointer active:scale-[0.98] transition-transform"
-        style={{
-          background: 'linear-gradient(135deg, rgba(99,102,241,0.12), rgba(139,92,246,0.08))',
-          color: 'var(--spell-violet)',
-          border: '1px solid var(--spell-border)',
-          fontFamily: 'var(--heading)',
-          letterSpacing: '0.3px',
-        }}
-      >
-        <BookOpen size={15} /> Browse SRD Spells
-      </button>
+      {!readOnly && (
+        <button
+          onClick={() => setShowSrdBrowser(true)}
+          className="flex items-center justify-center gap-2 w-full py-3 rounded-xl text-sm font-semibold cursor-pointer active:scale-[0.98] transition-transform"
+          style={{
+            background: 'linear-gradient(135deg, rgba(99,102,241,0.12), rgba(139,92,246,0.08))',
+            color: 'var(--spell-violet)',
+            border: '1px solid var(--spell-border)',
+            fontFamily: 'var(--heading)',
+            letterSpacing: '0.3px',
+          }}
+        >
+          <BookOpen size={15} /> Browse SRD Spells
+        </button>
+      )}
 
       {/* SRD Spell Database Modal */}
       {showSrdBrowser && (
@@ -242,13 +246,15 @@ export function SpellSlots({
                 </span>
               </div>
             </div>
-            <button
-              onClick={() => onSetConcentration(null)}
-              className="px-3 py-1.5 rounded-lg text-[10px] font-semibold cursor-pointer active:scale-95 transition-transform"
-              style={{ background: 'rgba(251, 191, 36, 0.15)', color: '#fbbf24', border: '1px solid rgba(251, 191, 36, 0.3)', fontFamily: 'var(--heading)' }}
-            >
-              Drop
-            </button>
+            {!readOnly && (
+              <button
+                onClick={() => onSetConcentration(null)}
+                className="px-3 py-1.5 rounded-lg text-[10px] font-semibold cursor-pointer active:scale-95 transition-transform"
+                style={{ background: 'rgba(251, 191, 36, 0.15)', color: '#fbbf24', border: '1px solid rgba(251, 191, 36, 0.3)', fontFamily: 'var(--heading)' }}
+              >
+                Drop
+              </button>
+            )}
           </div>
         );
       })()}
@@ -396,8 +402,8 @@ export function SpellSlots({
                         return (
                           <button
                             key={i}
-                            onClick={() => handleSlotToggle(slot, i, isUsed)}
-                            className={`w-10 h-10 rounded-full flex items-center justify-center cursor-pointer transition-all ${isDraining ? 'slot-drain' : ''}`}
+                            onClick={() => { if (!readOnly) handleSlotToggle(slot, i, isUsed); }}
+                            className={`w-10 h-10 rounded-full flex items-center justify-center ${readOnly ? '' : 'cursor-pointer'} transition-all ${isDraining ? 'slot-drain' : ''}`}
                             style={{
                               background: isUsed
                                 ? 'var(--bg-raised)'
@@ -540,8 +546,8 @@ export function SpellSlots({
                           </div>
                         ) : (
                           <button
-                            onClick={(e) => { e.stopPropagation(); onUpdateSpell(spell.id, { prepared: !spell.prepared }); }}
-                            className="w-6 h-6 rounded flex items-center justify-center shrink-0 cursor-pointer"
+                            onClick={(e) => { e.stopPropagation(); if (!readOnly) onUpdateSpell(spell.id, { prepared: !spell.prepared }); }}
+                            className={`w-6 h-6 rounded flex items-center justify-center shrink-0 ${readOnly ? '' : 'cursor-pointer'}`}
                             style={{
                               background: isPrepared ? 'var(--spell-indigo)' : 'transparent',
                               border: isPrepared ? '2px solid var(--spell-indigo)' : '2px solid var(--border-light)',
@@ -593,6 +599,7 @@ export function SpellSlots({
                               No description.
                             </p>
                           )}
+                          {!readOnly && (
                           <div className="flex items-center gap-2 mt-3">
                             <button
                               onClick={() => startEdit(spell)}
@@ -621,6 +628,7 @@ export function SpellSlots({
                               )
                             )}
                           </div>
+                          )}
                         </div>
                       )}
                     </div>
@@ -635,7 +643,7 @@ export function SpellSlots({
                 </p>
               )}
 
-              {addingAtLevel === level ? (
+              {!readOnly && (addingAtLevel === level ? (
                 <form
                   onSubmit={handleAdd}
                   className="flex flex-col gap-2 p-3 rounded-xl"
@@ -714,7 +722,7 @@ export function SpellSlots({
                     + Add Spell
                   </button>
                 )
-              )}
+              ))}
             </div>
           </section>
         );

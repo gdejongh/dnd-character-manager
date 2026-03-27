@@ -32,6 +32,7 @@ interface WeaponsProps {
   onDelete: (id: string) => void;
   onAddDamageComponent: (weaponId: string, damageDice: string, damageType: string) => void;
   onRemoveDamageComponent: (weaponId: string, componentId: string) => void;
+  readOnly?: boolean;
 }
 
 const inputStyle = {
@@ -40,7 +41,7 @@ const inputStyle = {
   border: '1px solid var(--border)',
 };
 
-export function Weapons({ weapons, scores, level, onAdd, onUpdate, onDelete, onAddDamageComponent, onRemoveDamageComponent }: WeaponsProps) {
+export function Weapons({ weapons, scores, level, onAdd, onUpdate, onDelete, onAddDamageComponent, onRemoveDamageComponent, readOnly }: WeaponsProps) {
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
 
@@ -111,7 +112,7 @@ export function Weapons({ weapons, scores, level, onAdd, onUpdate, onDelete, onA
 
       <div className="md:grid md:grid-cols-2 md:gap-4 flex flex-col gap-4">
       {weapons.map((weapon) => (
-        editingId === weapon.id ? (
+        editingId === weapon.id && !readOnly ? (
           <WeaponEditCard
             key={weapon.id}
             weapon={weapon}
@@ -129,13 +130,14 @@ export function Weapons({ weapons, scores, level, onAdd, onUpdate, onDelete, onA
             level={level}
             onEdit={() => setEditingId(weapon.id)}
             onUpdate={onUpdate}
+            readOnly={readOnly}
           />
         )
       ))}
       </div>
 
       {/* Add Weapon Form */}
-      {showForm ? (
+      {!readOnly && (showForm ? (
         <form
           onSubmit={handleAdd}
           className="flex flex-col gap-3 p-4 rounded-xl"
@@ -301,7 +303,7 @@ export function Weapons({ weapons, scores, level, onAdd, onUpdate, onDelete, onA
         >
           + Add Weapon
         </button>
-      )}
+      ))}
       </div>
     </div>
   );
@@ -315,12 +317,14 @@ function WeaponCard({
   level,
   onEdit,
   onUpdate,
+  readOnly,
 }: {
   weapon: Weapon;
   abilityScoreMap: Record<Ability, number>;
   level: number;
   onEdit: () => void;
   onUpdate: WeaponsProps['onUpdate'];
+  readOnly?: boolean;
 }) {
   const atkBonus = getWeaponAttackBonus(level, abilityScoreMap, weapon.ability_mod, weapon.proficient);
   const dmgStr = formatWeaponDamage(weapon.damage_dice, abilityScoreMap, weapon.ability_mod, weapon.damage_type);
@@ -379,13 +383,15 @@ function WeaponCard({
               PROF
             </span>
           )}
-          <button
-            onClick={onEdit}
-            className="p-1.5 rounded-lg cursor-pointer bg-transparent"
-            style={{ color: 'var(--text)', border: 'none' }}
-          >
-            <Pencil size={14} />
-          </button>
+          {!readOnly && (
+            <button
+              onClick={onEdit}
+              className="p-1.5 rounded-lg cursor-pointer bg-transparent"
+              style={{ color: 'var(--text)', border: 'none' }}
+            >
+              <Pencil size={14} />
+            </button>
+          )}
         </div>
       </div>
 
@@ -397,6 +403,7 @@ function WeaponCard({
             usedCharges={weapon.used_charges}
             rechargeType={weapon.recharge_type}
             onToggle={(newUsed) => onUpdate(weapon.id, { used_charges: newUsed })}
+            readOnly={readOnly}
           />
         </div>
       )}
@@ -688,11 +695,13 @@ function ChargeDots({
   usedCharges,
   rechargeType,
   onToggle,
+  readOnly,
 }: {
   maxCharges: number;
   usedCharges: number;
   rechargeType: RechargeType | null;
   onToggle: (newUsed: number) => void;
+  readOnly?: boolean;
 }) {
   const remaining = maxCharges - usedCharges;
   const restLabel = rechargeType === 'short_rest' ? 'SR' : rechargeType === 'long_rest' ? 'LR' : null;
@@ -707,9 +716,10 @@ function ChargeDots({
             type="button"
             onClick={(e) => {
               e.stopPropagation();
+              if (readOnly) return;
               onToggle(isAvailable ? usedCharges + 1 : usedCharges - 1);
             }}
-            className="w-7 h-7 rounded-full cursor-pointer flex items-center justify-center transition-all"
+            className={`w-7 h-7 rounded-full ${readOnly ? '' : 'cursor-pointer'} flex items-center justify-center transition-all`}
             style={{
               background: isAvailable ? 'linear-gradient(135deg, var(--accent), var(--accent-bright))' : 'var(--bg-raised)',
               border: isAvailable ? '2px solid var(--accent)' : '2px solid var(--border)',

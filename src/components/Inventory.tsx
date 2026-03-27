@@ -14,9 +14,10 @@ interface InventoryProps {
     updates: Partial<Pick<InventoryItem, 'name' | 'quantity' | 'weight' | 'notes' | 'max_charges' | 'used_charges' | 'recharge_type' | 'resistances' | 'immunities'>>,
   ) => void;
   onDelete: (id: string) => void;
+  readOnly?: boolean;
 }
 
-export function Inventory({ items, strScore, onAdd, onUpdate, onDelete }: InventoryProps) {
+export function Inventory({ items, strScore, onAdd, onUpdate, onDelete, readOnly }: InventoryProps) {
   const [showForm, setShowForm] = useState(false);
   const [name, setName] = useState('');
   const [quantity, setQuantity] = useState('1');
@@ -162,12 +163,13 @@ export function Inventory({ items, strScore, onAdd, onUpdate, onDelete }: Invent
             onDoneEdit={() => setEditingId(null)}
             onUpdate={onUpdate}
             onDelete={() => onDelete(item.id)}
+            readOnly={readOnly}
           />
         ))}
       </div>
 
       {/* Add Item Form */}
-      {showForm ? (
+      {!readOnly && (showForm ? (
         <form
           onSubmit={handleAdd}
           className="flex flex-col gap-3 p-4 rounded-xl"
@@ -332,7 +334,7 @@ export function Inventory({ items, strScore, onAdd, onUpdate, onDelete }: Invent
         >
           + Add Item
         </button>
-      )}
+      ))}
       </div>
     </div>
   );
@@ -344,11 +346,13 @@ function ChargeDots({
   usedCharges,
   rechargeType,
   onToggle,
+  readOnly,
 }: {
   maxCharges: number;
   usedCharges: number;
   rechargeType: RechargeType | null;
   onToggle: (newUsed: number) => void;
+  readOnly?: boolean;
 }) {
   const remaining = maxCharges - usedCharges;
   const restLabel = rechargeType === 'short_rest' ? 'SR' : rechargeType === 'long_rest' ? 'LR' : null;
@@ -363,15 +367,14 @@ function ChargeDots({
             type="button"
             onClick={(e) => {
               e.stopPropagation();
+              if (readOnly) return;
               if (isAvailable) {
-                // Use a charge (mark next available as used)
                 onToggle(usedCharges + 1);
               } else {
-                // Refund from the rightmost used
                 onToggle(usedCharges - 1);
               }
             }}
-            className="w-7 h-7 rounded-full cursor-pointer flex items-center justify-center transition-all"
+            className={`w-7 h-7 rounded-full ${readOnly ? '' : 'cursor-pointer'} flex items-center justify-center transition-all`}
             style={{
               background: isAvailable ? 'linear-gradient(135deg, var(--accent), var(--accent-bright))' : 'var(--bg-raised)',
               border: isAvailable ? '2px solid var(--accent)' : '2px solid var(--border)',
@@ -413,6 +416,7 @@ function InventoryRow({
   onDoneEdit,
   onUpdate,
   onDelete,
+  readOnly,
 }: {
   item: InventoryItem;
   isEditing: boolean;
@@ -421,6 +425,7 @@ function InventoryRow({
   onDoneEdit: () => void;
   onUpdate: InventoryProps['onUpdate'];
   onDelete: () => void;
+  readOnly?: boolean;
 }) {
   const rowRef = useRef<HTMLDivElement>(null);
   const startXRef = useRef(0);
@@ -461,7 +466,7 @@ function InventoryRow({
     }
   }, [onDelete]);
 
-  if (isEditing) {
+  if (isEditing && !readOnly) {
     return (
       <div className="p-3 animate-fade-in" style={{ borderBottom: '1px solid var(--border)', background: 'var(--bg-raised)' }}>
         <div className="flex flex-col gap-2">
@@ -575,23 +580,25 @@ function InventoryRow({
 
   return (
     <div className="relative overflow-hidden" style={{ borderBottom: '1px solid var(--border)' }}>
+      {!readOnly && (
       <div
         className="absolute inset-0 flex items-center justify-end px-4"
         style={{ background: 'var(--danger)' }}
       >
         <Trash2 size={16} style={{ color: 'white' }} />
       </div>
+      )}
       <div
         ref={rowRef}
-        className="grid items-center px-4 py-3 cursor-pointer relative"
+        className={`grid items-center px-4 py-3 ${readOnly ? '' : 'cursor-pointer'} relative`}
         style={{ gridTemplateColumns: '1fr 50px 60px', background: 'var(--bg-surface)' }}
-        onClick={onEdit}
-        onTouchStart={handleTouchStart}
-        onTouchMove={handleTouchMove}
-        onTouchEnd={handleTouchEnd}
-        role="button"
-        tabIndex={0}
-        onKeyDown={(e) => e.key === 'Enter' && onEdit()}
+        onClick={readOnly ? undefined : onEdit}
+        onTouchStart={readOnly ? undefined : handleTouchStart}
+        onTouchMove={readOnly ? undefined : handleTouchMove}
+        onTouchEnd={readOnly ? undefined : handleTouchEnd}
+        role={readOnly ? undefined : 'button'}
+        tabIndex={readOnly ? undefined : 0}
+        onKeyDown={readOnly ? undefined : (e) => e.key === 'Enter' && onEdit()}
       >
         <div className="min-w-0">
           <div className="flex items-center gap-1.5">
@@ -613,6 +620,7 @@ function InventoryRow({
               usedCharges={item.used_charges}
               rechargeType={item.recharge_type}
               onToggle={(newUsed) => onUpdate(item.id, { used_charges: Math.max(0, Math.min(newUsed, item.max_charges!)) })}
+              readOnly={readOnly}
             />
           )}
           {/* Resistance/Immunity tags */}

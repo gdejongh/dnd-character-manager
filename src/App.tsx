@@ -798,7 +798,7 @@ function App() {
 
       {/* Tab content with fade transition */}
       <main id="main-content" className="flex-1 overflow-y-auto pb-24 lg:pb-6">
-        <div key={activeTab} className="animate-fade-in" style={isReadOnly ? { pointerEvents: 'none' } : undefined}>
+        <div key={activeTab} className="animate-fade-in">
           {activeTab === 'sheet' && (
             <CharacterSheet
               character={character}
@@ -844,6 +844,7 @@ function App() {
               onUpdateSpell={isReadOnly ? noOpAsync : updateSpell}
               onDeleteSpell={isReadOnly ? noOpAsync : deleteSpell}
               onSetConcentration={isReadOnly ? noOpAsync : (spellId: string | null) => updateCharacter({ concentration_spell_id: spellId })}
+              readOnly={isReadOnly}
             />
           )}
           {activeTab === 'items' && (
@@ -853,6 +854,7 @@ function App() {
               onAdd={isReadOnly ? noOpAsync : addItem}
               onUpdate={isReadOnly ? noOpAsync : updateItem}
               onDelete={isReadOnly ? noOpAsync : deleteItem}
+              readOnly={isReadOnly}
             />
           )}
           {activeTab === 'weapons' && (
@@ -865,6 +867,7 @@ function App() {
               onDelete={isReadOnly ? noOpAsync : deleteWeapon}
               onAddDamageComponent={isReadOnly ? noOpAsync : addDamageComponent}
               onRemoveDamageComponent={isReadOnly ? noOpAsync : removeDamageComponent}
+              readOnly={isReadOnly}
             />
           )}
           {activeTab === 'features' && (
@@ -873,6 +876,7 @@ function App() {
               onAdd={isReadOnly ? noOpAsync : addFeature}
               onUpdate={isReadOnly ? noOpAsync : updateFeature}
               onDelete={isReadOnly ? noOpAsync : deleteFeature}
+              readOnly={isReadOnly}
             />
           )}
           {activeTab === 'notes' && (

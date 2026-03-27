@@ -10,9 +10,10 @@ interface FeaturesTraitsProps {
   onAdd: (title: string, description: string, source: string, actionType: ActionType, maxUses: number | null, restType: FeatureRestType) => void;
   onUpdate: (id: string, updates: Partial<Pick<Feature, 'title' | 'description' | 'source' | 'action_type' | 'max_uses' | 'used_uses' | 'rest_type'>>) => void;
   onDelete: (id: string) => void;
+  readOnly?: boolean;
 }
 
-export function FeaturesTraits({ features, onAdd, onUpdate, onDelete }: FeaturesTraitsProps) {
+export function FeaturesTraits({ features, onAdd, onUpdate, onDelete, readOnly }: FeaturesTraitsProps) {
   const [showForm, setShowForm] = useState(false);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -83,6 +84,7 @@ export function FeaturesTraits({ features, onAdd, onUpdate, onDelete }: Features
           onToggle={() => setExpandedId(expandedId === feature.id ? null : feature.id)}
           onUpdate={(updates) => onUpdate(feature.id, updates)}
           onDelete={() => onDelete(feature.id)}
+          readOnly={readOnly}
         />
       ))}
       </div>
@@ -93,7 +95,7 @@ export function FeaturesTraits({ features, onAdd, onUpdate, onDelete }: Features
         </p>
       )}
 
-      {showForm ? (
+      {!readOnly && (showForm ? (
         <form
           onSubmit={handleAdd}
           className="flex flex-col gap-3 p-4 rounded-xl animate-fade-in"
@@ -203,7 +205,7 @@ export function FeaturesTraits({ features, onAdd, onUpdate, onDelete }: Features
         >
           + Add Feature
         </button>
-      )}
+      ))}
       </div>
     </div>
   );
@@ -215,12 +217,14 @@ function FeatureCard({
   onToggle,
   onUpdate,
   onDelete,
+  readOnly,
 }: {
   feature: Feature;
   isExpanded: boolean;
   onToggle: () => void;
   onUpdate: (updates: Partial<Pick<Feature, 'title' | 'description' | 'source' | 'action_type' | 'max_uses' | 'used_uses' | 'rest_type'>>) => void;
   onDelete: () => void;
+  readOnly?: boolean;
 }) {
   const cardRef = useRef<HTMLDivElement>(null);
   const startXRef = useRef(0);
@@ -333,10 +337,10 @@ function FeatureCard({
         ref={cardRef}
         className="relative p-4 rounded-xl"
         style={{ background: 'var(--bg-surface)' }}
-        onTouchStart={isEditing ? undefined : handleTouchStart}
-        onTouchMove={isEditing ? undefined : handleTouchMove}
-        onTouchEnd={isEditing ? undefined : handleTouchEnd}
-        onTouchCancel={isEditing ? undefined : () => { swipingRef.current = false; resetSwipe(); }}
+        onTouchStart={isEditing || readOnly ? undefined : handleTouchStart}
+        onTouchMove={isEditing || readOnly ? undefined : handleTouchMove}
+        onTouchEnd={isEditing || readOnly ? undefined : handleTouchEnd}
+        onTouchCancel={isEditing || readOnly ? undefined : () => { swipingRef.current = false; resetSwipe(); }}
         onDragStartCapture={(e) => {
           if (isInteractiveTarget(e.target)) e.stopPropagation();
         }}
@@ -381,13 +385,14 @@ function FeatureCard({
                       type="button"
                       onClick={(e) => {
                         e.stopPropagation();
+                        if (readOnly) return;
                         if (available) {
                           onUpdate({ used_uses: feature.used_uses + 1 });
                         } else {
                           onUpdate({ used_uses: Math.max(0, feature.used_uses - 1) });
                         }
                       }}
-                      className="w-7 h-7 rounded-full flex items-center justify-center cursor-pointer transition-all"
+                      className={`w-7 h-7 rounded-full flex items-center justify-center ${readOnly ? '' : 'cursor-pointer'} transition-all`}
                       style={{
                         background: available
                           ? 'linear-gradient(135deg, var(--accent), var(--accent-bright))'
@@ -424,6 +429,7 @@ function FeatureCard({
             >
               {feature.description || 'No description.'}
             </p>
+            {!readOnly && (
             <div className="flex gap-2 mt-3">
               <button
                 onClick={startEdit}
@@ -440,6 +446,7 @@ function FeatureCard({
                 <Trash2 size={11} /> Delete
               </button>
             </div>
+            )}
           </div>
         )}
 
