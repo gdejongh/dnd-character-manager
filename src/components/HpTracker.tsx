@@ -7,7 +7,7 @@ import { CONDITIONS, isDruid, WILD_SHAPE_RULES } from '../constants/dnd';
 interface HpTrackerProps {
   character: Character;
   onUpdate: (
-    updates: Partial<Pick<Character, 'current_hp' | 'max_hp' | 'temp_hp' | 'armor_class' | 'death_save_successes' | 'death_save_failures' | 'conditions' | 'wild_shape_active' | 'wild_shape_beast_name' | 'wild_shape_current_hp' | 'wild_shape_max_hp' | 'wild_shape_beast_ac' | 'wild_shape_beast_str' | 'wild_shape_beast_dex' | 'wild_shape_beast_con' | 'wild_shape_beast_speed' | 'wild_shape_beast_swim_speed' | 'wild_shape_beast_fly_speed' | 'wild_shape_beast_climb_speed' | 'wild_shape_beast_burrow_speed'>>,
+    updates: Partial<Pick<Character, 'current_hp' | 'max_hp' | 'temp_hp' | 'armor_class' | 'death_save_successes' | 'death_save_failures' | 'conditions' | 'hit_dice_remaining' | 'wild_shape_active' | 'wild_shape_beast_name' | 'wild_shape_current_hp' | 'wild_shape_max_hp' | 'wild_shape_beast_ac' | 'wild_shape_beast_str' | 'wild_shape_beast_dex' | 'wild_shape_beast_con' | 'wild_shape_beast_speed' | 'wild_shape_beast_swim_speed' | 'wild_shape_beast_fly_speed' | 'wild_shape_beast_climb_speed' | 'wild_shape_beast_burrow_speed'>>,
   ) => void;
   onOpenWildShapeModal?: () => void;
   charIsDruid?: boolean;
@@ -522,6 +522,69 @@ export function HpTracker({ character, onUpdate, onOpenWildShapeModal, charIsDru
             </span>
           </div>
         )}
+      </div>
+
+      {/* Hit Dice */}
+      <div
+        className="w-full p-4 rounded-xl"
+        style={{ border: '1px solid var(--border)', background: 'var(--bg-surface)' }}
+      >
+        <span
+          className="text-xs uppercase tracking-widest font-semibold block mb-3"
+          style={{ color: 'var(--text)', fontFamily: 'var(--heading)', letterSpacing: '2px' }}
+        >
+          🎲 Hit Dice
+        </span>
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2">
+            <span className="text-2xl font-bold" style={{ color: 'var(--accent)', fontFamily: 'var(--mono)' }}>
+              {character.hit_dice_remaining ?? character.level}
+            </span>
+            <span className="text-sm" style={{ color: 'var(--text)' }}>
+              / {character.level}
+            </span>
+          </div>
+          <div className="flex gap-2 ml-auto">
+            <button
+              onClick={() => {
+                const remaining = character.hit_dice_remaining ?? character.level;
+                if (remaining > 0) onUpdate({ hit_dice_remaining: remaining - 1 });
+              }}
+              className="px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer"
+              style={{
+                background: 'rgba(239, 68, 68, 0.1)',
+                color: '#ef4444',
+                border: '1px solid rgba(239, 68, 68, 0.3)',
+                opacity: (character.hit_dice_remaining ?? character.level) > 0 ? 1 : 0.4,
+              }}
+              disabled={(character.hit_dice_remaining ?? character.level) <= 0}
+              title="Spend a hit die"
+            >
+              Spend
+            </button>
+            <button
+              onClick={() => {
+                const remaining = character.hit_dice_remaining ?? character.level;
+                const recover = Math.max(1, Math.floor(character.level / 2));
+                onUpdate({ hit_dice_remaining: Math.min(character.level, remaining + recover) });
+              }}
+              className="px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer"
+              style={{
+                background: 'rgba(34, 197, 94, 0.1)',
+                color: '#22c55e',
+                border: '1px solid rgba(34, 197, 94, 0.3)',
+                opacity: (character.hit_dice_remaining ?? character.level) < character.level ? 1 : 0.4,
+              }}
+              disabled={(character.hit_dice_remaining ?? character.level) >= character.level}
+              title="Recover half your level (rounded down, min 1) on long rest"
+            >
+              Long Rest
+            </button>
+          </div>
+        </div>
+        <span className="text-[10px] mt-1 block" style={{ color: 'var(--text-muted)' }}>
+          Spend during short rest to heal. Recover {Math.max(1, Math.floor(character.level / 2))} on long rest.
+        </span>
       </div>
 
       {/* Wild Shape Section (Druids only) */}

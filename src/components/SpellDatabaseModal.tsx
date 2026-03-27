@@ -4,7 +4,7 @@ import { X } from 'lucide-react';
 
 interface SpellDatabaseModalProps {
   characterClass?: string;
-  onAddSpell: (name: string, description: string, level: number, actionType: ActionType, concentration: boolean) => void;
+  onAddSpell: (name: string, description: string, level: number, actionType: ActionType, concentration: boolean, ritual: boolean) => void;
   onClose: () => void;
 }
 

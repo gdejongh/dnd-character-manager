@@ -153,7 +153,7 @@ export function Inventory({ items, strScore, onAdd, onUpdate, onDelete, readOnly
           </div>
         )}
 
-        {items.map((item) => (
+        {[...items].sort((a, b) => a.name.localeCompare(b.name)).map((item) => (
           <InventoryRow
             key={item.id}
             item={item}

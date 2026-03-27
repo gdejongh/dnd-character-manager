@@ -111,7 +111,7 @@ export function GuestSheetPreview({
   }, []);
 
   // ── Spell mutations ──
-  const addSpell = useCallback(async (name: string, description: string, level: number, actionType: ActionType = 'action', concentration: boolean = false) => {
+  const addSpell = useCallback(async (name: string, description: string, level: number, actionType: ActionType = 'action', concentration: boolean = false, ritual: boolean = false) => {
     const spell: Spell = {
       id: crypto.randomUUID(),
       character_id: 'guest',
@@ -120,13 +120,14 @@ export function GuestSheetPreview({
       level,
       prepared: false,
       concentration,
+      ritual,
       action_type: actionType,
       created_at: new Date().toISOString(),
     };
     setExtras((prev) => ({ ...prev, spells: [...prev.spells, spell] }));
   }, []);
 
-  const updateSpell = useCallback(async (id: string, updates: Partial<Pick<Spell, 'name' | 'description' | 'level' | 'prepared' | 'concentration' | 'action_type'>>) => {
+  const updateSpell = useCallback(async (id: string, updates: Partial<Pick<Spell, 'name' | 'description' | 'level' | 'prepared' | 'concentration' | 'ritual' | 'action_type'>>) => {
     setExtras((prev) => ({
       ...prev,
       spells: prev.spells.map((s) => s.id === id ? { ...s, ...updates } : s),
@@ -146,7 +147,7 @@ export function GuestSheetPreview({
   }, []);
 
   // ── Weapon mutations ──
-  const addWeapon = useCallback(async (name: string, damageDice: string, damageType: string, abilityMod: 'STR' | 'DEX', proficient: boolean, actionType: ActionType = 'action', maxCharges?: number | null, rechargeType?: RechargeType | null) => {
+  const addWeapon = useCallback(async (name: string, damageDice: string, damageType: string, abilityMod: Ability, proficient: boolean, actionType: ActionType = 'action', maxCharges?: number | null, rechargeType?: RechargeType | null) => {
     const weapon: Weapon = {
       id: crypto.randomUUID(),
       character_id: 'guest',

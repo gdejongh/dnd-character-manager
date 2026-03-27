@@ -898,7 +898,13 @@ function App() {
             />
           )}
           {activeTab === 'notes' && (
-            <Notes notes={notes} loading={notesLoading} onUpdateContent={isReadOnly ? noOpAsync : updateContent} />
+            <Notes
+              notes={notes}
+              loading={notesLoading}
+              onUpdateContent={isReadOnly ? noOpAsync : updateContent}
+              character={character}
+              onUpdateCharacter={isReadOnly ? undefined : updateCharacter}
+            />
           )}
           {activeTab === 'combat' && (
             <CombatView

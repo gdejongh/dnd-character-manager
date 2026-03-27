@@ -27,7 +27,7 @@ export function FeaturesTraits({ features, onAdd, onUpdate, onDelete, readOnly }
   const filteredFeatures = features.filter((f) => {
     if (actionFilter === 'all') return true;
     return (f.action_type ?? 'other') === actionFilter;
-  });
+  }).sort((a, b) => a.title.localeCompare(b.title));
 
   function handleAdd(e: FormEvent) {
     e.preventDefault();

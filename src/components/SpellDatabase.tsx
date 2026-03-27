@@ -6,7 +6,7 @@ import { Search, X, Filter, ChevronDown, Plus } from 'lucide-react';
 
 interface SpellDatabaseProps {
   characterClass?: string;
-  onAddSpell: (name: string, description: string, level: number, actionType: ActionType, concentration: boolean) => void;
+  onAddSpell: (name: string, description: string, level: number, actionType: ActionType, concentration: boolean, ritual: boolean) => void;
   onClose: () => void;
 }
 
@@ -69,7 +69,7 @@ export function SpellDatabase({ characterClass, onAddSpell }: SpellDatabaseProps
   function handleAddSpell(spell: SrdSpell) {
     const actionType = castingTimeToActionType(spell.castingTime);
     const description = formatSpellDescription(spell);
-    onAddSpell(spell.name, description, spell.level, actionType, spell.concentration);
+    onAddSpell(spell.name, description, spell.level, actionType, spell.concentration, spell.ritual);
     setAddedSpells((prev) => new Set(prev).add(spell.name));
   }
 

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import type { Weapon, WeaponDamageComponent, ActionType, RechargeType } from '../types/database';
+import type { Weapon, WeaponDamageComponent, ActionType, RechargeType, Ability } from '../types/database';
 import { supabase } from '../lib/supabase';
 
 export function useWeapons(characterId: string | null) {
@@ -64,7 +64,7 @@ export function useWeapons(characterId: string | null) {
     name: string,
     damageDice: string,
     damageType: string,
-    abilityMod: 'STR' | 'DEX',
+    abilityMod: Ability,
     proficient: boolean,
     actionType: ActionType = 'action',
     maxCharges?: number | null,

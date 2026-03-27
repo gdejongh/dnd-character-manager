@@ -14,6 +14,9 @@ export interface Character {
   death_save_failures: number;
   conditions: string[];
   skill_proficiencies: string[];
+  proficiencies: string[];
+  languages: string[];
+  gold: number;
   initiative_modifier: number | null;
   passive_perception: number | null;
   hit_dice_remaining: number | null;
@@ -24,6 +27,12 @@ export interface Character {
   climb_speed: number | null;
   burrow_speed: number | null;
   concentration_spell_id: string | null;
+  alignment: string;
+  backstory: string;
+  personality_traits: string;
+  ideals: string;
+  bonds: string;
+  flaws: string;
   wild_shape_active: boolean;
   wild_shape_beast_name: string | null;
   wild_shape_current_hp: number | null;
@@ -108,6 +117,7 @@ export interface Spell {
   level: number;
   prepared: boolean;
   concentration: boolean;
+  ritual: boolean;
   action_type: ActionType;
   created_at: string;
 }
@@ -118,7 +128,7 @@ export interface Weapon {
   name: string;
   damage_dice: string;
   damage_type: string;
-  ability_mod: 'STR' | 'DEX';
+  ability_mod: Ability;
   proficient: boolean;
   action_type: ActionType;
   max_charges: number | null;

@@ -43,6 +43,15 @@ create table characters (
   wild_shape_beast_fly_speed integer,
   wild_shape_beast_climb_speed integer,
   wild_shape_beast_burrow_speed integer,
+  gold        numeric not null default 0,
+  languages   text[] not null default '{}',
+  proficiencies text[] not null default '{}',
+  alignment   text not null default '',
+  backstory   text not null default '',
+  personality_traits text not null default '',
+  ideals      text not null default '',
+  bonds       text not null default '',
+  flaws       text not null default '',
   theme       text,
   created_at  timestamptz not null default now(),
   updated_at  timestamptz not null default now()
@@ -216,6 +225,7 @@ create table spells (
   level         integer not null default 0 check (level between 0 and 9),
   prepared      boolean not null default true,
   concentration boolean not null default false,
+  ritual        boolean not null default false,
   action_type   text not null default 'action' check (action_type in ('action','bonus_action','reaction','other')),
   created_at    timestamptz not null default now()
 );
@@ -242,7 +252,7 @@ create table weapons (
   name          text not null,
   damage_dice   text not null default '1d4',
   damage_type   text not null default 'slashing',
-  ability_mod   text not null default 'STR' check (ability_mod in ('STR','DEX')),
+  ability_mod   text not null default 'STR' check (ability_mod in ('STR','DEX','CON','INT','WIS','CHA')),
   proficient    boolean not null default true,
   action_type   text not null default 'action' check (action_type in ('action','bonus_action','reaction','other')),
   max_charges   integer,
@@ -719,8 +729,8 @@ begin
     raise exception 'Share not found or not accepted';
   end if;
 
-  insert into characters (user_id, name, race, class, level, current_hp, max_hp, temp_hp, armor_class, skill_proficiencies, initiative_modifier, passive_perception, hit_dice_remaining, inspiration, speed, image_url, image_position, theme)
-  select v_user_id, name || ' (Copy)', race, class, level, current_hp, max_hp, temp_hp, armor_class, skill_proficiencies, initiative_modifier, passive_perception, null, false, speed, image_url, image_position, theme
+  insert into characters (user_id, name, race, class, level, current_hp, max_hp, temp_hp, armor_class, skill_proficiencies, initiative_modifier, passive_perception, hit_dice_remaining, inspiration, speed, image_url, image_position, theme, gold, languages, proficiencies, alignment, backstory, personality_traits, ideals, bonds, flaws)
+  select v_user_id, name || ' (Copy)', race, class, level, current_hp, max_hp, temp_hp, armor_class, skill_proficiencies, initiative_modifier, passive_perception, null, false, speed, image_url, image_position, theme, gold, languages, proficiencies, alignment, backstory, personality_traits, ideals, bonds, flaws
   from characters where id = v_source_char_id
   returning id into v_new_char_id;
 
@@ -732,8 +742,8 @@ begin
   select v_new_char_id, level, total, 0
   from spell_slots where character_id = v_source_char_id;
 
-  insert into spells (character_id, name, description, level, prepared, concentration, action_type)
-  select v_new_char_id, name, description, level, prepared, concentration, action_type
+  insert into spells (character_id, name, description, level, prepared, concentration, ritual, action_type)
+  select v_new_char_id, name, description, level, prepared, concentration, ritual, action_type
   from spells where character_id = v_source_char_id;
 
   insert into inventory_items (character_id, name, quantity, weight, notes, max_charges, recharge_type, resistances, immunities)

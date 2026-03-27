@@ -15,12 +15,13 @@ import {
 } from '../constants/dnd';
 import { NumericInput } from './NumericInput';
 import { Camera, Trash2, Loader, Move, X, Pencil, Shield, Zap, Eye, RotateCcw, Plus } from 'lucide-react';
+import { TagEditor } from './TagEditor';
 
 interface CharacterSheetProps {
   character: Character;
   scores: AbilityScore[];
   onUpdateCharacter: (
-    updates: Partial<Pick<Character, 'name' | 'race' | 'class' | 'level' | 'armor_class' | 'speed' | 'swim_speed' | 'fly_speed' | 'climb_speed' | 'burrow_speed' | 'skill_proficiencies' | 'initiative_modifier' | 'passive_perception' | 'image_url' | 'image_position' | 'wild_shape_active' | 'wild_shape_current_hp' | 'wild_shape_max_hp' | 'wild_shape_beast_name'>>,
+    updates: Partial<Pick<Character, 'name' | 'race' | 'class' | 'level' | 'armor_class' | 'speed' | 'swim_speed' | 'fly_speed' | 'climb_speed' | 'burrow_speed' | 'skill_proficiencies' | 'initiative_modifier' | 'passive_perception' | 'image_url' | 'image_position' | 'wild_shape_active' | 'wild_shape_current_hp' | 'wild_shape_max_hp' | 'wild_shape_beast_name' | 'gold' | 'languages' | 'proficiencies' | 'inspiration' | 'alignment' | 'backstory' | 'personality_traits' | 'ideals' | 'bonds' | 'flaws' | 'hit_dice_remaining'>>,
   ) => void;
   onUpdateScore: (ability: string, score: number) => void;
   onToggleSavingThrow: (ability: string) => void;
@@ -451,13 +452,44 @@ export function CharacterSheet({
             autoFocus
           />
         ) : (
-          <h2
-            className="text-xl m-0 cursor-pointer"
-            style={{ color: 'var(--accent)', fontSize: '1.25rem' }}
-            onClick={() => setEditingField('name')}
-          >
-            {character.name}
-          </h2>
+          <div className="flex items-center gap-3">
+            <h2
+              className="text-xl m-0 cursor-pointer"
+              style={{ color: 'var(--accent)', fontSize: '1.25rem' }}
+              onClick={() => setEditingField('name')}
+            >
+              {character.name}
+            </h2>
+            {!readOnly && (
+              <button
+                onClick={() => onUpdateCharacter({ inspiration: !character.inspiration })}
+                className="shrink-0 w-8 h-8 rounded-full flex items-center justify-center cursor-pointer transition-all"
+                style={{
+                  background: character.inspiration ? 'rgba(251, 191, 36, 0.2)' : 'transparent',
+                  border: character.inspiration ? '2px solid #fbbf24' : '2px solid var(--border)',
+                  color: character.inspiration ? '#fbbf24' : 'var(--text-dim)',
+                  fontSize: '16px',
+                }}
+                title={character.inspiration ? 'Inspired! (click to remove)' : 'Grant Inspiration'}
+              >
+                ✦
+              </button>
+            )}
+            {readOnly && character.inspiration && (
+              <span
+                className="shrink-0 w-8 h-8 rounded-full flex items-center justify-center"
+                style={{
+                  background: 'rgba(251, 191, 36, 0.2)',
+                  border: '2px solid #fbbf24',
+                  color: '#fbbf24',
+                  fontSize: '16px',
+                }}
+                title="Inspired!"
+              >
+                ✦
+              </span>
+            )}
+          </div>
         )}
 
         {editingField === 'info' ? (
@@ -1119,6 +1151,55 @@ export function CharacterSheet({
           ))}
         </div>
       </section>
+
+      {/* Gold */}
+      <section className="px-4 pb-3">
+        <div className="flex items-center gap-3">
+          <span className="text-xs uppercase tracking-wider font-semibold" style={{ color: 'var(--accent)', fontFamily: 'var(--heading)' }}>
+            💰 Gold
+          </span>
+          {readOnly ? (
+            <span className="text-sm font-bold" style={{ color: 'var(--text-h)', fontFamily: 'var(--mono)' }}>
+              {character.gold ?? 0}
+            </span>
+          ) : (
+            <NumericInput
+              value={character.gold ?? 0}
+              onChange={(v) => onUpdateCharacter({ gold: v })}
+              min={0}
+              step={1}
+              style={{ width: 100 }}
+            />
+          )}
+        </div>
+      </section>
+
+      {/* Languages */}
+      <section className="px-4 pb-3">
+        <h3 className="text-xs uppercase tracking-wider font-semibold mb-2 mt-0" style={{ color: 'var(--accent)', fontFamily: 'var(--heading)' }}>
+          🗣 Languages
+        </h3>
+        <TagEditor
+          tags={character.languages ?? []}
+          onChange={(tags) => onUpdateCharacter({ languages: tags })}
+          placeholder="Add language…"
+          readOnly={readOnly}
+        />
+      </section>
+
+      {/* Proficiencies */}
+      <section className="px-4 pb-3">
+        <h3 className="text-xs uppercase tracking-wider font-semibold mb-2 mt-0" style={{ color: 'var(--accent)', fontFamily: 'var(--heading)' }}>
+          🛡 Proficiencies
+        </h3>
+        <TagEditor
+          tags={character.proficiencies ?? []}
+          onChange={(tags) => onUpdateCharacter({ proficiencies: tags })}
+          placeholder="Add proficiency…"
+          readOnly={readOnly}
+        />
+      </section>
+
       </div>
     </div>
   );

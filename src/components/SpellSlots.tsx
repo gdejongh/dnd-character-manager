@@ -18,8 +18,8 @@ interface SpellSlotsProps {
   onUpdateTotal: (level: number, total: number) => void;
   onSetSlotUsed: (level: number, used: number) => void;
   onAutoFillSlots: (slotTotals: Record<number, number>) => void;
-  onAddSpell: (name: string, description: string, level: number, actionType: ActionType, concentration: boolean) => void;
-  onUpdateSpell: (id: string, updates: Partial<Pick<Spell, 'name' | 'description' | 'level' | 'prepared' | 'concentration' | 'action_type'>>) => void;
+  onAddSpell: (name: string, description: string, level: number, actionType: ActionType, concentration: boolean, ritual: boolean) => void;
+  onUpdateSpell: (id: string, updates: Partial<Pick<Spell, 'name' | 'description' | 'level' | 'prepared' | 'concentration' | 'ritual' | 'action_type'>>) => void;
   onDeleteSpell: (id: string) => void;
   onSetConcentration: (spellId: string | null) => void;
   readOnly?: boolean;
@@ -70,6 +70,7 @@ export function SpellSlots({
   const [formDesc, setFormDesc] = useState('');
   const [formActionType, setFormActionType] = useState<ActionType>('action');
   const [formConcentration, setFormConcentration] = useState(false);
+  const [formRitual, setFormRitual] = useState(false);
   const [drainingSlot, setDrainingSlot] = useState<string | null>(null);
   const [showSrdBrowser, setShowSrdBrowser] = useState(false);
   const drainTimeoutRef = useRef<ReturnType<typeof setTimeout>>(undefined);
@@ -109,6 +110,7 @@ export function SpellSlots({
     setFormDesc('');
     setFormActionType('action');
     setFormConcentration(false);
+    setFormRitual(false);
   }
 
   function startEdit(spell: Spell) {
@@ -118,6 +120,7 @@ export function SpellSlots({
     setFormDesc(spell.description);
     setFormActionType(spell.action_type ?? 'action');
     setFormConcentration(spell.concentration ?? false);
+    setFormRitual(spell.ritual ?? false);
   }
 
   function cancelForm() {
@@ -127,22 +130,21 @@ export function SpellSlots({
     setFormDesc('');
     setFormActionType('action');
     setFormConcentration(false);
+    setFormRitual(false);
   }
 
   function handleAdd(e: FormEvent) {
     e.preventDefault();
     if (!formName.trim() || addingAtLevel === null) return;
-    onAddSpell(formName.trim(), formDesc.trim(), addingAtLevel, formActionType, addingAtLevel > 0 && formConcentration);
+    onAddSpell(formName.trim(), formDesc.trim(), addingAtLevel, formActionType, formConcentration, formRitual);
     cancelForm();
   }
 
   function handleSaveEdit(e: FormEvent) {
     e.preventDefault();
     if (!formName.trim() || !editingSpellId) return;
-    const editingSpell = spells.find(s => s.id === editingSpellId);
-    const conc = editingSpell && editingSpell.level > 0 ? formConcentration : false;
-    onUpdateSpell(editingSpellId, { name: formName.trim(), description: formDesc.trim(), action_type: formActionType, concentration: conc });
-    // If we un-marked concentration on the spell we're concentrating on, drop it
+    const conc = formConcentration;
+    onUpdateSpell(editingSpellId, { name: formName.trim(), description: formDesc.trim(), action_type: formActionType, concentration: conc, ritual: formRitual });
     if (!conc && concentrationSpellId === editingSpellId) {
       onSetConcentration(null);
     }
@@ -473,7 +475,7 @@ export function SpellSlots({
                         </span>
                         <ActionTypePicker value={formActionType} onChange={setFormActionType} />
                       </div>
-                      {spell.level > 0 && (
+                      <div className="flex gap-4">
                         <label className="flex items-center gap-2 cursor-pointer">
                           <button
                             type="button"
@@ -490,7 +492,23 @@ export function SpellSlots({
                           </button>
                           <span className="text-xs" style={{ color: 'var(--text)' }}>Concentration</span>
                         </label>
-                      )}
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <button
+                            type="button"
+                            onClick={() => setFormRitual(!formRitual)}
+                            className="w-5 h-5 rounded flex items-center justify-center shrink-0 cursor-pointer"
+                            style={{
+                              background: formRitual ? 'rgba(139, 92, 246, 0.2)' : 'transparent',
+                              border: formRitual ? '2px solid #8b5cf6' : '2px solid var(--border-light)',
+                              color: formRitual ? '#8b5cf6' : 'transparent',
+                              fontSize: '11px',
+                            }}
+                          >
+                            R
+                          </button>
+                          <span className="text-xs" style={{ color: 'var(--text)' }}>Ritual</span>
+                        </label>
+                      </div>
                       <div className="flex gap-2">
                         <button
                           type="submit"
@@ -578,6 +596,19 @@ export function SpellSlots({
                             title="Concentration"
                           >
                             C
+                          </span>
+                        )}
+                        {spell.ritual && (
+                          <span
+                            className="shrink-0 text-[9px] font-bold rounded px-1.5 py-0.5"
+                            style={{
+                              background: 'rgba(139, 92, 246, 0.08)',
+                              color: 'rgba(139, 92, 246, 0.7)',
+                              border: '1px solid rgba(139, 92, 246, 0.2)',
+                            }}
+                            title="Ritual"
+                          >
+                            R
                           </span>
                         )}
                         <span className="text-xs shrink-0" style={{ color: 'var(--spell-indigo)' }}>
@@ -672,7 +703,7 @@ export function SpellSlots({
                     </span>
                     <ActionTypePicker value={formActionType} onChange={setFormActionType} />
                   </div>
-                  {level > 0 && (
+                  <div className="flex gap-4">
                     <label className="flex items-center gap-2 cursor-pointer">
                       <button
                         type="button"
@@ -689,7 +720,23 @@ export function SpellSlots({
                       </button>
                       <span className="text-xs" style={{ color: 'var(--text)' }}>Concentration</span>
                     </label>
-                  )}
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <button
+                        type="button"
+                        onClick={() => setFormRitual(!formRitual)}
+                        className="w-5 h-5 rounded flex items-center justify-center shrink-0 cursor-pointer"
+                        style={{
+                          background: formRitual ? 'rgba(139, 92, 246, 0.2)' : 'transparent',
+                          border: formRitual ? '2px solid #8b5cf6' : '2px solid var(--border-light)',
+                          color: formRitual ? '#8b5cf6' : 'transparent',
+                          fontSize: '11px',
+                        }}
+                      >
+                        R
+                      </button>
+                      <span className="text-xs" style={{ color: 'var(--text)' }}>Ritual</span>
+                    </label>
+                  </div>
                   <div className="flex gap-2">
                     <button
                       type="submit"

@@ -19,7 +19,7 @@ interface WeaponsProps {
     name: string,
     damageDice: string,
     damageType: string,
-    abilityMod: 'STR' | 'DEX',
+    abilityMod: Ability,
     proficient: boolean,
     actionType: ActionType,
     maxCharges?: number | null,
@@ -49,7 +49,7 @@ export function Weapons({ weapons, scores, level, onAdd, onUpdate, onDelete, onA
   const [name, setName] = useState('');
   const [damageDice, setDamageDice] = useState('1d8');
   const [damageType, setDamageType] = useState('slashing');
-  const [abilityMod, setAbilityMod] = useState<'STR' | 'DEX'>('STR');
+  const [abilityMod, setAbilityMod] = useState<Ability>('STR');
   const [proficient, setProficient] = useState(true);
   const [actionType, setActionType] = useState<ActionType>('action');
   const [isMagicWeapon, setIsMagicWeapon] = useState(false);
@@ -189,12 +189,12 @@ export function Weapons({ weapons, scores, level, onAdd, onUpdate, onDelete, onA
                 Ability
               </label>
               <div className="flex gap-1.5">
-                {(['STR', 'DEX'] as const).map((ab) => (
+                {(['STR', 'DEX', 'CON', 'INT', 'WIS', 'CHA'] as const).map((ab) => (
                   <button
                     key={ab}
                     type="button"
                     onClick={() => setAbilityMod(ab)}
-                    className="px-4 py-2 rounded-lg text-xs font-bold cursor-pointer transition-all"
+                    className="px-2.5 py-2 rounded-lg text-xs font-bold cursor-pointer transition-all"
                     style={{
                       background: abilityMod === ab ? 'var(--accent-bg)' : 'var(--code-bg)',
                       color: abilityMod === ab ? 'var(--accent)' : 'var(--text)',
@@ -582,12 +582,12 @@ function WeaponEditCard({
             Ability
           </label>
           <div className="flex gap-1.5">
-            {(['STR', 'DEX'] as const).map((ab) => (
+            {(['STR', 'DEX', 'CON', 'INT', 'WIS', 'CHA'] as const).map((ab) => (
               <button
                 key={ab}
                 type="button"
                 onClick={() => onUpdate(weapon.id, { ability_mod: ab })}
-                className="px-4 py-2 rounded-lg text-xs font-bold cursor-pointer transition-all"
+                className="px-2.5 py-2 rounded-lg text-xs font-bold cursor-pointer transition-all"
                 style={{
                   background: weapon.ability_mod === ab ? 'var(--accent-bg)' : 'var(--code-bg)',
                   color: weapon.ability_mod === ab ? 'var(--accent)' : 'var(--text)',

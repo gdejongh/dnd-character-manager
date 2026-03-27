@@ -344,6 +344,7 @@ export interface ConditionInfo {
 export const CONDITIONS: ConditionInfo[] = [
   { name: 'Blinded', icon: '🙈', color: '#6b7280', description: 'Can\'t see. Auto-fail sight checks. Attacks have disadvantage; attacks against have advantage.' },
   { name: 'Charmed', icon: '💖', color: '#ec4899', description: 'Can\'t attack the charmer. Charmer has advantage on social checks.' },
+  { name: 'Concentrating', icon: '🔮', color: '#fbbf24', description: 'Maintaining a spell. Taking damage requires a CON save (DC 10 or half damage, whichever is higher) or the spell ends.' },
   { name: 'Deafened', icon: '🔇', color: '#6b7280', description: 'Can\'t hear. Auto-fail hearing checks.' },
   { name: 'Exhaustion', icon: '😩', color: '#f59e0b', description: 'Cumulative penalties. Level 6 = death.' },
   { name: 'Frightened', icon: '😨', color: '#a855f7', description: 'Disadvantage on checks/attacks while source is in sight. Can\'t willingly move closer.' },
