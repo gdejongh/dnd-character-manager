@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import type { DiceRoll, QuickRollConfig, DieType } from '../constants/dice';
 import { DICE } from '../constants/dice';
 import { X, Trash2, ChevronDown, ChevronRight } from 'lucide-react';
+import { NumericInput } from './NumericInput';
 
 interface DiceRollerProps {
   onClose: () => void;
@@ -354,10 +355,9 @@ export function DiceRoller({
           </div>
           <div className="flex items-center gap-2">
             <span className="text-xs" style={{ color: 'var(--text)' }}>Modifier:</span>
-            <input
-              type="number"
+            <NumericInput
               value={poolModifier}
-              onChange={(e) => setPoolModifier(parseInt(e.target.value) || 0)}
+              onChange={setPoolModifier}
               className="w-16 px-2 py-1 rounded-lg text-sm text-center outline-none"
               style={{ background: 'var(--code-bg)', color: 'var(--text-h)', border: '1px solid var(--border)' }}
             />

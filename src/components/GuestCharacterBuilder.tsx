@@ -3,6 +3,7 @@ import type { FormEvent } from 'react';
 import type { Ability } from '../types/database';
 import { ABILITIES, ABILITY_NAMES, getModifier, formatModifier, getHitDie } from '../constants/dnd';
 import { Shield, Swords, ChevronRight, ChevronLeft, Sparkles } from 'lucide-react';
+import { NumericInput } from './NumericInput';
 
 export interface GuestCharacterData {
   name: string;
@@ -241,12 +242,11 @@ export function GuestCharacterBuilder({ onComplete, onSignIn }: GuestCharacterBu
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs mb-1.5" style={{ color: 'var(--text)', letterSpacing: '0.3px' }}>Level</label>
-                  <input
-                    type="number"
+                  <NumericInput
                     min={1}
                     max={20}
                     value={level}
-                    onChange={(e) => setLevel(Math.max(1, Math.min(20, parseInt(e.target.value) || 1)))}
+                    onChange={setLevel}
                     className="w-full px-4 py-3 rounded-lg text-base outline-none"
                     style={inputStyle}
                   />
@@ -263,34 +263,31 @@ export function GuestCharacterBuilder({ onComplete, onSignIn }: GuestCharacterBu
                       Suggest
                     </button>
                   </div>
-                  <input
-                    type="number"
+                  <NumericInput
                     min={1}
                     value={maxHp}
-                    onChange={(e) => setMaxHp(Math.max(1, parseInt(e.target.value) || 1))}
+                    onChange={setMaxHp}
                     className="w-full px-4 py-3 rounded-lg text-base outline-none"
                     style={inputStyle}
                   />
                 </div>
                 <div>
                   <label className="block text-xs mb-1.5" style={{ color: 'var(--text)', letterSpacing: '0.3px' }}>Armor Class</label>
-                  <input
-                    type="number"
+                  <NumericInput
                     min={1}
                     value={armorClass}
-                    onChange={(e) => setArmorClass(Math.max(1, parseInt(e.target.value) || 10))}
+                    onChange={setArmorClass}
                     className="w-full px-4 py-3 rounded-lg text-base outline-none"
                     style={inputStyle}
                   />
                 </div>
                 <div>
                   <label className="block text-xs mb-1.5" style={{ color: 'var(--text)', letterSpacing: '0.3px' }}>Speed (ft)</label>
-                  <input
-                    type="number"
+                  <NumericInput
                     min={0}
                     step={5}
                     value={speed}
-                    onChange={(e) => setSpeed(Math.max(0, parseInt(e.target.value) || 30))}
+                    onChange={setSpeed}
                     className="w-full px-4 py-3 rounded-lg text-base outline-none"
                     style={inputStyle}
                   />
