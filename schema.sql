@@ -76,6 +76,9 @@ create table inventory_items (
   quantity      integer not null default 1,
   weight        numeric(10,2) not null default 0,
   notes         text not null default '',
+  max_charges   integer,
+  used_charges  integer not null default 0,
+  recharge_type text check (recharge_type in ('short_rest','long_rest')),
   created_at    timestamptz not null default now()
 );
 
@@ -801,3 +804,12 @@ grant execute on function public.copy_shared_character(uuid) to authenticated;
 -- Run this statement if upgrading an existing database:
 --
 --   ALTER TABLE characters ADD COLUMN IF NOT EXISTS theme text;
+--
+-- =================================================================
+--  MIGRATION: Inventory Item Charges
+-- =================================================================
+-- Run these statements if upgrading an existing database:
+--
+--   ALTER TABLE inventory_items ADD COLUMN IF NOT EXISTS max_charges integer;
+--   ALTER TABLE inventory_items ADD COLUMN IF NOT EXISTS used_charges integer NOT NULL DEFAULT 0;
+--   ALTER TABLE inventory_items ADD COLUMN IF NOT EXISTS recharge_type text CHECK (recharge_type IN ('short_rest', 'long_rest'));

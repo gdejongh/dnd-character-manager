@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import type { InventoryItem } from '../types/database';
+import type { InventoryItem, RechargeType } from '../types/database';
 import { supabase } from '../lib/supabase';
 
 export function useInventory(characterId: string | null) {
@@ -28,11 +28,26 @@ export function useInventory(characterId: string | null) {
     return () => { active = false; };
   }, [characterId]);
 
-  async function addItem(name: string, quantity: number, weight: number, notes: string) {
+  async function addItem(
+    name: string,
+    quantity: number,
+    weight: number,
+    notes: string,
+    maxCharges?: number | null,
+    rechargeType?: RechargeType | null,
+  ) {
     if (!characterId) return;
     const { data, error } = await supabase
       .from('inventory_items')
-      .insert({ character_id: characterId, name, quantity, weight, notes })
+      .insert({
+        character_id: characterId,
+        name,
+        quantity,
+        weight,
+        notes,
+        max_charges: maxCharges ?? null,
+        recharge_type: maxCharges ? (rechargeType ?? null) : null,
+      })
       .select()
       .single();
 
@@ -42,7 +57,7 @@ export function useInventory(characterId: string | null) {
 
   async function updateItem(
     id: string,
-    updates: Partial<Pick<InventoryItem, 'name' | 'quantity' | 'weight' | 'notes'>>,
+    updates: Partial<Pick<InventoryItem, 'name' | 'quantity' | 'weight' | 'notes' | 'max_charges' | 'used_charges' | 'recharge_type'>>,
   ) {
     const { data, error } = await supabase
       .from('inventory_items')
@@ -61,5 +76,34 @@ export function useInventory(characterId: string | null) {
     else setItems((prev) => prev.filter((i) => i.id !== id));
   }
 
-  return { items, loading, addItem, updateItem, deleteItem };
+  async function resetAllCharges() {
+    if (!characterId) return;
+    const { error } = await supabase
+      .from('inventory_items')
+      .update({ used_charges: 0 })
+      .eq('character_id', characterId)
+      .not('max_charges', 'is', null)
+      .gt('used_charges', 0);
+
+    if (error) console.error('Error resetting item charges:', error);
+    else setItems((prev) => prev.map((i) => i.max_charges ? { ...i, used_charges: 0 } : i));
+  }
+
+  async function resetChargesByRestType(restType: RechargeType) {
+    if (!characterId) return;
+    const { error } = await supabase
+      .from('inventory_items')
+      .update({ used_charges: 0 })
+      .eq('character_id', characterId)
+      .eq('recharge_type', restType)
+      .gt('used_charges', 0);
+
+    if (error) {
+      console.error(`Error resetting ${restType} item charges:`, error);
+    } else {
+      setItems((prev) => prev.map((i) => i.recharge_type === restType ? { ...i, used_charges: 0 } : i));
+    }
+  }
+
+  return { items, loading, addItem, updateItem, deleteItem, resetAllCharges, resetChargesByRestType };
 }

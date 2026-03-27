@@ -12,9 +12,11 @@ interface ActionFABProps {
   onRestoreHp?: (amount: number) => Promise<void> | void;
   onRestoreWarlockSlots?: () => Promise<void> | void;
   onRestoreShortRestUses?: () => Promise<void> | void;
+  onRestoreShortRestCharges?: () => Promise<void> | void;
   // Long rest
   onRestoreSlots: () => Promise<void> | void;
   onRestoreUses: () => Promise<void> | void;
+  onRestoreCharges?: () => Promise<void> | void;
   onResetDeathSaves?: () => Promise<void> | void;
   onClearConditions?: () => Promise<void> | void;
   onDropConcentration?: () => Promise<void> | void;
@@ -28,8 +30,10 @@ export function ActionFAB({
   onRestoreHp,
   onRestoreWarlockSlots,
   onRestoreShortRestUses,
+  onRestoreShortRestCharges,
   onRestoreSlots,
   onRestoreUses,
+  onRestoreCharges,
   onResetDeathSaves,
   onClearConditions,
   onDropConcentration,
@@ -52,11 +56,12 @@ export function ActionFAB({
       if (healed > 0 && onRestoreHp) await onRestoreHp(healed);
       if (isWarlock && onRestoreWarlockSlots) await onRestoreWarlockSlots();
       if (onRestoreShortRestUses) await onRestoreShortRestUses();
+      if (onRestoreShortRestCharges) await onRestoreShortRestCharges();
 
       const updates: string[] = [];
       if (healed > 0) updates.push(`restored ${healed} HP`);
       if (isWarlock) updates.push('pact slots restored');
-      if (onRestoreShortRestUses) updates.push('short-rest features restored');
+      if (onRestoreShortRestUses) updates.push('short-rest abilities restored');
       showToast(updates.length > 0 ? `Short Rest complete — ${updates.join(' · ')} ✓` : 'Short Rest complete ✓');
     } finally {
       setResting(false);
@@ -72,6 +77,7 @@ export function ActionFAB({
       await Promise.all([
         onRestoreSlots(),
         onRestoreUses(),
+        onRestoreCharges?.(),
         onResetDeathSaves?.(),
         onClearConditions?.(),
         onDropConcentration?.(),

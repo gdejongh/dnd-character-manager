@@ -60,6 +60,8 @@ export interface SpellSlot {
   used: number;
 }
 
+export type RechargeType = 'short_rest' | 'long_rest';
+
 export interface InventoryItem {
   id: string;
   character_id: string;
@@ -67,6 +69,9 @@ export interface InventoryItem {
   quantity: number;
   weight: number;
   notes: string;
+  max_charges: number | null;
+  used_charges: number;
+  recharge_type: RechargeType | null;
   created_at: string;
 }
 

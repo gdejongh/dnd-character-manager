@@ -312,7 +312,7 @@ function App() {
     useSpellSlots(selectedCharacterId);
   const { spells, addSpell, updateSpell, deleteSpell } =
     useSpells(selectedCharacterId);
-  const { items, addItem, updateItem, deleteItem } = useInventory(selectedCharacterId);
+  const { items, addItem, updateItem, deleteItem, resetAllCharges, resetChargesByRestType } = useInventory(selectedCharacterId);
   const { features, addFeature, updateFeature, resetAllUses, resetUsesByRestType, deleteFeature } = useFeatures(selectedCharacterId);
   const { weapons, addWeapon, updateWeapon, deleteWeapon } = useWeapons(selectedCharacterId);
   const { notes, loading: notesLoading, updateContent } = useNotes(selectedCharacterId);
@@ -815,8 +815,10 @@ function App() {
           }}
           onRestoreWarlockSlots={charIsWarlock ? resetAll : undefined}
           onRestoreShortRestUses={() => resetUsesByRestType('short_rest')}
+          onRestoreShortRestCharges={() => resetChargesByRestType('short_rest')}
           onRestoreSlots={resetAll}
           onRestoreUses={resetAllUses}
+          onRestoreCharges={resetAllCharges}
           onResetDeathSaves={() => updateCharacter({ death_save_successes: 0, death_save_failures: 0 })}
           onClearConditions={() => updateCharacter({ conditions: [] })}
           onDropConcentration={() => updateCharacter({ concentration_spell_id: null })}
