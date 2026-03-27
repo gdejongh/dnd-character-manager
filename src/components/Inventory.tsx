@@ -326,14 +326,19 @@ function ChargeDots({
                 onToggle(usedCharges - 1);
               }
             }}
-            className="w-4 h-4 rounded-full cursor-pointer flex items-center justify-center p-0"
+            className="w-7 h-7 rounded-full cursor-pointer flex items-center justify-center transition-all"
             style={{
-              background: isAvailable ? 'var(--spell-indigo)' : 'transparent',
-              border: isAvailable ? '1.5px solid var(--spell-indigo)' : '1.5px solid var(--border-light)',
+              background: isAvailable ? 'linear-gradient(135deg, var(--accent), var(--accent-bright))' : 'var(--bg-raised)',
+              border: isAvailable ? '2px solid var(--accent)' : '2px solid var(--border)',
+              boxShadow: isAvailable ? '0 0 6px rgba(201,168,76,0.4)' : 'none',
               transition: 'background 0.15s, border-color 0.15s',
             }}
             aria-label={isAvailable ? `Use charge ${i + 1}` : `Restore charge ${i + 1}`}
-          />
+          >
+            <span style={{ color: isAvailable ? '#0f0e13' : 'var(--border-light)', fontSize: '11px', fontWeight: 'bold' }}>
+              {isAvailable ? '◆' : '○'}
+            </span>
+          </button>
         );
       })}
       <span className="text-[10px] ml-0.5" style={{ color: 'var(--text)', fontFamily: 'var(--mono)' }}>
