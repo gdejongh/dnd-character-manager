@@ -44,7 +44,7 @@ import { LiveCombat } from './components/LiveCombat';
 import { ExportPdfButton } from './components/ExportPdf';
 import { exportCharacterPdf } from './lib/exportPdf';
 import type { PdfStyle } from './lib/exportPdf';
-import { Users, Copy, Eye, ScrollText, HelpCircle, Map } from 'lucide-react';
+import { Users, Copy, Eye, ScrollText, HelpCircle, Map, X } from 'lucide-react';
 import { QuickReference } from './components/QuickReference';
 import { DiceRoller } from './components/DiceRoller';
 import { WildShapeModal } from './components/WildShapeModal';
@@ -58,7 +58,62 @@ import type { Ability } from './types/database';
 import type { Beast } from './constants/beasts';
 import './App.css';
 
-function SetupScreen() {
+const feedbackEmail = (import.meta.env.VITE_FEEDBACK_EMAIL as string | undefined)?.trim() ?? '';
+const feedbackMailto = `mailto:${feedbackEmail}?subject=${encodeURIComponent('D&D Character Manager feedback')}&body=${encodeURIComponent('Type of request: Bug report / Feature request\n\nSummary:\n\nSteps to reproduce (if bug):\n1.\n2.\n3.\n\nExpected behavior:\n\nActual behavior:\n\nAdditional notes:\n')}`;
+
+function FeedbackCTA({ onDismiss }: { onDismiss: () => void }) {
+  return (
+    <div
+      className="fixed z-[19] left-4 right-4 lg:left-[calc(50%+40px)] lg:right-auto lg:-translate-x-1/2 lg:w-auto"
+      style={{ bottom: 'calc(72px + env(safe-area-inset-bottom, 0px))' }}
+    >
+      <div
+        className="w-full lg:w-auto flex items-center justify-between gap-3 px-3 py-2 rounded-lg"
+        style={{
+          background: 'rgba(22, 21, 29, 0.92)',
+          border: '1px solid var(--border)',
+          boxShadow: 'var(--shadow)',
+          backdropFilter: 'blur(8px)',
+        }}
+      >
+        <p className="text-xs" style={{ color: 'var(--text)' }}>
+          Found a bug or have a feature request?
+        </p>
+        <div className="flex items-center gap-2 shrink-0">
+          <a
+            href={feedbackMailto}
+            className="px-3 py-1.5 rounded-md text-xs font-semibold no-underline shrink-0"
+            style={{
+              background: 'var(--accent-bg)',
+              color: 'var(--accent)',
+              border: '1px solid var(--accent-border)',
+              fontFamily: 'var(--heading)',
+              letterSpacing: '0.4px',
+            }}
+          >
+            Email feedback
+          </a>
+          <button
+            type="button"
+            onClick={onDismiss}
+            className="h-7 w-7 rounded-md flex items-center justify-center cursor-pointer"
+            style={{
+              color: 'var(--text)',
+              border: '1px solid var(--border)',
+              background: 'transparent',
+            }}
+            aria-label="Close feedback prompt"
+            title="Close"
+          >
+            <X size={14} />
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function SetupScreen({ showFeedbackCta, onDismissFeedbackCta }: { showFeedbackCta: boolean; onDismissFeedbackCta: () => void }) {
   return (
     <div
       className="flex flex-col items-center justify-center min-h-screen p-6"
@@ -114,6 +169,7 @@ function SetupScreen() {
           <li>Restart the dev server</li>
         </ol>
       </div>
+      {showFeedbackCta && <FeedbackCTA onDismiss={onDismissFeedbackCta} />}
     </div>
   );
 }
@@ -135,6 +191,7 @@ function App() {
   const [showCombatTransition, setShowCombatTransition] = useState(false);
   const [showQuickRef, setShowQuickRef] = useState(false);
   const [showDiceRoller, setShowDiceRoller] = useState(false);
+  const [showFeedbackCta, setShowFeedbackCta] = useState(true);
 
   // Dice roller
   const diceRoller = useDiceRoller();
@@ -438,7 +495,7 @@ function App() {
 
   // Supabase not configured
   if (!isSupabaseConfigured) {
-    return <SetupScreen />;
+    return <SetupScreen showFeedbackCta={showFeedbackCta} onDismissFeedbackCta={() => setShowFeedbackCta(false)} />;
   }
 
   // Not authenticated — guest flow or auth
@@ -446,92 +503,108 @@ function App() {
     // Show auth screen if explicitly requested
     if (showAuth) {
       return (
-        <Auth
-          onAuth={handleAuth}
-          onForgotPassword={sendPasswordReset}
-          onGuestMode={() => setShowAuth(false)}
-        />
+        <>
+          <Auth
+            onAuth={handleAuth}
+            onForgotPassword={sendPasswordReset}
+            onGuestMode={() => setShowAuth(false)}
+          />
+          {showFeedbackCta && <FeedbackCTA onDismiss={() => setShowFeedbackCta(false)} />}
+        </>
       );
     }
 
     // Show guest preview if character has been built
     if (guestCharacter && !guestEditing) {
       return (
-        <GuestSheetPreview
-          character={guestCharacter}
-          scores={guestScores}
-          onCreateAccount={() => setShowAuth(true)}
-          onEdit={() => setGuestEditing(true)}
-          onStartOver={() => {
-            setGuestCharacter(null);
-            setGuestScores([]);
-            setGuestEditing(false);
-            localStorage.removeItem('dnd-guest-extras');
-          }}
-        />
+        <>
+          <GuestSheetPreview
+            character={guestCharacter}
+            scores={guestScores}
+            onCreateAccount={() => setShowAuth(true)}
+            onEdit={() => setGuestEditing(true)}
+            onStartOver={() => {
+              setGuestCharacter(null);
+              setGuestScores([]);
+              setGuestEditing(false);
+              localStorage.removeItem('dnd-guest-extras');
+            }}
+          />
+          {showFeedbackCta && <FeedbackCTA onDismiss={() => setShowFeedbackCta(false)} />}
+        </>
       );
     }
 
     // Show guest character builder (default landing for unauthenticated users)
     return (
-      <GuestCharacterBuilder
-        onComplete={(charData, scoreData) => {
-          setGuestCharacter(charData);
-          setGuestScores(scoreData);
-          setGuestEditing(false);
-        }}
-        onSignIn={() => setShowAuth(true)}
-      />
+      <>
+        <GuestCharacterBuilder
+          onComplete={(charData, scoreData) => {
+            setGuestCharacter(charData);
+            setGuestScores(scoreData);
+            setGuestEditing(false);
+          }}
+          onSignIn={() => setShowAuth(true)}
+        />
+        {showFeedbackCta && <FeedbackCTA onDismiss={() => setShowFeedbackCta(false)} />}
+      </>
     );
   }
 
   // Live Combat Session
   if (combatSessionId) {
     return (
-      <LiveCombat
-        sessionId={combatSessionId}
-        userId={user.id}
-        role={combatRole}
-        characters={characters}
-        onLeave={() => {
-          setCombatSessionId(null);
-          setActiveSession(null);
-        }}
-      />
+      <>
+        <LiveCombat
+          sessionId={combatSessionId}
+          userId={user.id}
+          role={combatRole}
+          characters={characters}
+          onLeave={() => {
+            setCombatSessionId(null);
+            setActiveSession(null);
+          }}
+        />
+        {showFeedbackCta && <FeedbackCTA onDismiss={() => setShowFeedbackCta(false)} />}
+      </>
     );
   }
 
   // Campaign View (when viewing a campaign but not a specific character)
   if (activeCampaignId && !selectedCharacterId && activeCampaign) {
     return (
-      <CampaignView
-        campaignName={activeCampaign.name}
-        joinCode={activeCampaign.join_code}
-        isDM={activeCampaign.dm_user_id === user.id}
-        userId={user.id}
-        partyCharacters={campaignParty}
-        allyCharacters={campaignAllies}
-        enemyCharacters={campaignEnemies}
-        npcCharacters={campaignNpcs}
-        userCharacters={characters}
-        onBack={() => setActiveCampaignId(null)}
-        onSelectCharacter={(charId) => {
-          setSelectedCharacterId(charId);
-          setCampaignViewCharacterId(charId);
-          setActiveTab('sheet');
-        }}
-        onAddCharacter={async (charId, role) => {
-          await addCharacterToCampaign(charId, role, user.id);
-        }}
-        onRemoveCharacter={removeCharacterFromCampaign}
-        loading={campaignViewLoading}
-      />
+      <>
+        <CampaignView
+          campaignName={activeCampaign.name}
+          joinCode={activeCampaign.join_code}
+          isDM={activeCampaign.dm_user_id === user.id}
+          userId={user.id}
+          partyCharacters={campaignParty}
+          allyCharacters={campaignAllies}
+          enemyCharacters={campaignEnemies}
+          npcCharacters={campaignNpcs}
+          userCharacters={characters}
+          onBack={() => setActiveCampaignId(null)}
+          onSelectCharacter={(charId) => {
+            setSelectedCharacterId(charId);
+            setCampaignViewCharacterId(charId);
+            setActiveTab('sheet');
+          }}
+          onAddCharacter={async (charId, role) => {
+            await addCharacterToCampaign(charId, role, user.id);
+          }}
+          onRemoveCharacter={removeCharacterFromCampaign}
+          loading={campaignViewLoading}
+        />
+        {showFeedbackCta && <FeedbackCTA onDismiss={() => setShowFeedbackCta(false)} />}
+      </>
     );
   }
 
   // Home screen
   if (!selectedCharacterId) {
     return (
+      <>
         <HomeScreen
           characters={characters}
           userEmail={user.email ?? ''}
@@ -606,8 +679,10 @@ function App() {
         onDeleteCampaign={deleteCampaign}
         onJoinCampaign={joinCampaign}
         onLeaveCampaign={leaveCampaign}
-        onSelectCampaign={(id) => setActiveCampaignId(id)}
-      />
+          onSelectCampaign={(id) => setActiveCampaignId(id)}
+        />
+        {showFeedbackCta && <FeedbackCTA onDismiss={() => setShowFeedbackCta(false)} />}
+      </>
     );
   }
 
@@ -992,6 +1067,7 @@ function App() {
           onClose={() => setShowWildShapeModal(false)}
         />
       )}
+      {showFeedbackCta && <FeedbackCTA onDismiss={() => setShowFeedbackCta(false)} />}
     </div>
   );
 }

@@ -44,6 +44,7 @@ Open `.env.local` and fill in:
 |---|---|
 | `VITE_SUPABASE_URL` | Supabase dashboard → **Settings → API → Project URL** |
 | `VITE_SUPABASE_ANON_KEY` | Supabase dashboard → **Settings → API → `anon` `public`** key |
+| `VITE_FEEDBACK_EMAIL` | Email address that receives in-app bug reports and feature requests |
 
 ### 4. Run the dev server
 
