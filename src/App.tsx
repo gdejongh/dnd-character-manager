@@ -113,7 +113,7 @@ function FeedbackCTA({ onDismiss }: { onDismiss: () => void }) {
   );
 }
 
-function SetupScreen({ showFeedbackCta, onDismissFeedbackCta }: { showFeedbackCta: boolean; onDismissFeedbackCta: () => void }) {
+function SetupScreen() {
   return (
     <div
       className="flex flex-col items-center justify-center min-h-screen p-6"
@@ -169,7 +169,6 @@ function SetupScreen({ showFeedbackCta, onDismissFeedbackCta }: { showFeedbackCt
           <li>Restart the dev server</li>
         </ol>
       </div>
-      {showFeedbackCta && <FeedbackCTA onDismiss={onDismissFeedbackCta} />}
     </div>
   );
 }
@@ -495,7 +494,7 @@ function App() {
 
   // Supabase not configured
   if (!isSupabaseConfigured) {
-    return <SetupScreen showFeedbackCta={showFeedbackCta} onDismissFeedbackCta={() => setShowFeedbackCta(false)} />;
+    return <SetupScreen />;
   }
 
   // Not authenticated — guest flow or auth
@@ -509,7 +508,6 @@ function App() {
             onForgotPassword={sendPasswordReset}
             onGuestMode={() => setShowAuth(false)}
           />
-          {showFeedbackCta && <FeedbackCTA onDismiss={() => setShowFeedbackCta(false)} />}
         </>
       );
     }
@@ -530,7 +528,6 @@ function App() {
               localStorage.removeItem('dnd-guest-extras');
             }}
           />
-          {showFeedbackCta && <FeedbackCTA onDismiss={() => setShowFeedbackCta(false)} />}
         </>
       );
     }
@@ -546,7 +543,6 @@ function App() {
           }}
           onSignIn={() => setShowAuth(true)}
         />
-        {showFeedbackCta && <FeedbackCTA onDismiss={() => setShowFeedbackCta(false)} />}
       </>
     );
   }
