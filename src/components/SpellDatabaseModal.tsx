@@ -15,7 +15,7 @@ export function SpellDatabaseModal({ characterClass, onAddSpell, onClose }: Spel
       <header
         className="flex items-center gap-3 px-4 py-3 shrink-0"
         style={{
-          background: 'linear-gradient(180deg, var(--bg) 0%, rgba(15,14,19,0.95) 100%)',
+          background: 'var(--bg)',
           borderBottom: '1px solid var(--border)',
         }}
       >

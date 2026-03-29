@@ -120,7 +120,7 @@ export function QuickReference({ onClose }: QuickReferenceProps) {
         className="flex items-center gap-3 px-4 py-3"
         style={{
           flexShrink: 0,
-          background: 'linear-gradient(180deg, var(--bg) 0%, rgba(15,14,19,0.95) 100%)',
+          background: 'var(--bg)',
           borderBottom: '1px solid var(--border)',
         }}
       >
