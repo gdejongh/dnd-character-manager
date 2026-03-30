@@ -58,7 +58,11 @@ import type { Ability } from './types/database';
 import type { Beast } from './constants/beasts';
 import './App.css';
 
-const feedbackEmail = (import.meta.env.VITE_FEEDBACK_EMAIL as string | undefined)?.trim() ?? '';
+const FALLBACK_FEEDBACK_EMAIL = 'aibudgetappaws@gmail.com';
+const envFeedbackEmail = (import.meta.env.VITE_FEEDBACK_EMAIL as string | undefined)?.trim();
+const feedbackEmail = envFeedbackEmail && envFeedbackEmail.includes('@')
+  ? envFeedbackEmail
+  : FALLBACK_FEEDBACK_EMAIL;
 const feedbackMailto = `mailto:${feedbackEmail}?subject=${encodeURIComponent('D&D Character Manager feedback')}&body=${encodeURIComponent('Type of request: Bug report / Feature request\n\nSummary:\n\nSteps to reproduce (if bug):\n1.\n2.\n3.\n\nExpected behavior:\n\nActual behavior:\n\nAdditional notes:\n')}`;
 
 function FeedbackCTA({ onDismiss }: { onDismiss: () => void }) {
