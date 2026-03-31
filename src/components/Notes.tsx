@@ -1,3 +1,4 @@
+import { useEffect, useMemo, useState } from 'react';
 import { ScrollText, BookOpen } from 'lucide-react';
 import type { Character, CharacterNotes } from '../types/database';
 
@@ -18,7 +19,106 @@ const fieldStyle = {
   letterSpacing: '0.2px',
 };
 
+interface SessionNote {
+  session: number;
+  content: string;
+}
+
+function parseSessionNotes(content: string): SessionNote[] {
+  const trimmed = content.trim();
+  if (!trimmed) return [{ session: 1, content: '' }];
+
+  const lines = content.split('\n');
+  const sessionHeaderRegex = /^###\s*Session\s+(\d+)\s*$/i;
+  const parsed: SessionNote[] = [];
+  let currentSession: number | null = null;
+  let currentLines: string[] = [];
+
+  const flushCurrent = () => {
+    if (currentSession === null) return;
+    parsed.push({ session: currentSession, content: currentLines.join('\n').trim() });
+  };
+
+  for (const line of lines) {
+    const match = line.match(sessionHeaderRegex);
+    if (match) {
+      flushCurrent();
+      currentSession = Number(match[1]);
+      currentLines = [];
+      continue;
+    }
+
+    if (currentSession === null) {
+      return [{ session: 1, content }];
+    }
+
+    currentLines.push(line);
+  }
+
+  flushCurrent();
+
+  if (parsed.length === 0) return [{ session: 1, content }];
+
+  const dedupedBySession = new Map<number, string>();
+  for (const entry of parsed) {
+    const existing = dedupedBySession.get(entry.session);
+    dedupedBySession.set(
+      entry.session,
+      existing ? `${existing}\n\n${entry.content}`.trim() : entry.content,
+    );
+  }
+
+  return [...dedupedBySession.entries()]
+    .sort((a, b) => a[0] - b[0])
+    .map(([session, sessionContent]) => ({ session, content: sessionContent }));
+}
+
+function serializeSessionNotes(sessions: SessionNote[]): string {
+  return [...sessions]
+    .sort((a, b) => a.session - b.session)
+    .map(({ session, content }) => `### Session ${session}\n${content.trim()}`)
+    .join('\n\n')
+    .trim();
+}
+
 export function Notes({ notes, loading, onUpdateContent, character, onUpdateCharacter }: NotesProps) {
+  const [sessionNotes, setSessionNotes] = useState<SessionNote[]>([{ session: 1, content: '' }]);
+  const [selectedSession, setSelectedSession] = useState(1);
+
+  useEffect(() => {
+    const parsed = parseSessionNotes(notes?.content ?? '');
+    Promise.resolve().then(() => {
+      setSessionNotes(parsed);
+      setSelectedSession((prev) => (parsed.some((entry) => entry.session === prev) ? prev : parsed[parsed.length - 1].session));
+    });
+  }, [notes?.content]);
+
+  const sortedSessions = useMemo(
+    () => [...sessionNotes].sort((a, b) => a.session - b.session),
+    [sessionNotes],
+  );
+
+  const activeSessionContent =
+    sessionNotes.find((entry) => entry.session === selectedSession)?.content ?? '';
+
+  function updateSelectedSessionContent(content: string) {
+    setSessionNotes((prev) => {
+      const updated = prev.map((entry) =>
+        entry.session === selectedSession ? { ...entry, content } : entry,
+      );
+      onUpdateContent(serializeSessionNotes(updated));
+      return updated;
+    });
+  }
+
+  function addSession() {
+    const nextSession = Math.max(...sessionNotes.map((entry) => entry.session)) + 1;
+    const updated = [...sessionNotes, { session: nextSession, content: '' }];
+    setSessionNotes(updated);
+    setSelectedSession(nextSession);
+    onUpdateContent(serializeSessionNotes(updated));
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center p-8">
@@ -146,15 +246,40 @@ export function Notes({ notes, loading, onUpdateContent, character, onUpdateChar
           Auto-saves as you type
         </span>
       </div>
+      <div className="flex items-center gap-2 mb-3">
+        <label className="text-[10px] uppercase tracking-wider font-semibold" style={{ color: 'var(--text)', fontFamily: 'var(--heading)' }}>
+          Session
+        </label>
+        <select
+          className="px-2 py-1 rounded-md text-xs outline-none"
+          style={{ ...fieldStyle, lineHeight: '1.4' }}
+          value={selectedSession}
+          onChange={(e) => setSelectedSession(Number(e.target.value))}
+        >
+          {sortedSessions.map((entry) => (
+            <option key={entry.session} value={entry.session}>
+              Session {entry.session}
+            </option>
+          ))}
+        </select>
+        <button
+          type="button"
+          className="px-2 py-1 rounded-md text-xs font-semibold"
+          style={{ ...fieldStyle, color: 'var(--accent)', cursor: 'pointer' }}
+          onClick={addSession}
+        >
+          + Add Session
+        </button>
+      </div>
       <textarea
         className="flex-1 w-full px-5 py-4 rounded-xl text-sm outline-none resize-none"
         style={{
           ...fieldStyle,
           minHeight: '400px',
         }}
-        placeholder="Write your notes, session logs, and reminders here…"
-        value={notes?.content ?? ''}
-        onChange={(e) => onUpdateContent(e.target.value)}
+        placeholder={`Write notes for Session ${selectedSession}…`}
+        value={activeSessionContent}
+        onChange={(e) => updateSelectedSessionContent(e.target.value)}
       />
       </section>
 
