@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import type { Character } from '../types/database';
 import { supabase } from '../lib/supabase';
 
@@ -8,6 +8,7 @@ export function useCharacter(
 ) {
   const [character, setCharacter] = useState<Character | null>(null);
   const [loading, setLoading] = useState(true);
+  const characterRef = useRef<Character | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -26,6 +27,7 @@ export function useCharacter(
         if (!active) return;
         if (error) console.error('Error fetching character:', error);
         else {
+          characterRef.current = data;
           setCharacter(data);
           onCharacterSync?.(data);
         }
@@ -40,18 +42,20 @@ export function useCharacter(
     >,
   ) {
     if (!characterId) return;
-    const { data, error } = await supabase
+
+    if (characterRef.current) {
+      const optimistic = { ...characterRef.current, ...updates };
+      characterRef.current = optimistic;
+      setCharacter(optimistic);
+      onCharacterSync?.(optimistic);
+    }
+
+    const { error } = await supabase
       .from('characters')
       .update(updates)
-      .eq('id', characterId)
-      .select()
-      .single();
+      .eq('id', characterId);
 
     if (error) console.error('Error updating character:', error);
-    else {
-      setCharacter(data);
-      onCharacterSync?.(data);
-    }
   }
 
   return { character, loading, updateCharacter };
