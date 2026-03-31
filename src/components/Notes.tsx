@@ -119,6 +119,31 @@ export function Notes({ notes, loading, onUpdateContent, character, onUpdateChar
     onUpdateContent(serializeSessionNotes(updated));
   }
 
+  function deleteSelectedSession() {
+    const shouldDelete = window.confirm(
+      `Delete all notes for Session ${selectedSession}? This cannot be undone.`,
+    );
+    if (!shouldDelete) return;
+
+    if (sessionNotes.length <= 1) {
+      const reset = [{ session: 1, content: '' }];
+      setSessionNotes(reset);
+      setSelectedSession(1);
+      onUpdateContent(serializeSessionNotes(reset));
+      return;
+    }
+
+    const updated = sessionNotes.filter((entry) => entry.session !== selectedSession);
+    const sortedUpdated = [...updated].sort((a, b) => a.session - b.session);
+    const replacementSession =
+      sortedUpdated.find((entry) => entry.session > selectedSession)?.session ??
+      sortedUpdated[sortedUpdated.length - 1].session;
+
+    setSessionNotes(sortedUpdated);
+    setSelectedSession(replacementSession);
+    onUpdateContent(serializeSessionNotes(sortedUpdated));
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center p-8">
@@ -269,6 +294,14 @@ export function Notes({ notes, loading, onUpdateContent, character, onUpdateChar
           onClick={addSession}
         >
           + Add Session
+        </button>
+        <button
+          type="button"
+          className="px-2 py-1 rounded-md text-xs font-semibold"
+          style={{ ...fieldStyle, color: 'var(--danger)', cursor: 'pointer' }}
+          onClick={deleteSelectedSession}
+        >
+          Delete Session
         </button>
       </div>
       <textarea
