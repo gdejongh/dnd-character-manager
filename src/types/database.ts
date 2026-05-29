@@ -19,6 +19,10 @@ export interface Character {
   gold: number;
   initiative_modifier: number | null;
   passive_perception: number | null;
+  proficiency_bonus: number | null;
+  spell_attack_bonus: number | null;
+  spell_save_dc: number | null;
+  skill_overrides: Record<string, number>;
   hit_dice_remaining: number | null;
   inspiration: boolean;
   speed: number;
@@ -59,6 +63,7 @@ export interface AbilityScore {
   ability: Ability;
   score: number;
   saving_throw_proficiency: boolean;
+  saving_throw_override: number | null;
 }
 
 export interface SpellSlot {

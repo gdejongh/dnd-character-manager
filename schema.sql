@@ -22,6 +22,10 @@ create table characters (
   skill_proficiencies text[] not null default '{}',
   initiative_modifier integer,
   passive_perception integer,
+  proficiency_bonus integer,
+  spell_attack_bonus integer,
+  spell_save_dc integer,
+  skill_overrides jsonb not null default '{}',
   hit_dice_remaining integer,
   inspiration boolean not null default false,
   speed integer not null default 30,
@@ -64,6 +68,7 @@ create table ability_scores (
   ability                  text not null check (ability in ('STR','DEX','CON','INT','WIS','CHA')),
   score                    integer not null default 10 check (score between 1 and 30),
   saving_throw_proficiency boolean not null default false,
+  saving_throw_override    integer,
   unique (character_id, ability)
 );
 
@@ -729,13 +734,13 @@ begin
     raise exception 'Share not found or not accepted';
   end if;
 
-  insert into characters (user_id, name, race, class, level, current_hp, max_hp, temp_hp, armor_class, skill_proficiencies, initiative_modifier, passive_perception, hit_dice_remaining, inspiration, speed, image_url, image_position, theme, gold, languages, proficiencies, alignment, backstory, personality_traits, ideals, bonds, flaws)
-  select v_user_id, name || ' (Copy)', race, class, level, current_hp, max_hp, temp_hp, armor_class, skill_proficiencies, initiative_modifier, passive_perception, null, false, speed, image_url, image_position, theme, gold, languages, proficiencies, alignment, backstory, personality_traits, ideals, bonds, flaws
+  insert into characters (user_id, name, race, class, level, current_hp, max_hp, temp_hp, armor_class, skill_proficiencies, initiative_modifier, passive_perception, proficiency_bonus, spell_attack_bonus, spell_save_dc, skill_overrides, hit_dice_remaining, inspiration, speed, image_url, image_position, theme, gold, languages, proficiencies, alignment, backstory, personality_traits, ideals, bonds, flaws)
+  select v_user_id, name || ' (Copy)', race, class, level, current_hp, max_hp, temp_hp, armor_class, skill_proficiencies, initiative_modifier, passive_perception, proficiency_bonus, spell_attack_bonus, spell_save_dc, skill_overrides, null, false, speed, image_url, image_position, theme, gold, languages, proficiencies, alignment, backstory, personality_traits, ideals, bonds, flaws
   from characters where id = v_source_char_id
   returning id into v_new_char_id;
 
-  insert into ability_scores (character_id, ability, score, saving_throw_proficiency)
-  select v_new_char_id, ability, score, saving_throw_proficiency
+  insert into ability_scores (character_id, ability, score, saving_throw_proficiency, saving_throw_override)
+  select v_new_char_id, ability, score, saving_throw_proficiency, saving_throw_override
   from ability_scores where character_id = v_source_char_id;
 
   insert into spell_slots (character_id, level, total, used)
@@ -1104,5 +1109,18 @@ create policy "Campaign members view character_classes"
 --   -- Inventory item resistances & immunities
 --   ALTER TABLE inventory_items ADD COLUMN IF NOT EXISTS resistances text[] NOT NULL DEFAULT '{}';
 --   ALTER TABLE inventory_items ADD COLUMN IF NOT EXISTS immunities text[] NOT NULL DEFAULT '{}';
+--
+--   -- Update copy_shared_character function (re-run the CREATE OR REPLACE above)
+--
+-- =================================================================
+--  MIGRATION: Stat Overrides (Prof Bonus, Spell Atk/DC, Saves, Skills)
+-- =================================================================
+-- Run these statements if upgrading an existing database:
+--
+--   ALTER TABLE characters ADD COLUMN IF NOT EXISTS proficiency_bonus integer;
+--   ALTER TABLE characters ADD COLUMN IF NOT EXISTS spell_attack_bonus integer;
+--   ALTER TABLE characters ADD COLUMN IF NOT EXISTS spell_save_dc integer;
+--   ALTER TABLE characters ADD COLUMN IF NOT EXISTS skill_overrides jsonb NOT NULL DEFAULT '{}';
+--   ALTER TABLE ability_scores ADD COLUMN IF NOT EXISTS saving_throw_override integer;
 --
 --   -- Update copy_shared_character function (re-run the CREATE OR REPLACE above)

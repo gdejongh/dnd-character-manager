@@ -392,7 +392,7 @@ function App() {
     useCharacters(user?.id);
   const { character, loading: charLoading, updateCharacter } =
     useCharacter(selectedCharacterId, syncCharacter);
-  const { scores, updateScore, toggleSavingThrow } =
+  const { scores, updateScore, toggleSavingThrow, setSavingThrowOverride } =
     useAbilityScores(selectedCharacterId);
   const { slots, updateTotal, setSlotUsed, resetAll, autoFillSlots } =
     useSpellSlots(selectedCharacterId);
@@ -899,6 +899,7 @@ function App() {
               onUpdateCharacter={isReadOnly ? noOpUpdate : updateCharacter}
               onUpdateScore={isReadOnly ? noOpAsync : updateScore}
               onToggleSavingThrow={isReadOnly ? noOpAsync : toggleSavingThrow}
+              onSetSavingThrowOverride={isReadOnly ? noOpAsync : setSavingThrowOverride}
               imageUploading={imageUploading}
               imageError={imageError}
               onUploadImage={isReadOnly ? noOpUpload : uploadImage}

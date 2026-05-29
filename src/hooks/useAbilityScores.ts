@@ -59,5 +59,19 @@ export function useAbilityScores(characterId: string | null) {
       );
   }
 
-  return { scores, loading, updateScore, toggleSavingThrow };
+  async function setSavingThrowOverride(ability: string, value: number | null) {
+    if (!characterId) return;
+    setScores((prev) =>
+      prev.map((s) => (s.ability === ability ? { ...s, saving_throw_override: value } : s)),
+    );
+    const { error } = await supabase
+      .from('ability_scores')
+      .update({ saving_throw_override: value })
+      .eq('character_id', characterId)
+      .eq('ability', ability);
+
+    if (error) console.error('Error setting saving throw override:', error);
+  }
+
+  return { scores, loading, updateScore, toggleSavingThrow, setSavingThrowOverride };
 }

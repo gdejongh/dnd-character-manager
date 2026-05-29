@@ -86,6 +86,7 @@ export function GuestSheetPreview({
     ability,
     score: scoreMap[ability] ?? 10,
     saving_throw_proficiency: false,
+    saving_throw_override: null,
   }));
 
   // ── Spell Slot mutations ──

@@ -304,10 +304,12 @@ export function CombatView({
       }
     : baseAbilityScoreMap;
 
-  const spellSaveDC = getSpellSaveDC(character.class, character.level, abilityScoreMap);
-  const spellAtkBonus = getSpellAttackBonus(character.class, character.level, abilityScoreMap);
+  const autoSpellSaveDC = getSpellSaveDC(character.class, character.level, abilityScoreMap);
+  const autoSpellAtkBonus = getSpellAttackBonus(character.class, character.level, abilityScoreMap);
+  const spellSaveDC = character.spell_save_dc ?? autoSpellSaveDC;
+  const spellAtkBonus = character.spell_attack_bonus ?? autoSpellAtkBonus;
   const castingAbility = getSpellcastingAbility(character.class);
-  const profBonus = getProficiencyBonus(character.level);
+  const profBonus = character.proficiency_bonus ?? getProficiencyBonus(character.level);
   const dexMod = getModifier(abilityScoreMap.DEX);
   const initiativeValue = character.initiative_modifier ?? dexMod;
 

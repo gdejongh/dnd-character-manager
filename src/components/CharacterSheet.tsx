@@ -14,17 +14,18 @@ import {
   getSpellcastingAbility,
 } from '../constants/dnd';
 import { NumericInput } from './NumericInput';
-import { Camera, Trash2, Loader, Move, X, Pencil, Shield, Zap, Eye, RotateCcw, Plus } from 'lucide-react';
+import { Camera, Trash2, Loader, Move, X, Pencil, Shield, Zap, Eye, RotateCcw, Plus, Star, Sparkles, Target } from 'lucide-react';
 import { TagEditor } from './TagEditor';
 
 interface CharacterSheetProps {
   character: Character;
   scores: AbilityScore[];
   onUpdateCharacter: (
-    updates: Partial<Pick<Character, 'name' | 'race' | 'class' | 'level' | 'armor_class' | 'speed' | 'swim_speed' | 'fly_speed' | 'climb_speed' | 'burrow_speed' | 'skill_proficiencies' | 'initiative_modifier' | 'passive_perception' | 'image_url' | 'image_position' | 'wild_shape_active' | 'wild_shape_current_hp' | 'wild_shape_max_hp' | 'wild_shape_beast_name' | 'gold' | 'languages' | 'proficiencies' | 'inspiration' | 'alignment' | 'backstory' | 'personality_traits' | 'ideals' | 'bonds' | 'flaws' | 'hit_dice_remaining'>>,
+    updates: Partial<Pick<Character, 'name' | 'race' | 'class' | 'level' | 'armor_class' | 'speed' | 'swim_speed' | 'fly_speed' | 'climb_speed' | 'burrow_speed' | 'skill_proficiencies' | 'skill_overrides' | 'initiative_modifier' | 'passive_perception' | 'proficiency_bonus' | 'spell_attack_bonus' | 'spell_save_dc' | 'image_url' | 'image_position' | 'wild_shape_active' | 'wild_shape_current_hp' | 'wild_shape_max_hp' | 'wild_shape_beast_name' | 'gold' | 'languages' | 'proficiencies' | 'inspiration' | 'alignment' | 'backstory' | 'personality_traits' | 'ideals' | 'bonds' | 'flaws' | 'hit_dice_remaining'>>,
   ) => void;
   onUpdateScore: (ability: string, score: number) => void;
   onToggleSavingThrow: (ability: string) => void;
+  onSetSavingThrowOverride: (ability: string, value: number | null) => void;
   imageUploading: boolean;
   imageError: string | null;
   onUploadImage: (file: File) => Promise<string | null>;
@@ -46,6 +47,7 @@ export function CharacterSheet({
   onUpdateCharacter,
   onUpdateScore,
   onToggleSavingThrow,
+  onSetSavingThrowOverride,
   imageUploading,
   imageError,
   onUploadImage,
@@ -70,7 +72,17 @@ export function CharacterSheet({
   const [dragPos, setDragPos] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dragStartRef = useRef<{ startY: number; startPos: number } | null>(null);
-  const profBonus = getProficiencyBonus(character.level);
+  const autoProfBonus = getProficiencyBonus(character.level);
+  const profBonusOverridden = character.proficiency_bonus !== null && character.proficiency_bonus !== undefined;
+  const profBonus = profBonusOverridden ? character.proficiency_bonus! : autoProfBonus;
+
+  const skillOverrides = character.skill_overrides ?? {};
+  function setSkillOverride(skillName: string, value: number | null) {
+    const next = { ...skillOverrides };
+    if (value === null) delete next[skillName];
+    else next[skillName] = value;
+    onUpdateCharacter({ skill_overrides: next });
+  }
   const useMulticlass = characterClasses.length > 0;
   const classEntries = characterClasses.map((c) => ({ className: c.class_name, level: c.level }));
   const totalLevel = useMulticlass ? classEntries.reduce((s, c) => s + c.level, 0) : character.level;
@@ -637,7 +649,6 @@ export function CharacterSheet({
               character.race || 'Race',
               character.class || 'Class',
               `Level ${totalLevel}`,
-              `Prof. ${formatModifier(profBonus)}`,
             ].map((tag) => (
               <span
                 key={tag}
@@ -670,8 +681,8 @@ export function CharacterSheet({
         </div>
       </div>
 
-      {/* Initiative, Passive Perception & Speed */}
-      <div className="mt-1 md:mt-2 grid grid-cols-3 gap-3 md:gap-4">
+      {/* Initiative, Passive Perception, Prof. Bonus & Speed */}
+      <div className="mt-1 md:mt-2 grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
         {/* Initiative */}
         {(() => {
           const dexMod = getModifier(getScore('DEX'));
@@ -805,6 +816,64 @@ export function CharacterSheet({
           );
         })()}
 
+        {/* Proficiency Bonus */}
+        <div
+          className="flex flex-col items-center gap-1 p-3 rounded-xl cursor-pointer relative"
+          style={{
+            background: 'var(--bg-surface)',
+            border: `1px solid ${profBonusOverridden ? 'var(--spell-indigo)' : 'var(--border)'}`,
+          }}
+          onClick={() => {
+            if (readOnly) return;
+            if (editingField === 'profBonus') return;
+            setEditingField('profBonus');
+          }}
+        >
+          <div className="flex items-center gap-1.5">
+            <Star size={12} style={{ color: 'var(--accent)' }} />
+            <span className="text-[10px] uppercase tracking-wider font-semibold" style={{ color: 'var(--accent)', fontFamily: 'var(--heading)', letterSpacing: '1px' }}>
+              Prof. Bonus
+            </span>
+            {profBonusOverridden && !readOnly && (
+              <button
+                onClick={(e) => { e.stopPropagation(); onUpdateCharacter({ proficiency_bonus: null }); setEditingField(null); }}
+                className="p-0.5 rounded cursor-pointer bg-transparent"
+                style={{ color: 'var(--text-muted)', border: 'none' }}
+                title="Reset to auto (by level)"
+              >
+                <RotateCcw size={10} />
+              </button>
+            )}
+          </div>
+          {editingField === 'profBonus' ? (
+            <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+              <NumericInput
+                min={1}
+                max={10}
+                value={profBonus}
+                onChange={(val) => onUpdateCharacter({ proficiency_bonus: val })}
+                className="w-16 px-2 py-1 rounded-lg text-center text-lg font-bold outline-none"
+                style={{ background: 'var(--code-bg)', color: 'var(--text-h)', border: '1px solid var(--border)', fontFamily: 'var(--mono)' }}
+                autoFocus
+              />
+              <button
+                className="px-2 py-1 rounded-lg text-[10px] cursor-pointer font-semibold"
+                style={{ background: 'var(--accent)', color: '#0f0e13', border: 'none' }}
+                onClick={(e) => { e.stopPropagation(); setEditingField(null); }}
+              >
+                OK
+              </button>
+            </div>
+          ) : (
+            <span className="text-xl font-bold" style={{ color: 'var(--text-h)', fontFamily: 'var(--mono)' }}>
+              {formatModifier(profBonus)}
+            </span>
+          )}
+          <span className="text-[9px]" style={{ color: profBonusOverridden ? 'var(--spell-indigo)' : 'var(--text-muted)' }}>
+            {profBonusOverridden ? 'Override' : `Level ${character.level}`}
+          </span>
+        </div>
+
         {/* Speed */}
         <div
           className="flex flex-col items-center gap-1 p-3 rounded-xl cursor-pointer"
@@ -937,6 +1006,147 @@ export function CharacterSheet({
         </button>
       )}
 
+      {/* Spellcasting (Spell Atk + Spell DC) */}
+      {(() => {
+        const primaryClass = character.primary_casting_class || character.class;
+        const spellAbility = getSpellcastingAbility(primaryClass);
+        const spellAtkOverridden = character.spell_attack_bonus !== null && character.spell_attack_bonus !== undefined;
+        const spellDcOverridden = character.spell_save_dc !== null && character.spell_save_dc !== undefined;
+        if (!spellAbility && !spellAtkOverridden && !spellDcOverridden) return null;
+        const spellMod = spellAbility ? getModifier(getScore(spellAbility)) : 0;
+        const autoSpellAtk = spellAbility ? profBonus + spellMod : 0;
+        const autoSpellDc = spellAbility ? 8 + profBonus + spellMod : 10;
+        const spellAtk = spellAtkOverridden ? character.spell_attack_bonus! : autoSpellAtk;
+        const spellDc = spellDcOverridden ? character.spell_save_dc! : autoSpellDc;
+        return (
+          <section className="pt-1">
+            <h3
+              className="text-xs uppercase tracking-widest mb-3"
+              style={{ color: 'var(--accent)', fontFamily: 'var(--heading)', letterSpacing: '2px' }}
+            >
+              Spellcasting
+            </h3>
+            <div className="grid grid-cols-2 gap-3 md:gap-4">
+              {/* Spell Attack */}
+              <div
+                className="flex flex-col items-center gap-1 p-3 rounded-xl cursor-pointer relative"
+                style={{
+                  background: 'var(--bg-surface)',
+                  border: `1px solid ${spellAtkOverridden ? 'var(--spell-indigo)' : 'var(--border)'}`,
+                }}
+                onClick={() => {
+                  if (readOnly) return;
+                  if (editingField === 'spellAtk') return;
+                  setEditingField('spellAtk');
+                }}
+              >
+                <div className="flex items-center gap-1.5">
+                  <Sparkles size={12} style={{ color: 'var(--spell-violet)' }} />
+                  <span className="text-[10px] uppercase tracking-wider font-semibold" style={{ color: 'var(--accent)', fontFamily: 'var(--heading)', letterSpacing: '1px' }}>
+                    Spell Atk
+                  </span>
+                  {spellAtkOverridden && !readOnly && (
+                    <button
+                      onClick={(e) => { e.stopPropagation(); onUpdateCharacter({ spell_attack_bonus: null }); setEditingField(null); }}
+                      className="p-0.5 rounded cursor-pointer bg-transparent"
+                      style={{ color: 'var(--text-muted)', border: 'none' }}
+                      title="Reset to auto"
+                    >
+                      <RotateCcw size={10} />
+                    </button>
+                  )}
+                </div>
+                {editingField === 'spellAtk' ? (
+                  <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                    <NumericInput
+                      min={-10}
+                      max={30}
+                      value={spellAtk}
+                      onChange={(val) => onUpdateCharacter({ spell_attack_bonus: val })}
+                      className="w-16 px-2 py-1 rounded-lg text-center text-lg font-bold outline-none"
+                      style={{ background: 'var(--code-bg)', color: 'var(--text-h)', border: '1px solid var(--border)', fontFamily: 'var(--mono)' }}
+                      autoFocus
+                    />
+                    <button
+                      className="px-2 py-1 rounded-lg text-[10px] cursor-pointer font-semibold"
+                      style={{ background: 'var(--accent)', color: '#0f0e13', border: 'none' }}
+                      onClick={(e) => { e.stopPropagation(); setEditingField(null); }}
+                    >
+                      OK
+                    </button>
+                  </div>
+                ) : (
+                  <span className="text-xl font-bold" style={{ color: 'var(--text-h)', fontFamily: 'var(--mono)' }}>
+                    {formatModifier(spellAtk)}
+                  </span>
+                )}
+                <span className="text-[9px]" style={{ color: spellAtkOverridden ? 'var(--spell-indigo)' : 'var(--text-muted)' }}>
+                  {spellAtkOverridden ? 'Override' : (spellAbility ? `Prof + ${spellAbility}` : 'Override')}
+                </span>
+              </div>
+
+              {/* Spell Save DC */}
+              <div
+                className="flex flex-col items-center gap-1 p-3 rounded-xl cursor-pointer relative"
+                style={{
+                  background: 'var(--bg-surface)',
+                  border: `1px solid ${spellDcOverridden ? 'var(--spell-indigo)' : 'var(--border)'}`,
+                }}
+                onClick={() => {
+                  if (readOnly) return;
+                  if (editingField === 'spellDc') return;
+                  setEditingField('spellDc');
+                }}
+              >
+                <div className="flex items-center gap-1.5">
+                  <Target size={12} style={{ color: 'var(--spell-violet)' }} />
+                  <span className="text-[10px] uppercase tracking-wider font-semibold" style={{ color: 'var(--accent)', fontFamily: 'var(--heading)', letterSpacing: '1px' }}>
+                    Spell DC
+                  </span>
+                  {spellDcOverridden && !readOnly && (
+                    <button
+                      onClick={(e) => { e.stopPropagation(); onUpdateCharacter({ spell_save_dc: null }); setEditingField(null); }}
+                      className="p-0.5 rounded cursor-pointer bg-transparent"
+                      style={{ color: 'var(--text-muted)', border: 'none' }}
+                      title="Reset to auto"
+                    >
+                      <RotateCcw size={10} />
+                    </button>
+                  )}
+                </div>
+                {editingField === 'spellDc' ? (
+                  <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                    <NumericInput
+                      min={1}
+                      max={40}
+                      value={spellDc}
+                      onChange={(val) => onUpdateCharacter({ spell_save_dc: val })}
+                      className="w-16 px-2 py-1 rounded-lg text-center text-lg font-bold outline-none"
+                      style={{ background: 'var(--code-bg)', color: 'var(--text-h)', border: '1px solid var(--border)', fontFamily: 'var(--mono)' }}
+                      autoFocus
+                    />
+                    <button
+                      className="px-2 py-1 rounded-lg text-[10px] cursor-pointer font-semibold"
+                      style={{ background: 'var(--accent)', color: '#0f0e13', border: 'none' }}
+                      onClick={(e) => { e.stopPropagation(); setEditingField(null); }}
+                    >
+                      OK
+                    </button>
+                  </div>
+                ) : (
+                  <span className="text-xl font-bold" style={{ color: 'var(--text-h)', fontFamily: 'var(--mono)' }}>
+                    {spellDc}
+                  </span>
+                )}
+                <span className="text-[9px]" style={{ color: spellDcOverridden ? 'var(--spell-indigo)' : 'var(--text-muted)' }}>
+                  {spellDcOverridden ? 'Override' : (spellAbility ? `8 + Prof + ${spellAbility}` : 'Override')}
+                </span>
+              </div>
+            </div>
+          </section>
+        );
+      })()}
+
       <section className="pt-1">
         <h3
           className="text-xs uppercase tracking-widest mb-3"
@@ -1040,7 +1250,12 @@ export function CharacterSheet({
           {ABILITIES.map((ability) => {
             const mod = getModifier(getScore(ability));
             const proficient = getSaveProficiency(ability);
-            const total = mod + (proficient ? profBonus : 0);
+            const autoTotal = mod + (proficient ? profBonus : 0);
+            const saveRow = scores.find((s) => s.ability === ability);
+            const overrideVal = saveRow?.saving_throw_override ?? null;
+            const isOverride = overrideVal !== null && overrideVal !== undefined;
+            const total = isOverride ? overrideVal : autoTotal;
+            const isEditing = editingField === `save:${ability}`;
             return (
               <div
                 key={ability}
@@ -1064,15 +1279,52 @@ export function CharacterSheet({
                 <span className="text-sm font-medium" style={{ color: 'var(--text-h)' }}>
                   {ABILITY_NAMES[ability]}
                 </span>
-                <span
-                  className="ml-auto text-sm font-bold"
-                  style={{
-                    color: proficient ? 'var(--accent)' : 'var(--text)',
-                    fontFamily: 'var(--mono)',
-                  }}
-                >
-                  {formatModifier(total)}
-                </span>
+                <div className="ml-auto flex items-center gap-1.5">
+                  {isOverride && !readOnly && !isEditing && (
+                    <button
+                      onClick={(e) => { e.stopPropagation(); onSetSavingThrowOverride(ability, null); }}
+                      className="p-0.5 rounded cursor-pointer bg-transparent"
+                      style={{ color: 'var(--text-muted)', border: 'none' }}
+                      title="Reset to auto"
+                    >
+                      <RotateCcw size={11} />
+                    </button>
+                  )}
+                  {isEditing ? (
+                    <div className="flex items-center gap-1.5">
+                      <NumericInput
+                        min={-10}
+                        max={30}
+                        value={total}
+                        onChange={(val) => onSetSavingThrowOverride(ability, val)}
+                        className="w-14 px-1.5 py-0.5 rounded text-center text-sm font-bold outline-none"
+                        style={{ background: 'var(--code-bg)', color: 'var(--text-h)', border: '1px solid var(--border)', fontFamily: 'var(--mono)' }}
+                        autoFocus
+                      />
+                      <button
+                        className="px-1.5 py-0.5 rounded text-[10px] cursor-pointer font-semibold"
+                        style={{ background: 'var(--accent)', color: '#0f0e13', border: 'none' }}
+                        onClick={(e) => { e.stopPropagation(); setEditingField(null); }}
+                      >
+                        OK
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => { if (!readOnly) setEditingField(`save:${ability}`); }}
+                      className="text-sm font-bold bg-transparent cursor-pointer"
+                      style={{
+                        color: isOverride ? 'var(--spell-indigo)' : (proficient ? 'var(--accent)' : 'var(--text)'),
+                        fontFamily: 'var(--mono)',
+                        border: 'none',
+                        padding: 0,
+                      }}
+                      title={isOverride ? 'Override (tap to edit)' : 'Tap to override'}
+                    >
+                      {formatModifier(total)}
+                    </button>
+                  )}
+                </div>
               </div>
             );
           })}
@@ -1109,7 +1361,11 @@ export function CharacterSheet({
                 {group.skills.map((skill) => {
                   const mod = getModifier(getScore(skill.ability));
                   const proficient = (character.skill_proficiencies ?? []).includes(skill.name);
-                  const total = mod + (proficient ? profBonus : 0);
+                  const autoTotal = mod + (proficient ? profBonus : 0);
+                  const overrideVal = skillOverrides[skill.name];
+                  const isOverride = overrideVal !== undefined && overrideVal !== null;
+                  const total = isOverride ? overrideVal : autoTotal;
+                  const isEditing = editingField === `skill:${skill.name}`;
                   return (
                     <div
                       key={skill.name}
@@ -1134,15 +1390,52 @@ export function CharacterSheet({
                       <span className="text-sm" style={{ color: 'var(--text-h)' }}>
                         {skill.name}
                       </span>
-                      <span
-                        className="ml-auto text-sm font-bold"
-                        style={{
-                          color: proficient ? 'var(--accent)' : 'var(--text)',
-                          fontFamily: 'var(--mono)',
-                        }}
-                      >
-                        {formatModifier(total)}
-                      </span>
+                      <div className="ml-auto flex items-center gap-1.5">
+                        {isOverride && !readOnly && !isEditing && (
+                          <button
+                            onClick={(e) => { e.stopPropagation(); setSkillOverride(skill.name, null); }}
+                            className="p-0.5 rounded cursor-pointer bg-transparent"
+                            style={{ color: 'var(--text-muted)', border: 'none' }}
+                            title="Reset to auto"
+                          >
+                            <RotateCcw size={11} />
+                          </button>
+                        )}
+                        {isEditing ? (
+                          <div className="flex items-center gap-1.5">
+                            <NumericInput
+                              min={-10}
+                              max={30}
+                              value={total}
+                              onChange={(val) => setSkillOverride(skill.name, val)}
+                              className="w-14 px-1.5 py-0.5 rounded text-center text-sm font-bold outline-none"
+                              style={{ background: 'var(--code-bg)', color: 'var(--text-h)', border: '1px solid var(--border)', fontFamily: 'var(--mono)' }}
+                              autoFocus
+                            />
+                            <button
+                              className="px-1.5 py-0.5 rounded text-[10px] cursor-pointer font-semibold"
+                              style={{ background: 'var(--accent)', color: '#0f0e13', border: 'none' }}
+                              onClick={(e) => { e.stopPropagation(); setEditingField(null); }}
+                            >
+                              OK
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => { if (!readOnly) setEditingField(`skill:${skill.name}`); }}
+                            className="text-sm font-bold bg-transparent cursor-pointer"
+                            style={{
+                              color: isOverride ? 'var(--spell-indigo)' : (proficient ? 'var(--accent)' : 'var(--text)'),
+                              fontFamily: 'var(--mono)',
+                              border: 'none',
+                              padding: 0,
+                            }}
+                            title={isOverride ? 'Override (tap to edit)' : 'Tap to override'}
+                          >
+                            {formatModifier(total)}
+                          </button>
+                        )}
+                      </div>
                     </div>
                   );
                 })}

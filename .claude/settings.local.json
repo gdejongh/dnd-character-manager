@@ -7,7 +7,9 @@
       "Bash(npm run:*)",
       "Bash(find /Users/gabedejongh/workspace/DnD/dnd-character-manager/src -type f \\\\\\(-name *.tsx -o -name *.ts -o -name *.sql \\\\\\))",
       "Bash(grep -r \"shareUrl\\\\|shared-url\\\\|share-id\\\\|?share\" /Users/gabedejongh/workspace/DnD/dnd-character-manager/src --include=*.tsx --include=*.ts)",
-      "Bash(npx tsc:*)"
+      "Bash(npx tsc:*)",
+      "Bash(echo \"exit: $?\")",
+      "Bash(npx eslint *)"
     ]
   }
 }
