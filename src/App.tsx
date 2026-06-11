@@ -760,6 +760,7 @@ function App() {
           background: 'var(--bg)',
           borderBottom: '1px solid var(--border)',
           backdropFilter: 'blur(8px)',
+          paddingTop: 'calc(0.75rem + env(safe-area-inset-top, 0px))',
         }}
       >
         <button
@@ -893,7 +894,7 @@ function App() {
       )}
 
       {/* Tab content with fade transition */}
-      <main id="main-content" className="flex-1 overflow-y-auto pb-24 lg:pb-6">
+      <main id="main-content" className="flex-1 overflow-y-auto">
         <div key={activeTab} className="animate-fade-in">
           {activeTab === 'sheet' && (
             <CharacterSheet

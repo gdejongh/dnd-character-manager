@@ -264,13 +264,17 @@ export function HomeScreen({
   }
 
   return (
-    <div className="flex flex-col min-h-screen">
+    <div
+      className="flex flex-col min-h-screen"
+      style={{ paddingBottom: 'calc(5rem + env(safe-area-inset-bottom, 0px))' }}
+    >
       {/* Header */}
       <header
         className="flex items-center justify-between p-4"
         style={{
           borderBottom: '1px solid var(--border)',
           background: 'linear-gradient(180deg, var(--bg-raised) 0%, var(--bg) 100%)',
+          paddingTop: 'calc(1rem + env(safe-area-inset-top, 0px))',
         }}
       >
         <div className="flex items-center gap-3">
@@ -358,7 +362,7 @@ export function HomeScreen({
       )}
 
       {/* Character List */}
-      <div className="flex-1 p-4 md:p-6 lg:p-8">
+      <div className="p-4 md:p-6 lg:p-8">
         <div className="max-w-4xl mx-auto w-full">
         {loading ? (
           <p className="text-center py-12" style={{ color: 'var(--text)' }}>
@@ -852,10 +856,7 @@ export function HomeScreen({
 
       {/* ── Combat Session Buttons ── */}
       {!loading && joinStep === 'idle' && (
-        <div
-          className="px-4 py-3 flex gap-3"
-          style={{ borderTop: '1px solid var(--border)' }}
-        >
+        <div className="px-4 md:px-6 lg:px-8 py-1 flex gap-3 max-w-4xl mx-auto w-full">
           <button
             onClick={async () => {
               setStartingCombat(true);
@@ -1034,9 +1035,9 @@ export function HomeScreen({
       {/* New Character Form / Button */}
       {showForm ? (
         <div
-          className="p-5 animate-fade-in"
+          className="p-5 animate-fade-in max-w-2xl mx-auto w-full rounded-2xl"
           style={{
-            borderTop: '1px solid var(--border)',
+            border: '1px solid var(--accent-border)',
             background: 'linear-gradient(180deg, var(--bg-surface) 0%, var(--bg) 100%)',
           }}
         >
@@ -1165,7 +1166,7 @@ export function HomeScreen({
           </form>
         </div>
       ) : (
-        <div className="p-4" style={{ borderTop: '1px solid var(--border)' }}>
+        <div className="p-4 md:px-6 lg:px-8 max-w-4xl mx-auto w-full">
           <button
             onClick={() => setShowForm(true)}
             className="w-full py-3.5 rounded-xl font-semibold text-base cursor-pointer flex items-center justify-center gap-2"

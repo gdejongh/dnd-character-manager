@@ -146,7 +146,9 @@ export function HpTracker({ character, onUpdate, onOpenWildShapeModal, charIsDru
 
   return (
     <div className="flex flex-col items-center gap-5 p-4 md:p-6 lg:p-8 animate-fade-in">
-      <div className="max-w-2xl mx-auto w-full flex flex-col items-center gap-5">
+      <div className="max-w-2xl md:max-w-5xl mx-auto w-full grid grid-cols-1 md:grid-cols-2 gap-5 md:gap-6 md:items-start">
+      {/* Left column: core HP controls */}
+      <div className="flex flex-col items-center gap-5 w-full min-w-0">
       {/* HP + AC Header */}
       <div className="flex items-start gap-4 w-full">
         {/* HP Display */}
@@ -401,7 +403,7 @@ export function HpTracker({ character, onUpdate, onOpenWildShapeModal, charIsDru
           value={customAmount}
           onChange={(e) => setCustomAmount(e.target.value)}
           min={1}
-          className="flex-1 px-4 py-3 rounded-xl text-center text-lg outline-none"
+          className="flex-1 min-w-0 px-4 py-3 rounded-xl text-center text-lg outline-none"
           style={{
             background: 'var(--code-bg)',
             color: 'var(--text-h)',
@@ -465,7 +467,10 @@ export function HpTracker({ character, onUpdate, onOpenWildShapeModal, charIsDru
           )}
         </div>
       </div>
+      </div>
 
+      {/* Right column: conditions, hit dice, wild shape */}
+      <div className="flex flex-col gap-5 w-full min-w-0">
       {/* Conditions */}
       <div
         className="w-full p-4 rounded-xl"
@@ -682,6 +687,7 @@ export function HpTracker({ character, onUpdate, onOpenWildShapeModal, charIsDru
           )}
         </>
       )}
+      </div>
 
       </div>
     </div>

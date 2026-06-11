@@ -287,7 +287,21 @@ export function CharacterSheet({
 
       <div className="max-w-5xl mx-auto w-full flex flex-col gap-5 md:gap-6">
       {/* Character Info Header */}
-      <div className="flex gap-4 md:gap-5 items-start">
+      <div
+        className="relative flex gap-4 md:gap-6 items-start rounded-2xl p-4 md:p-6"
+        style={{
+          background: 'linear-gradient(160deg, var(--bg-raised) 0%, var(--bg-surface) 55%, rgba(201, 168, 76, 0.05) 130%)',
+          border: '1px solid var(--border)',
+          boxShadow: 'var(--shadow)',
+        }}
+      >
+        <div
+          aria-hidden
+          className="absolute top-0 left-4 right-4 h-px"
+          style={{
+            background: 'linear-gradient(90deg, transparent 0%, var(--accent-border) 30%, var(--accent) 50%, var(--accent-border) 70%, transparent 100%)',
+          }}
+        />
         {/* Character Image */}
         <div className="shrink-0 relative">
           <div
@@ -1243,10 +1257,7 @@ export function CharacterSheet({
         >
           Saving Throws
         </h3>
-        <div
-          className="rounded-xl overflow-hidden"
-          style={{ border: '1px solid var(--border)', background: 'var(--bg-surface)' }}
-        >
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-2">
           {ABILITIES.map((ability) => {
             const mod = getModifier(getScore(ability));
             const proficient = getSaveProficiency(ability);
@@ -1259,8 +1270,11 @@ export function CharacterSheet({
             return (
               <div
                 key={ability}
-                className="flex items-center gap-3 py-3 px-4"
-                style={{ borderBottom: '1px solid var(--border)' }}
+                className="flex items-center gap-3 py-3 px-4 rounded-xl"
+                style={{
+                  border: `1px solid ${proficient ? 'var(--accent-border)' : 'var(--border)'}`,
+                  background: 'var(--bg-surface)',
+                }}
               >
                 <button
                   onClick={() => onToggleSavingThrow(ability)}
