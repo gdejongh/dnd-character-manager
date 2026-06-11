@@ -2,7 +2,7 @@ import { useState, useCallback, useEffect, useRef } from 'react';
 import type { Tab } from './types/database';
 import { isSupabaseConfigured } from './lib/supabase';
 import { supabase } from './lib/supabase';
-import { getPreparedSpellLimit, isWarlock, isDruid, getClassLevel } from './constants/dnd';
+import { getPreparedSpellLimit, isWarlock, isDruid, getClassLevel, resolveClassKey } from './constants/dnd';
 import { showToast } from './lib/toast';
 import { useAuth } from './hooks/useAuth';
 import { useCharacters } from './hooks/useCharacters';
@@ -716,14 +716,17 @@ function App() {
     ]),
   ) as Record<import('./types/database').Ability, number>;
 
-  const preparedLimit = character
-    ? getPreparedSpellLimit(character.class, character.level, abilityScoreMap)
-    : null;
-
-
   const classEntries = characterClasses.length > 0
     ? characterClasses.map((c) => ({ className: c.class_name, level: c.level }))
     : character ? [{ className: character.class, level: character.level }] : [];
+
+  // Prepared-spell limit uses the casting class's own level, not total character level (5e multiclass rule)
+  const primaryCastingClass = character?.primary_casting_class || character?.class || '';
+  const primaryCastingLevel =
+    getClassLevel(classEntries, resolveClassKey(primaryCastingClass)) || character?.level || 0;
+  const preparedLimit = character
+    ? getPreparedSpellLimit(primaryCastingClass, primaryCastingLevel, abilityScoreMap)
+    : null;
 
   const charIsWarlock = character ? isWarlock(classEntries) : false;
   const charIsDruid = character ? isDruid(classEntries) : false;
@@ -930,6 +933,7 @@ function App() {
               preparedLimit={preparedLimit}
               characterClass={character.class}
               characterLevel={character.level}
+              classes={classEntries}
               concentrationSpellId={character.concentration_spell_id}
               onUpdateTotal={isReadOnly ? noOpAsync : updateTotal}
               onSetSlotUsed={isReadOnly ? noOpAsync : setSlotUsed}

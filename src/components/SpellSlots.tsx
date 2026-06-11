@@ -5,7 +5,8 @@ import { NumericInput } from './NumericInput';
 import { ActionTypePicker, ActionTypeBadge, ActionTypeFilterBar } from './ActionType';
 import type { ActionTypeFilter } from '../constants/actionTypes';
 import { Search, X, Wand2, BookOpen } from 'lucide-react';
-import { getSpellSlotProgression, isWarlock, getWarlockPactInfo } from '../constants/dnd';
+import { getSpellSlotsForClasses, getClassLevel, getWarlockPactInfo, resolveClassKey } from '../constants/dnd';
+import type { ClassEntry } from '../constants/dnd';
 import { SpellDatabaseModal } from './SpellDatabaseModal';
 
 interface SpellSlotsProps {
@@ -14,6 +15,7 @@ interface SpellSlotsProps {
   preparedLimit: number | null;
   characterClass: string;
   characterLevel: number;
+  classes: ClassEntry[];
   concentrationSpellId: string | null;
   onUpdateTotal: (level: number, total: number) => void;
   onSetSlotUsed: (level: number, used: number) => void;
@@ -38,6 +40,10 @@ const LEVEL_LABELS: Record<number, string> = {
   9: '9th Level',
 };
 
+function ordinal(n: number): string {
+  return `${n}${n === 1 ? 'st' : n === 2 ? 'nd' : n === 3 ? 'rd' : 'th'}`;
+}
+
 const inputStyle = {
   background: 'var(--code-bg)',
   color: 'var(--text-h)',
@@ -50,6 +56,7 @@ export function SpellSlots({
   preparedLimit,
   characterClass,
   characterLevel,
+  classes,
   concentrationSpellId,
   onUpdateTotal,
   onSetSlotUsed,
@@ -153,10 +160,19 @@ export function SpellSlots({
 
   const levels = [0, ...slots.map((s) => s.level)];
 
-  const warlockMode = isWarlock(characterClass);
-  const pactInfo = warlockMode ? getWarlockPactInfo(characterLevel) : null;
-  const suggestedSlots = getSpellSlotProgression(characterClass, characterLevel);
+  const classList: ClassEntry[] = classes.length > 0
+    ? classes
+    : [{ className: characterClass, level: characterLevel }];
+  const warlockLevel = getClassLevel(classList, 'warlock');
+  const pactInfo = warlockLevel > 0 ? getWarlockPactInfo(warlockLevel) : null;
+  const nonWarlockSlots = getSpellSlotsForClasses(
+    classList.filter((c) => resolveClassKey(c.className) !== 'warlock'),
+  );
+  // Pure pact caster: warlock levels and no other slot-granting class
+  const warlockMode = warlockLevel > 0 && Object.keys(nonWarlockSlots).length === 0;
+  const suggestedSlots = getSpellSlotsForClasses(classList);
   const hasSuggestedSlots = Object.keys(suggestedSlots).length > 0;
+  const isMulticlassCaster = !warlockMode && classList.length > 1 && hasSuggestedSlots;
 
   function handleAutoFill() {
     onAutoFillSlots(suggestedSlots);
@@ -179,8 +195,10 @@ export function SpellSlots({
             </span>
             <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
               {warlockMode && pactInfo
-                ? `${pactInfo.slotCount} slot${pactInfo.slotCount > 1 ? 's' : ''} at ${pactInfo.slotLevel}${pactInfo.slotLevel === 1 ? 'st' : pactInfo.slotLevel === 2 ? 'nd' : pactInfo.slotLevel === 3 ? 'rd' : 'th'} level · Short rest recovery`
-                : `${characterClass || 'Class'} level ${characterLevel}`}
+                ? `${pactInfo.slotCount} slot${pactInfo.slotCount > 1 ? 's' : ''} at ${ordinal(pactInfo.slotLevel)} level · Short rest recovery`
+                : isMulticlassCaster
+                  ? `${classList.map((c) => `${c.className} ${c.level}`).join(' / ')} · Multiclass slots${pactInfo ? ` incl. ${pactInfo.slotCount} pact slot${pactInfo.slotCount > 1 ? 's' : ''} at ${ordinal(pactInfo.slotLevel)} level` : ''}`
+                  : `${characterClass || 'Class'} level ${characterLevel}`}
             </span>
           </div>
           <button

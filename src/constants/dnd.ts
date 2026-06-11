@@ -135,6 +135,9 @@ const SPELLCASTING_ABILITY: Record<string, Ability | null> = {
  *  Paladin: ability mod + floor(level / 2) (min 1)
  *  Artificer: ability mod + ceil(level / 2) (min 1)
  */
+/** Classes that prepare spells (2014 rules); known-spell casters return null */
+const PREPARED_CASTERS = ['wizard', 'cleric', 'druid', 'paladin', 'artificer'];
+
 export function getPreparedSpellLimit(
   className: string,
   level: number,
@@ -142,7 +145,7 @@ export function getPreparedSpellLimit(
 ): number | null {
   const key = resolveClassKey(className);
   const ability = SPELLCASTING_ABILITY[key];
-  if (!ability) return null;
+  if (!ability || !PREPARED_CASTERS.includes(key)) return null;
 
   const mod = getModifier(abilityScores[ability] ?? 10);
 
@@ -283,6 +286,57 @@ export function getSpellSlotProgression(className: string, level: number): Recor
   const result: Record<number, number> = {};
   for (let i = 0; i < table.length; i++) {
     result[i + 1] = table[i];
+  }
+  return result;
+}
+
+/* ── Multiclass Spellcasting (PHB p.164) ── */
+
+/** Whether a class contributes to the shared spell slot pool (warlock pact magic is separate) */
+function isSlotCaster(key: string): boolean {
+  return FULL_CASTERS.includes(key) || HALF_CASTERS.includes(key) || key === 'artificer';
+}
+
+/**
+ * Combined caster level for multiclass spellcasting: full casters add all
+ * levels, paladin/ranger add half rounded down, artificer adds half rounded
+ * up. Warlock doesn't contribute.
+ */
+export function getMulticlassCasterLevel(classes: ClassEntry[]): number {
+  return classes.reduce((sum, c) => {
+    const key = resolveClassKey(c.className);
+    if (FULL_CASTERS.includes(key)) return sum + c.level;
+    if (HALF_CASTERS.includes(key)) return sum + Math.floor(c.level / 2);
+    if (key === 'artificer') return sum + Math.ceil(c.level / 2);
+    return sum;
+  }, 0);
+}
+
+/**
+ * Spell slot totals for a character's full class list.
+ * One slot-casting class → that class's own progression (preserves the
+ * half-caster early levels). Two or more → the shared multiclass table at the
+ * combined caster level. Warlock pact slots are added at the pact slot level,
+ * since the app tracks a single slot pool per level.
+ */
+export function getSpellSlotsForClasses(classes: ClassEntry[]): Record<number, number> {
+  const slotCasters = classes.filter((c) => isSlotCaster(resolveClassKey(c.className)));
+
+  const result: Record<number, number> = {};
+  if (slotCasters.length === 1) {
+    Object.assign(result, getSpellSlotProgression(slotCasters[0].className, slotCasters[0].level));
+  } else if (slotCasters.length > 1) {
+    const casterLevel = getMulticlassCasterLevel(slotCasters);
+    if (casterLevel > 0) {
+      const table = FULL_CASTER_SLOTS[Math.min(19, casterLevel - 1)];
+      table.forEach((count, i) => { result[i + 1] = count; });
+    }
+  }
+
+  const warlockLevel = getClassLevel(classes, 'warlock');
+  if (warlockLevel > 0) {
+    const { slotCount, slotLevel } = getWarlockPactInfo(warlockLevel);
+    result[slotLevel] = (result[slotLevel] ?? 0) + slotCount;
   }
   return result;
 }

@@ -48,8 +48,8 @@ export function useCampaigns(userId: string | undefined) {
 
   useEffect(() => {
     let active = true;
-    fetchCampaigns().then(() => {
-      if (!active) return;
+    Promise.resolve().then(() => {
+      if (active) fetchCampaigns();
     });
     return () => { active = false; };
   }, [fetchCampaigns]);

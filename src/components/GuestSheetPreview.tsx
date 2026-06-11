@@ -415,6 +415,7 @@ export function GuestSheetPreview({
             preparedLimit={preparedLimit}
             characterClass={character.class}
             characterLevel={character.level}
+            classes={[{ className: character.class, level: character.level }]}
             concentrationSpellId={extras.concentrationSpellId}
             onUpdateTotal={updateTotal}
             onSetSlotUsed={setSlotUsed}

@@ -199,16 +199,18 @@ export function HomeScreen({
   };
 
   useEffect(() => {
-    if (joinStep !== 'code') {
-      setJoinKeyboardInset(0);
-      setJoinCodeInputFocused(false);
-      return;
-    }
+    if (joinStep !== 'code') return;
 
-    setTimeout(scrollJoinCodeIntoView, 50);
+    const scrollTimer = setTimeout(scrollJoinCodeIntoView, 50);
 
     const viewport = window.visualViewport;
-    if (!viewport) return;
+    if (!viewport) {
+      return () => {
+        clearTimeout(scrollTimer);
+        setJoinKeyboardInset(0);
+        setJoinCodeInputFocused(false);
+      };
+    }
 
     const updateForKeyboard = () => {
       const rawInset = Math.max(0, window.innerHeight - viewport.height - viewport.offsetTop);
@@ -238,11 +240,13 @@ export function HomeScreen({
     updateForKeyboard();
 
     return () => {
+      clearTimeout(scrollTimer);
       viewport.removeEventListener('resize', updateForKeyboard);
       viewport.removeEventListener('scroll', updateForKeyboard);
       keyboardWasOpenRef.current = false;
       maxKeyboardInsetRef.current = 0;
       setJoinKeyboardInset(0);
+      setJoinCodeInputFocused(false);
     };
   }, [joinStep]);
 

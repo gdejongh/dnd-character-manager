@@ -9,9 +9,11 @@ npm run dev          # Start Vite dev server (localhost:5173)
 npm run build        # Type-check (tsc -b) then Vite production build
 npm run lint         # ESLint across all .ts/.tsx files
 npm run preview      # Preview production build locally
+npm test             # Run Vitest suite once (game logic in src/constants/dnd.test.ts)
+npm run test:watch   # Run Vitest in watch mode
 ```
 
-There is no test runner configured in this project.
+Tests use Vitest and currently cover the pure 5e game logic in `src/constants/dnd.ts`. Add tests there when changing game rules.
 
 ## Architecture
 

@@ -66,8 +66,8 @@ export function useCampaignView(campaignId: string | null) {
 
   useEffect(() => {
     let active = true;
-    fetchAll().then(() => {
-      if (!active) return;
+    Promise.resolve().then(() => {
+      if (active) fetchAll();
     });
     return () => { active = false; };
   }, [fetchAll]);
