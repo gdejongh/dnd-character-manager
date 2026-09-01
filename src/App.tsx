@@ -194,7 +194,11 @@ function App() {
   const [showCombatTransition, setShowCombatTransition] = useState(false);
   const [showQuickRef, setShowQuickRef] = useState(false);
   const [showDiceRoller, setShowDiceRoller] = useState(false);
-  const [showFeedbackCta, setShowFeedbackCta] = useState(true);
+  const [showFeedbackCta, setShowFeedbackCta] = useState(() => {
+    if (!user) return true;
+    const stored = localStorage.getItem(`feedback-cta-dismissed-${user.id}`);
+    return !stored;
+  });
 
   // Dice roller
   const diceRoller = useDiceRoller();
@@ -376,6 +380,24 @@ function App() {
     });
     return () => { cancelled = true; };
   }, [user, combatSessionId]);
+
+  // Persist feedback CTA dismissal to localStorage
+  useEffect(() => {
+    if (!user || showFeedbackCta) return;
+    localStorage.setItem(`feedback-cta-dismissed-${user.id}`, 'true');
+  }, [showFeedbackCta, user]);
+
+  // Clear feedback CTA dismissal when user logs out
+  useEffect(() => {
+    if (user) return;
+    // Remove any feedback CTA dismissal states from localStorage on logout
+    const keys = Object.keys(localStorage);
+    keys.forEach(key => {
+      if (key.startsWith('feedback-cta-dismissed-')) {
+        localStorage.removeItem(key);
+      }
+    });
+  }, [user]);
 
   const handleTabChange = useCallback(
     (tab: Tab) => {
