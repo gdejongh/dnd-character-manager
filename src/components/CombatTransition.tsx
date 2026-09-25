@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 interface CombatTransitionProps {
   onSwitchTab: () => void;
@@ -8,6 +8,14 @@ interface CombatTransitionProps {
 export function CombatTransition({ onSwitchTab, onComplete }: CombatTransitionProps) {
   const switchRef = useRef(onSwitchTab);
   const completeRef = useRef(onComplete);
+
+  // Synchronously check session storage to avoid a "flash" of the animation
+  const [shouldAnimate] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return !sessionStorage.getItem('hasSeenCombatAnimation');
+    }
+    return true; // Fallback for Server-Side Rendering
+  });
 
   useEffect(() => {
     switchRef.current = onSwitchTab;
@@ -41,13 +49,26 @@ export function CombatTransition({ onSwitchTab, onComplete }: CombatTransitionPr
   );
 
   useEffect(() => {
+    // If already seen, fire callbacks immediately and skip timers
+    if (!shouldAnimate) {
+      switchRef.current();
+      completeRef.current();
+      return;
+    }
+
+    // Mark as seen for the remainder of the session
+    sessionStorage.setItem('hasSeenCombatAnimation', 'true');
+
     const t1 = setTimeout(() => switchRef.current(), 1800);
     const t2 = setTimeout(() => completeRef.current(), 2500);
     return () => {
       clearTimeout(t1);
       clearTimeout(t2);
     };
-  }, []);
+  }, [shouldAnimate]);
+
+  // Do not render the HTML if we are skipping the animation
+  if (!shouldAnimate) return null;
 
   return (
     <div className="combat-trans-overlay">
